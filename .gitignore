@@ -1,6 +1,9 @@
 # Ignore everything
 *
-# But descend into directories
-!/*/.ipynb
-!/*/.py
+!.gitattributes
 !.gitignore
+!readme.md
+!.gitkeep
+!*.ipyng
+!*.py
+!*/
