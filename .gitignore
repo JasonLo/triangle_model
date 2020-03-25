@@ -1,10 +1,12 @@
-# Ignore everything
-*
-!.gitattributes
-!.gitignore
-!readme.md
-!.gitkeep
-!*.ipynb
-*checkpoints*
-!*.py
-!*/
+*.csv
+*.npz
+__pycache__
+**checkpoint**
+common/*
+!*.json
+**models/
+**input/
+O2S/embeddings
+O2S/from_noam
+
+
