@@ -1,0 +1,6 @@
+# Ignore everything
+*
+# But descend into directories
+!/*/.ipynb
+!/*/.py
+!.gitignore
