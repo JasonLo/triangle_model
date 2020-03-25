@@ -4,6 +4,7 @@
 !.gitignore
 !readme.md
 !.gitkeep
-!*.ipyng
+!*.ipynb
+*checkpoints*
 !*.py
 !*/
