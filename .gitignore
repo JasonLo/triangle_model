@@ -1,3 +1,5 @@
+*.html
+*batch_eval/
 *.csv
 *.npz
 __pycache__
