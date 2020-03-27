@@ -428,7 +428,7 @@ class vis():
                 ).mark_line(
                     point=True
                 ).encode(
-                    y=y,
+                    y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
                     x='epoch:Q',
                     color=condition,
                     opacity=alt.condition(sel, alt.value(1), alt.value(0)),
@@ -457,7 +457,7 @@ class vis():
         
         # Interactive development plot
         plot_dev = alt.Chart(self.cdf).mark_line(point=True).encode(
-            y=y,
+            y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
             x='epoch:Q',
             color=condition,
             opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
@@ -486,7 +486,7 @@ class vis():
                 ).mark_line(
                     point=True
                 ).encode(
-                    y=y,
+                    y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
                     x='unit_time:Q',
                     color=condition,
                     opacity=alt.condition(sel, alt.value(1), alt.value(0)),
@@ -518,7 +518,7 @@ class vis():
         
         # Plot
         plot_time = alt.Chart(self.cdf).mark_line(point=True).encode(
-            y=y,
+            y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
             x='unit_time:Q',
             color=condition,
             opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
