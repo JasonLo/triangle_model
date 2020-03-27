@@ -302,58 +302,57 @@ class model_cfg():
         self.grain_epoch_csv = self.path_model_folder + 'result_grain_epoch.csv'
 
 
-def bq_conn(pid='idyllic-web-267716'):
-    from google.oauth2 import service_account
-    project_id = pid
-    credentials = service_account.Credentials.from_service_account_file(
-        '../common/bq_credential.json'
-    )
+class connect_gbq():
+    # Connect to google big query database
+    def __init__(self, pid='triangle-272405'):
+        from google.oauth2 import service_account
+        self.pid = pid
+        self.credentials = service_account.Credentials.from_service_account_file(
+            '../common/triangle-e1fd21bb86a1.json'
+        )
 
+    def push_all(self, cfg, strain_i_hist, grain_i_hist):
+        import pandas_gbq
 
-def write_all_to_bq(cfg, strain_i_hist, grain_i_hist):
-    import pandas_gbq
+        print('Writing data to Bigquery')
 
-    bq_conn()
+        # Config file
+        pandas_gbq.to_gbq(
+            pd.DataFrame([cfg.cfg_dict]),
+            destination_table=cfg.bq_dataset + '.cfg',
+            project_id=self.pid,
+            if_exists='append',
+            credentials=self.credentials
+        )
 
-    print('Writing data to Bigquery')
+        # Strain eval
+        pandas_gbq.to_gbq(
+            strain_i_hist,
+            destination_table=cfg.bq_dataset + '.strain',
+            project_id=self.pid,
+            if_exists='append',
+            credentials=self.credentials
+        )
 
-    # Config file
-    pandas_gbq.to_gbq(
-        pd.DataFrame([cfg.cfg_dict]),
-        destination_table=cfg.bq_dataset + '.cfg',
-        project_id='idyllic-web-267716',
-        if_exists='append'
-    )
+        # Grain eval
+        pandas_gbq.to_gbq(
+            grain_i_hist,
+            destination_table=cfg.bq_dataset + '.grain',
+            project_id=self.pid,
+            if_exists='append',
+            credentials=self.credentials
+        )
 
-    # Strain eval
-    pandas_gbq.to_gbq(
-        strain_i_hist,
-        destination_table=cfg.bq_dataset + '.strain',
-        project_id='idyllic-web-267716',
-        if_exists='append'
-    )
+        print('Completed')
 
-    # Grain eval
-    pandas_gbq.to_gbq(
-        grain_i_hist,
-        destination_table=cfg.bq_dataset + '.grain',
-        project_id='idyllic-web-267716',
-        if_exists='append'
-    )
-
-    print('Completed')
-
-
-def read_bq_cfg(db_name):
-    import pandas_gbq
-
-    bq_conn()
-
-    sql = """
-    SELECT * FROM `idyllic-web-267716.{}.cfg`
-    """.format(db_name)
-
-    return pandas_gbq.read_gbq(sql, project_id='idyllic-web-267716')
+    def read_bq_cfg(self, db_name):
+        import pandas_gbq
+        sql = """
+        SELECT * FROM `{}.{}.cfg`
+        """.format(self.pid, db_name)
+        return pandas_gbq.read_gbq(
+            sql, project_id=self.pid, credentials=self.credentials
+        )
 
 
 def send_mail(batch_name):
