@@ -322,7 +322,8 @@ class connect_gbq():
             destination_table=cfg.bq_dataset + '.cfg',
             project_id=self.pid,
             if_exists='append',
-            credentials=self.credentials
+            credentials=self.credentials,
+            progress_bar=False
         )
 
         # Strain eval
@@ -331,7 +332,8 @@ class connect_gbq():
             destination_table=cfg.bq_dataset + '.strain',
             project_id=self.pid,
             if_exists='append',
-            credentials=self.credentials
+            credentials=self.credentials,
+            progress_bar=False
         )
 
         # Grain eval
@@ -340,7 +342,8 @@ class connect_gbq():
             destination_table=cfg.bq_dataset + '.grain',
             project_id=self.pid,
             if_exists='append',
-            credentials=self.credentials
+            credentials=self.credentials,
+            progress_bar=False
         )
 
         print('Completed')
