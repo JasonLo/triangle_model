@@ -46,8 +46,9 @@ class model_cfg():
     def __init__(
         self,
         code_name=None,
-        x_name='x_train',
-        y_name='y_train',
+        x_name='x_train.npz',
+        y_name='y_train.npz',
+        csv_name='df_train.csv',
         sample_name='hs04',
         sample_rng_seed=329,
         tf_rng_seed=123,
@@ -88,6 +89,7 @@ class model_cfg():
         self.code_name = code_name
         self.x_name = x_name
         self.y_name = y_name
+        self.csv_name = csv_name
 
         # Sampling
         self.sample_name = sample_name
@@ -159,6 +161,7 @@ class model_cfg():
         self.cfg_dict['code_name'] = self.code_name
         self.cfg_dict['x_name'] = self.x_name
         self.cfg_dict['y_name'] = self.y_name
+        self.cfg_dict['csv_name'] = self.csv_name
         self.cfg_dict['sample_name'] = self.sample_name
         self.cfg_dict['sample_rng_seed'] = self.sample_rng_seed
         self.cfg_dict['tf_rng_seed'] = self.tf_rng_seed
@@ -224,6 +227,7 @@ class model_cfg():
                 self.code_name = self.cfg_dict['code_name']
                 self.x_name = self.cfg_dict['x_name']
                 self.y_name = self.cfg_dict['y_name']
+                self.csv_name = self.cfg_dict['csv_name']
                 self.sample_name = self.cfg_dict['sample_name']
                 self.sample_rng_seed = self.cfg_dict['sample_rng_seed']
                 self.tf_rng_seed = self.cfg_dict['tf_rng_seed']

@@ -41,7 +41,11 @@ class wf_manager():
         cap = self.wf.clip(0, 10000)
         root = np.sqrt(cap)
         return self.to_p(root)
-
+    
+    def samp_fromhallf_clip(self):
+        ratio = self.wf / np.log(30000)  # Apply hs04-like sampling stregegy
+        clip = ratio.clip(0.05, 1.0)                  
+        return self.to_p(clip)
 
 # Input for training set
 def sample_generator(cfg, data):
@@ -60,30 +64,12 @@ def sample_generator(cfg, data):
 
         # Preallocate for easier indexing: (batch_size, time_step, input_dim)
         batch_s = np.zeros((cfg.batch_size, cfg.n_timesteps, cfg.pho_units))
+        
         batch_y = []
+        batch_y = data.y_train[idx]
 
-        for t in range(cfg.n_timesteps):
-
-            if cfg.use_semantic == True:
-                input_s_cell = input_s(
-                    e=epoch,
-                    t=t * cfg.tau,
-                    f=data.wf[idx],
-                    i=data.img[idx],
-                    gf=cfg.sem_param_gf,
-                    gi=cfg.sem_param_gi,
-                    kf=cfg.sem_param_kf,
-                    ki=cfg.sem_param_ki,
-                    hf=cfg.sem_param_hf,
-                    hi=cfg.sem_param_hi,
-                    tmax=cfg.max_unit_time - cfg.tau
-                )  # Because output use zero indexing... we have to -1 step
-
-                batch_s[:, t, :] = np.tile(
-                    np.expand_dims(input_s_cell, 1), [1, cfg.pho_units]
-                )
-
-            batch_y.append(data.y_train[idx])
+#         for t in range(cfg.n_timesteps):
+#             batch_y.append(data.y_train[idx])
 
         if batch % cfg.steps_per_epoch == 0:
             epoch += 1  # Counting epoch for ramping up input S
@@ -141,37 +127,22 @@ class my_data():
     def __init__(self, cfg):
 
         self.sample_name = cfg.sample_name
+        self.csv_name = cfg.csv_name
         self.x_name = cfg.x_name
         self.y_name = cfg.y_name
 
-        input_path = '../common/input/'
+        input_path = './input/'
 
-        self.df_train = pd.read_csv('df_train_4721.csv', index_col=0)
-        self.x_train = np.load(input_path + self.x_name + '.npz')['data']
-        self.y_train = np.load(input_path + self.y_name + '.npz')['data']
-
-        self.df_strain = pd.read_csv(input_path + 'df_strain.csv', index_col=0)
-        self.df_grain = pd.read_csv(input_path + 'df_grain.csv', index_col=0)
-
-        self.x_strain = np.load(input_path + 'x_strain.npz')['data']
-        self.x_strain_wf = np.array(self.df_strain['wf'])
-        self.x_strain_img = np.array(self.df_strain['img'])
-        self.y_strain = np.load(input_path + 'y_strain_tasa.npz')['data']
-
+        self.df_train = pd.read_csv(input_path + self.csv_name, index_col=0)
+        self.x_train = np.load(input_path + self.x_name)['data']
+        self.y_train = np.load(input_path + self.y_name)['data']
 
         from data_wrangling import gen_pkey
         self.phon_key = gen_pkey()
 
         print('==========Orthographic representation==========')
         print('x_train shape:', self.x_train.shape)
-        print('x_strain shape:', self.x_strain.shape)
-
-        print('\n==========Phonological representation==========')
-        print(len(self.phon_key), ' phonemes: ', self.phon_key.keys())
         print('y_train shape:', self.y_train.shape)
-        print('y_strain shape:', self.y_strain.shape)
         
-        # Select WF
-        ratio = self.df_train['lwf'] / np.log(30000)
-        clip = ratio.clip(0.05, 1.0)
-        self.sample_p =  clip / np.sum(clip)
+        # Select WF  
+        self.sample_p = wf_manager(self.df_train.lwf).samp_fromhallf_clip()
