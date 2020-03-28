@@ -1,3 +1,4 @@
+*.zip
 *.html
 *batch_eval/
 *.csv
