@@ -270,7 +270,6 @@ class model_cfg():
         import os
 
         self.path_model_folder = 'models/' + self.code_name + '/'
-        self.path_log_folder = self.path_model_folder + 'log/'
         self.path_weight_folder = self.path_model_folder + 'weights/'
         self.path_plot_folder = self.path_model_folder + 'plots/'
 
@@ -281,8 +280,6 @@ class model_cfg():
             os.mkdir(self.path_model_folder)
         if not os.path.exists(self.path_weight_folder):
             os.mkdir(self.path_weight_folder)
-        if not os.path.exists(self.path_log_folder):
-            os.mkdir(self.path_log_folder)
         if not os.path.exists(self.path_plot_folder):
             os.mkdir(self.path_plot_folder)
 
