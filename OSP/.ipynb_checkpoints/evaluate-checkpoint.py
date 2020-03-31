@@ -1,8 +1,11 @@
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import altair as alt
+alt.data_transformers.enable("default")
+alt.data_transformers.disable_max_rows()
 from IPython.display import clear_output
 from data_wrangling import test_set_input
 
@@ -52,8 +55,8 @@ class training_history():
             x='epoch',
             y='value',
             color=alt.Color('variable', legend=None),
-            tooltip=['epoch',
-                     'variable']).interactive().properties(title=plot_title)
+            tooltip=['epoch', 'variable']
+        ).interactive().properties(title=plot_title)
 
         return plot
 
@@ -109,37 +112,38 @@ def get_mean_sse(output, target):
 
 def plot_development(df, ys, cond='condition', plot_time_step=None):
     # Choose last time step as default plot
-    if plot_time_step is None: plot_time_step = df['timestep'].max()
+    if plot_time_step is None:
+        plot_time_step = df['timestep'].max()
 
     title_suffix = ' (at timestep {})'.format(plot_time_step + 1)
 
-    base = alt.Chart(
-        df[lambda df: df['timestep'] == plot_time_step]).mark_line(
-            point=True).encode(x='sample_mil', color=cond)
+    base = alt.Chart(df[lambda df: df['timestep'] == plot_time_step]
+                    ).mark_line(point=True).encode(x='sample_mil', color=cond)
 
     dev_plot = alt.hconcat()
 
     for m in ys:
-        dev_plot |= base.encode(y=m,
-                                tooltip=['epoch', 'timestep', 'sample_mil',
-                                         m]).properties(title=m + title_suffix)
+        dev_plot |= base.encode(
+            y=m, tooltip=['epoch', 'timestep', 'sample_mil', m]
+        ).properties(title=m + title_suffix)
     return dev_plot
 
 
 def plot_time_course(df, ys, cond='condition', plot_epoch=None):
     # Choose last epoch as default plot
-    if plot_epoch is None: plot_epoch = df['epoch'].max()
+    if plot_epoch is None:
+        plot_epoch = df['epoch'].max()
 
     title_suffix = ' (at epoch {})'.format(plot_epoch)
 
-    base = alt.Chart(df[lambda df: df['epoch'] == plot_epoch]).mark_line(
-        point=True).encode(x='unit_time', color=cond)
+    base = alt.Chart(df[lambda df: df['epoch'] == plot_epoch]
+                    ).mark_line(point=True).encode(x='unit_time', color=cond)
 
     time_plot = alt.hconcat()
     for m in ys:
         time_plot |= base.encode(
-            y=m, tooltip=['epoch', 'timestep', 'sample_mil',
-                          m]).properties(title=m + title_suffix)
+            y=m, tooltip=['epoch', 'timestep', 'sample_mil', m]
+        ).properties(title=m + title_suffix)
 
     return time_plot
 
@@ -157,18 +161,19 @@ def plot_variables(model, save_file=None):
 
         plt.subplot(3, 3, i + 1)
         plt.title(model.trainable_variables[i].name)
-        plt.imshow(plot_data,
-                   cmap='jet',
-                   interpolation='nearest',
-                   aspect="auto")
+        plt.imshow(
+            plot_data, cmap='jet', interpolation='nearest', aspect="auto"
+        )
         plt.colorbar()
 
-    if save_file is not None: plt.savefig(save_file)
+    if save_file is not None:
+        plt.savefig(save_file)
 
 
 class testset():
-    def __init__(self, cfg, data, model, x_test, x_test_wf, x_test_img, y_test,
-                 key_df):
+    def __init__(
+        self, cfg, data, model, x_test, x_test_wf, x_test_img, y_test, key_df
+    ):
         self.model = model
         self.cfg = cfg
         self.phon_key = data.phon_key
@@ -180,8 +185,9 @@ class testset():
         self.x_test_img = x_test_img
 
         self.y_true_matrix = y_test  # Matrix form y_true
-        self.y_true = get_all_pronunciations_fast(self.y_true_matrix,
-                                                  self.phon_key)
+        self.y_true = get_all_pronunciations_fast(
+            self.y_true_matrix, self.phon_key
+        )
 
         self.i_hist = pd.DataFrame()  # item history
 
@@ -194,8 +200,10 @@ class testset():
         item_eval['epoch'] = epoch
         item_eval['timestep'] = timestep
 
-        y_pred = get_all_pronunciations_fast(y_pred_matrix[timestep],
-                                             self.phon_key)
+        y_pred = get_all_pronunciations_fast(
+            y_pred_matrix[timestep], self.phon_key
+        )
+        
         item_eval['output'] = y_pred
         item_eval['acc'] = get_accuracy(y_pred, self.y_true)
         item_eval['sse'] = get_sse(y_pred_matrix[timestep], self.y_true_matrix)
@@ -210,25 +218,31 @@ class testset():
             clear_output(wait=True)
             progress = model_idx + 1
             totalworks = len(self.cfg.path_weights_list)
-            print("Evaluating test set: {}%".format(
-                np.round(100 * progress / totalworks, 0)))
+            print(
+                "Evaluating test set: {}%".format(
+                    np.round(100 * progress / totalworks, 0)
+                )
+            )
 
             epoch = self.cfg.saved_epoch_list[model_idx]
             self.model.load_weights(model_h5_name)
 
-            test_input = test_set_input(self.x_test, self.x_test_wf,
-                                        self.x_test_img, self.y_true_matrix,
-                                        epoch, self.cfg, test_use_semantic)
+            test_input = test_set_input(
+                self.x_test, self.x_test_wf, self.x_test_img,
+                self.y_true_matrix, epoch, self.cfg, test_use_semantic
+            )
 
             y_pred_matrix = self.model.predict(test_input)
 
             for timestep in range(self.cfg.n_timesteps):
 
                 # Extract output from test set
-                y_pred = get_all_pronunciations_fast(y_pred_matrix[timestep],
-                                                     self.phon_key)
-                item_eval = self.eval_one(epoch, model_h5_name, timestep,
-                                          y_pred_matrix)
+                y_pred = get_all_pronunciations_fast(
+                    y_pred_matrix[timestep], self.phon_key
+                )
+                item_eval = self.eval_one(
+                    epoch, model_h5_name, timestep, y_pred_matrix
+                )
 
                 if self.cfg.use_semantic:
                     item_eval['input_s'] = test_input[
@@ -238,9 +252,9 @@ class testset():
                     item_eval['input_s'] = 0
 
                 # Stack epoch results to global dataframe
-                self.i_hist = pd.concat([self.i_hist, item_eval],
-                                        ignore_index=True,
-                                        axis=0)
+                self.i_hist = pd.concat(
+                    [self.i_hist, item_eval], ignore_index=True, axis=0
+                )
 
         clear_output()
         self.parse_eval()
@@ -265,30 +279,12 @@ class testset():
         self.i_hist = pd.read_csv(file)
         print('Done')
 
-    def parse_cond_df(self, cond):
-
-        self.cdf = self.i_hist[[
-            'code_name', 'epoch', 'sample_mil', 'timestep', 'unit_time', cond,
-            'input_s', 'acc', 'sse'
-        ]]
-        self.cdf = self.cdf.groupby(['code_name', 'epoch', 'timestep', cond],
-                                    as_index=False).mean()
-
-    def plot_ys(self, ys, cond='condition', save_file=None):
-        import pandas as pd
-        self.parse_cond_df(cond)
-        plots = plot_development(self.cdf, ys, cond) & plot_time_course(
-            self.cdf, ys, cond)
-        if save_file is not None:
-            plots.save(save_file)
-
-        return plots
-
-
 class strain_eval(testset):
     def __init__(self, cfg, data, model):
-        super().__init__(cfg, data, model, data.x_strain, data.x_strain_wf,
-                         data.x_strain_img, data.y_strain, data.df_strain)
+        super().__init__(
+            cfg, data, model, data.x_strain, data.x_strain_wf,
+            data.x_strain_img, data.y_strain, data.df_strain
+        )
 
     def parse_eval(self):
         super().parse_eval()
@@ -297,9 +293,9 @@ class strain_eval(testset):
         self.i_hist['cond_img'] = self.i_hist['imageability']
         self.i_hist['condition_pf'] = self.i_hist[
             'pho_consistency'] + '_' + self.i_hist['frequency']
-        self.i_hist['condition_pfi'] = self.i_hist[
-            'pho_consistency'] + '_' + self.i_hist[
-                'frequency'] + '_' + self.i_hist['imageability']
+        self.i_hist['condition_pfi'
+                   ] = self.i_hist['pho_consistency'] + '_' + self.i_hist[
+                       'frequency'] + '_' + self.i_hist['imageability']
 
 
 class grain_eval():
@@ -312,28 +308,35 @@ class grain_eval():
         self.x_test_wf = data.x_grain_wf
         self.x_test_img = data.x_grain_img
 
-        self.grain_small = testset(cfg, data, model, self.x_test,
-                                   self.x_test_wf, self.x_test_img,
-                                   data.y_small_grain, self.key_df)
-        self.grain_large = testset(cfg, data, model, self.x_test,
-                                   self.x_test_wf, self.x_test_img,
-                                   data.y_large_grain, self.key_df)
+        self.grain_small = testset(
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img,
+            data.y_small_grain, self.key_df
+        )
+        self.grain_large = testset(
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img,
+            data.y_large_grain, self.key_df
+        )
 
     def start_evaluate(self, test_use_semantic, output=None):
 
         self.grain_small.start_evaluate(test_use_semantic=False)
         self.grain_large.start_evaluate(test_use_semantic=False)
 
-        self.i_hist = self.grain_large.i_hist.rename(columns={
-            'acc': 'acc_large_grain',
-            'sse': 'sse_large_grain'
-        })
+        self.i_hist = self.grain_large.i_hist.rename(
+            columns={
+                'acc': 'acc_large_grain',
+                'sse': 'sse_large_grain'
+            }
+        )
         self.i_hist = pd.concat(
-            [self.i_hist, self.grain_small.i_hist[['acc', 'sse']]], axis=1)
-        self.i_hist = self.i_hist.rename(columns={
-            'acc': 'acc_small_grain',
-            'sse': 'sse_small_grain'
-        })
+            [self.i_hist, self.grain_small.i_hist[['acc', 'sse']]], axis=1
+        )
+        self.i_hist = self.i_hist.rename(
+            columns={
+                'acc': 'acc_small_grain',
+                'sse': 'sse_small_grain'
+            }
+        )
 
         self.i_hist['acc_acceptable'] = self.i_hist[
             'acc_large_grain'] + self.i_hist['acc_small_grain']
@@ -347,22 +350,201 @@ class grain_eval():
             self.i_hist.to_csv(output, index=False)
             print('Saved file to {}'.format(output))
 
-    def read_eval_from_file(self, file):
-        testset.read_eval_from_file(self, file)
 
-    def parse_cond_df(self, cond='condition'):
+class vis():
+    # Visualize single model
+    # Which will parse item level data to condition level data
+    # Then plot with Altair
+    def __init__(self, model_folder, s_item_csv, g_item_csv):
+        from evaluate import training_history, strain_eval, grain_eval, plot_development
+        from data_wrangling import my_data
+        import altair as alt
+        
+        self.model_folder = model_folder
+        self.load_config()
+                    
+        self.read_eval_from_file(s_item_csv, g_item_csv)
+        self.max_epoch = self.strain_i_hist['epoch'].max()
 
-        self.cdf = self.i_hist[[
-            'code_name', 'epoch', 'sample_mil', 'timestep', 'unit_time', cond,
-            'input_s', 'acc_acceptable', 'sse_acceptable'
-        ]]
-        self.cdf = self.cdf.rename(columns={
-            'acc_acceptable': 'acc',
-            'sse_acceptable': 'sse'
-        })
-        self.cdf = self.cdf.groupby(['code_name', 'epoch', 'timestep', cond],
-                                    as_index=False).mean()
+    def load_config(self):
+        from meta import model_cfg
+        self.cfg = model_cfg(None)
+        self.cfg.load_cfg_json(self.model_folder + '/model_config.json')
+        
+    def training_hist(self):
+        self.t_hist = training_history(self.cfg.path_history_pickle)
+        return self.t_hist.plot_all()
+        
+    def read_eval_from_file(self, s_item_csv, g_item_csv):
+        self.strain_i_hist = pd.read_csv(self.model_folder + '/' + s_item_csv)
+        self.grain_i_hist = pd.read_csv(self.model_folder + '/' + g_item_csv)
+    
+    # Condition level parsing
+    def parse_strain_cond_df(self, cond):
+        self.scdf = self.strain_i_hist[['code_name', 'epoch', 'sample_mil', 'timestep',
+                                        'unit_time', cond, 'input_s', 'acc', 'sse']]
+        self.scdf = self.scdf.groupby(['code_name', 'epoch', 'timestep', cond],
+                                      as_index=False).mean() 
+        self.scdf['cond'] = self.scdf[cond]
+        self.scdf['exp'] = 'strain'
+        
+    def parse_grain_cond_df(self, cond):
+        self.gcdf = self.grain_i_hist[['code_name', 'epoch', 'sample_mil', 'timestep',
+                                       'unit_time', cond, 'input_s',
+                                       'acc_acceptable', 'sse_acceptable',
+                                       'acc_small_grain', 'sse_small_grain',
+                                       'acc_large_grain', 'sse_large_grain']]
+        self.gcdf = self.gcdf.rename(columns={'acc_acceptable':'acc', 'sse_acceptable':'sse'})
+        self.gcdf = self.gcdf.groupby(['code_name', 'epoch', 'timestep', cond],
+                                      as_index=False).mean()
+        self.gcdf['cond'] = self.gcdf[cond]
+        self.gcdf['exp'] = 'grain'
+        
+    def parse_cond_df(self, cond_strain='condition_pf', cond_grain='condition', output=None):
+        self.parse_strain_cond_df(cond_strain)
+        self.parse_grain_cond_df(cond_grain)
+        self.cdf = pd.concat([self.scdf, self.gcdf], sort=False)
 
-    def plot_ys(self, ys, cond='condition', save_file=None):
-        self.parse_cond_df(cond)
-        return testset.plot_ys(self, ys, cond, save_file=save_file)
+        if output is not None:
+            self.cdf.to_csv(output, index=False)
+            print('Saved file to {}'.format(output))
+        
+    # Visualization
+    def plot_dev(self, y, exp=None, condition='cond', timestep=None):
+        
+        if timestep == None: timestep=self.cfg.n_timesteps
+        timestep -= 1 # Reindex
+
+        # Select data
+        if exp is not None: 
+            plot_df = self.cdf.loc[(self.cdf.exp==exp) & (self.cdf.timestep==timestep),]
+        else:
+            plot_df = self.cdf.loc[self.cdf.timestep==timestep,]
+
+        # Plotting
+        title = '{} at timestep {} / unit time {}'.format(y, timestep + 1, self.cfg.max_unit_time)
+        sel = alt.selection(type='single', on='click', fields=[condition], empty='all')
+        plot = alt.Chart(
+                    plot_df
+                ).mark_line(
+                    point=True
+                ).encode(
+                    y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
+                    x='epoch:Q',
+                    color=condition,
+                    opacity=alt.condition(sel, alt.value(1), alt.value(0)),
+                    tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+                ).add_selection(sel
+                ).interactive(
+                ).properties(title=title)
+
+        return plot
+    
+    def plot_dev_interactive(self, y, exp=None, condition='cond'):
+        
+        # Condition highlighter from legend
+        select_cond = alt.selection(
+            type='multi', on='click', fields=[condition], empty='all', bind="legend"
+        )
+        
+        # Slider timestep filter
+        slider_time = alt.binding_range(min=0, max=self.cfg.n_timesteps - 1, step=1)
+        select_time = alt.selection_single(
+            name="filter",
+            fields=['timestep'],
+            bind=slider_time,
+            init={'timestep': self.cfg.n_timesteps - 1}
+        )
+        
+        # Interactive development plot
+        plot_dev = alt.Chart(self.cdf).mark_line(point=True).encode(
+            y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
+            x='epoch:Q',
+            color=condition,
+            opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
+            tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+        ).add_selection(select_time, select_cond).transform_filter(select_time).properties(
+            title='Development plot'
+        )
+
+        return plot_dev
+
+    def plot_time(self, y, exp=None, condition='cond', epoch=None):  
+        if epoch == None: epoch = self.max_epoch
+
+        # Select data
+        if exp is not None: 
+            plot_df = self.cdf.loc[(self.cdf.exp==exp) & (self.cdf.epoch == epoch),]
+        else:
+            plot_df = self.cdf.loc[self.cdf.epoch == epoch,]
+
+        # Plotting
+        title = '{} at epoch {} '.format(y, epoch)
+        sel = alt.selection(type='single', on='click', fields=[condition], empty='all')
+        
+        plot = alt.Chart(
+                    plot_df
+                ).mark_line(
+                    point=True
+                ).encode(
+                    y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
+                    x='unit_time:Q',
+                    color=condition,
+                    opacity=alt.condition(sel, alt.value(1), alt.value(0)),
+                    tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+                ).add_selection(sel
+                ).interactive(
+                ).properties(title=title)
+
+        return plot
+    
+    def plot_time_interactive(self, y, exp=None, condition='cond'):
+        
+        # Condition highlighter from legend
+        select_cond = alt.selection(
+            type='multi', on='click', fields=[condition], empty='all', bind="legend"
+        )
+            
+        # Slider epoch filter
+        slider_epoch = alt.binding_range(
+            min=self.cfg.save_freq, max=self.cfg.nEpo, step=self.cfg.save_freq
+        )
+        
+        select_epoch = alt.selection_single(
+            name="filter",
+            fields=['epoch'],
+            bind=slider_epoch,
+            init={'epoch': self.cfg.nEpo}
+        )
+        
+        # Plot
+        plot_time = alt.Chart(self.cdf).mark_line(point=True).encode(
+            y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
+            x='unit_time:Q',
+            color=condition,
+            opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
+            tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+        ).add_selection(select_epoch, select_cond).transform_filter(select_epoch).properties(
+            title='Interactive time plot',
+        )
+        
+        return plot_time
+    
+    def plots(self, mode, ys, cond_strain='condition_pf', cond_grain='condition'):
+        # Mode = dev(d) / time(t)
+        self.parse_cond_df(cond_strain, cond_grain)
+        
+        plots = alt.hconcat()
+        for y in ys:
+            if mode == 'd':
+                plots |= self.plot_dev(y)
+            elif mode == 't':
+                plots |= self.plot_time(y, self.max_epoch)
+            else:
+                print('Use d for development plot, use t for time plot')
+            
+        return plots
+        
+    def export_result(self):
+        self.parse_cond_df()
+        return self.cdf.reset_index(drop=True)
