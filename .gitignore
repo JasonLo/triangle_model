@@ -1,10 +1,10 @@
+.ipynb_checkpoints
 *.zip
 *.html
 *batch_eval/
 *.csv
 *.npz
 __pycache__
-**checkpoint**
 common/*
 !*.json
 **models/
@@ -12,5 +12,4 @@ common/*
 O2S/embeddings
 O2S/from_noam
 OSP/.ipynb_checkpoints/*
-**.ipynb_checkpoints/
 
