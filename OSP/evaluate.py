@@ -16,7 +16,6 @@ def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
     m_dict = mapping.set_index(0).T.to_dict('list')
     return m_dict
 
-
 class training_history():
     def __init__(self, pickle_file):
         import pickle
