@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -351,6 +350,38 @@ class grain_eval():
             print('Saved file to {}'.format(output))
 
 
+            
+def make_df_wnw(df, selected_cond):
+    """
+    This function make a word vs. nonword data file for plotting
+    1) filter to last time step
+    2) filter by selected_cond
+    3) pivot by experiment (exp) and clean
+
+    Inputs: 
+        df: compiled batch results data file (cond is the filter column)
+        selected_cond: select the condition in word and nonword condition 
+
+    Output:
+        plt_df: datafile for plotting with these columns:
+            code_name, epoch, nonword_acc, word_acc
+    """
+
+    df_sel = df.loc[(df.timestep == df.timestep.max()) &
+                    (df.cond.isin(selected_cond)),
+                    ['code_name', 'epoch', 'acc', 'exp']]
+
+    pvt = df_sel.pivot_table(index=['code_name', 'epoch'],
+                             columns='exp').reset_index()
+
+    plt_df = pd.DataFrame()
+    plt_df['code_name'] = pvt.code_name
+    plt_df['epoch'] = pvt.epoch
+    plt_df['nonword_acc'] = pvt.acc.grain
+    plt_df['word_acc'] = pvt.acc.strain
+
+    return plt_df
+            
 class vis():
     # Visualize single model
     # Which will parse item level data to condition level data
