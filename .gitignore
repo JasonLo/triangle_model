@@ -11,5 +11,6 @@ common/*
 **input/
 O2S/embeddings
 O2S/from_noam
-.ipynb_checkpoints/*
+OSP/.ipynb_checkpoints/*
+**.ipynb_checkpoints/
 
