@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
+
+
 import altair as alt
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
@@ -29,13 +31,13 @@ class training_history():
         self.history['epoch'] = self.history.index
 
     def plot_loss(self):
-        return self.plot(col_contains='_loss', plot_title='Loss')
+        return self.plot(col_contains='loss', plot_title='Loss')
 
     def plot_acc(self):
-        return self.plot(col_contains='_accuracy', plot_title='Accuracy')
+        return self.plot(col_contains='accuracy', plot_title='Accuracy')
 
     def plot_mse(self):
-        return self.plot(col_contains='_mse', plot_title='MSE')
+        return self.plot(col_contains='mse', plot_title='MSE')
 
     def plot_all(self, save_file=None):
         # plot all 3 training history plots
