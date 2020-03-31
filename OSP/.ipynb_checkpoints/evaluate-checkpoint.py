@@ -560,6 +560,32 @@ class vis():
         
         return plot_time
     
+    def plot_wnw(self, selected_cond):
+    
+        wnw_df = make_df_wnw(self.cdf, selected_cond=['INC_HF', 'ambiguous', 'unambiguous'])
+
+        wnw_plot = (
+            alt.Chart(wnw_df).mark_line(point=True).encode(
+                y=alt.Y("nonword_acc:Q", scale=alt.Scale(domain=(0, 1))),
+                x=alt.X("word_acc:Q", scale=alt.Scale(domain=(0, 1))),
+                color=alt.Color("epoch", scale=alt.Scale(scheme="redyellowgreen")),
+                tooltip=["code_name", "word_acc", "nonword_acc"],
+            ).properties(
+                title="Word vs. Nonword accuracy at final time step"
+            )
+        )
+        
+        # Plot diagonal
+        diagline = alt.Chart(pd.DataFrame({
+            'x': [0, 1],
+            'y': [0, 1]
+        })).mark_line().encode(x=alt.X('x', axis=alt.Axis(labels=False)), 
+                               y=alt.Y('y', axis=alt.Axis(labels=False)))
+
+        wnw_with_diag = diagline + wnw_plot
+        
+        return wnw_with_diag
+    
     def plots(self, mode, ys, cond_strain='condition_pf', cond_grain='condition'):
         # Mode = dev(d) / time(t)
         self.parse_cond_df(cond_strain, cond_grain)
