@@ -309,7 +309,7 @@ class connect_gbq():
     def push_all(self, cfg, strain_i_hist, grain_i_hist, verbose=False):
         import pandas_gbq
 
-        print('Writing data to Bigquery') if verbose
+        if verbose: print('Writing data to Bigquery')
 
         # Config file
         pandas_gbq.to_gbq(
@@ -341,7 +341,7 @@ class connect_gbq():
             progress_bar=False
         )
 
-        print('Completed') if verbose
+        if verbose: print('Completed') 
 
     def read_bq_cfg(self, db_name):
         import pandas_gbq

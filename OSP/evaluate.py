@@ -362,6 +362,7 @@ class vis():
         
         self.model_folder = model_folder
         self.load_config()
+                    
         self.read_eval_from_file(s_item_csv, g_item_csv)
         self.max_epoch = self.strain_i_hist['epoch'].max()
 
