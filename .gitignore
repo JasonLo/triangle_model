@@ -6,9 +6,9 @@
 *.npz
 __pycache__
 common/*
-!*.json
 **models/
 **input/
+.vscode/
 O2S/embeddings
 O2S/from_noam
 OSP/.ipynb_checkpoints/*
