@@ -82,7 +82,6 @@ class model_cfg():
         # Unique run id for easier tracking
         import uuid
         self.uuid = uuid.uuid4().hex
-
         self.code_name = code_name
 
         # Sampling
@@ -149,7 +148,6 @@ class model_cfg():
             self.write_cfg()
 
     def gen_cfg_dict(self):
-
         self.cfg_dict = OrderedDict()
         self.cfg_dict['uuid'] = self.uuid
         self.cfg_dict['code_name'] = self.code_name
@@ -308,10 +306,10 @@ class connect_gbq():
             '../common/triangle-e1fd21bb86a1.json'
         )
 
-    def push_all(self, cfg, strain_i_hist, grain_i_hist):
+    def push_all(self, cfg, strain_i_hist, grain_i_hist, verbose=False):
         import pandas_gbq
 
-        print('Writing data to Bigquery')
+        print('Writing data to Bigquery') if verbose
 
         # Config file
         pandas_gbq.to_gbq(
@@ -343,7 +341,7 @@ class connect_gbq():
             progress_bar=False
         )
 
-        print('Completed')
+        print('Completed') if verbose
 
     def read_bq_cfg(self, db_name):
         import pandas_gbq
@@ -355,7 +353,7 @@ class connect_gbq():
         )
 
 
-def send_mail(batch_name):
+def send_mail(batch_name, email='lcmjlo@gmail.com'):
     import smtplib
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.ehlo()
@@ -367,6 +365,6 @@ def send_mail(batch_name):
     body = 'Job done'
     msg = 'Subject: {}\n\n{}'.format(subject, body)
 
-    server.sendmail('gcpdazzo@gmail.com', 'lcmjlo@gmail.com', msg)
+    server.sendmail('gcpdazzo@gmail.com', email, msg)
     print('Email sent')
     server.quit()
