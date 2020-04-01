@@ -1,16 +1,12 @@
-
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
-
-
 import altair as alt
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
 from IPython.display import clear_output
 from data_wrangling import test_set_input
-
 
 def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
     # read phonological patterns from the mapping file
@@ -549,3 +545,84 @@ class vis():
     def export_result(self):
         self.parse_cond_df()
         return self.cdf.reset_index(drop=True)
+    
+
+
+
+
+
+class eval_O2S():
+    def __init__(self, model, data):
+        self.model = model
+        self.data = data
+
+        self.y_pred = model.predict(data.x_train)
+
+        self.df = data.df_train.loc[:, [
+            'word', 'lwf', 'mean.cosine', 'mean.cosine.p2s', 'uncond.surprisal',
+            'neigh.size.plus.1', 'p.neigh.size.plus.1', 'Length',
+            'mean.acc.naming', 'mean.rt.naming', 'mean.acc.ld', 'mean.rt.ld'
+        ]]
+
+        self.df['model_mse'] = tf.metrics.mse(self.y_pred,
+                                              self.data.y_train).numpy()
+
+        self.cor_df = self.df.corr().stack().reset_index().rename(
+            columns={
+                0: 'correlation',
+                'level_0': 'v1',
+                'level_1': 'v2'
+            }
+        )
+
+    def corr(self, x, y):
+        from scipy.stats import pearsonr
+        return pearsonr(x, y)[0]
+
+    def plot_scatter(self, var_x, var_y, save_file=None):
+
+        area_args = {'opacity': .8, 'interpolate': 'step'}
+
+        base = alt.Chart(self.df)
+
+        r = np.round(self.corr(self.df[var_x], self.df[var_y]), 2)
+
+        points = base.mark_circle(
+            opacity=.3
+        ).encode(x=var_x, y=var_y, tooltip=[
+            'word', var_x, var_y
+        ]).properties(title='Correlation = {}'.format(r))
+
+        top_hist = base.mark_area(**area_args).encode(
+            alt.X(var_x, bin=alt.Bin(maxbins=20), stack=None, title=''),
+            alt.Y('count()', stack=None, title=''),
+        ).properties(height=60)
+
+        right_hist = base.mark_area(**area_args).encode(
+            alt.Y(
+                var_y,
+                bin=alt.Bin(maxbins=20),
+                stack=None,
+                title='',
+            ),
+            alt.X('count()', stack=None, title=''),
+        ).properties(width=60)
+
+        scat_plot = top_hist & (points | right_hist)
+        if save_file is not None:
+            scat_plot.save(save_file)
+        return scat_plot
+
+    def plot_heatmap(self, save_file=None):
+        corr_plot = alt.Chart(self.cor_df).mark_rect().encode(
+            x=alt.X('v1:O', title=''),
+            y=alt.Y('v2:O', title=''),
+            color=alt.Color(
+                "correlation:Q",
+                scale=alt.Scale(scheme="redyellowgreen", domain=(-1, 1))
+            ),
+            tooltip=["correlation"]
+        ).properties(title="Correlations")
+        if save_file is not None:
+            corr_plot.save(save_file)
+        return corr_plot
