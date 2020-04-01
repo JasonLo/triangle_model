@@ -2,7 +2,6 @@ from collections import OrderedDict
 import altair as alt
 import pandas as pd
 
-
 def check_gpu():
     if tf.config.experimental.list_physical_devices("GPU"):
         print("GPU is available \n")
@@ -56,9 +55,9 @@ class model_cfg():
         sem_param_ki=100,
         sem_param_hf=5,
         sem_param_hi=5,
-        o_input_dim=119,
+        input_dim=119,
         hidden_units=150,
-        pho_units=250,
+        output_dim=250,
         cleanup_units=50,
         embed_attractor_cfg=None,
         embed_attractor_h5=None,
@@ -101,9 +100,9 @@ class model_cfg():
         self.sem_param_hi = sem_param_hi
 
         # Architechture
-        self.o_input_dim = o_input_dim
+        self.input_dim = input_dim
         self.hidden_units = hidden_units
-        self.pho_units = pho_units
+        self.output_dim = output_dim
         self.cleanup_units = cleanup_units
 
         self.embed_attractor_cfg = embed_attractor_cfg
@@ -161,9 +160,9 @@ class model_cfg():
         self.cfg_dict['sem_param_ki'] = self.sem_param_ki
         self.cfg_dict['sem_param_hf'] = self.sem_param_hf
         self.cfg_dict['sem_param_hi'] = self.sem_param_hi
-        self.cfg_dict['o_input_dim'] = self.o_input_dim
+        self.cfg_dict['input_dim'] = self.input_dim
         self.cfg_dict['hidden_units'] = self.hidden_units
-        self.cfg_dict['pho_units'] = self.pho_units
+        self.cfg_dict['output_dim'] = self.output_dim
         self.cfg_dict['cleanup_units'] = self.cleanup_units
         self.cfg_dict['embed_attractor_cfg'] = self.embed_attractor_cfg
         self.cfg_dict['embed_attractor_h5'] = self.embed_attractor_h5
@@ -224,9 +223,9 @@ class model_cfg():
                 self.sem_param_ki = self.cfg_dict['sem_param_ki']
                 self.sem_param_hf = self.cfg_dict['sem_param_hf']
                 self.sem_param_hi = self.cfg_dict['sem_param_hi']
-                self.o_input_dim = self.cfg_dict['o_input_dim']
+                self.input_dim = self.cfg_dict['input_dim']
                 self.hidden_units = self.cfg_dict['hidden_units']
-                self.pho_units = self.cfg_dict['pho_units']
+                self.output_dim = self.cfg_dict['output_dim']
                 self.cleanup_units = self.cfg_dict['cleanup_units']
                 self.embed_attractor_cfg = self.cfg_dict['embed_attractor_cfg']
                 self.embed_attractor_h5 = self.cfg_dict['embed_attractor_h5']
