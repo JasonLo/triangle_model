@@ -547,10 +547,6 @@ class vis():
         return self.cdf.reset_index(drop=True)
     
 
-
-
-
-
 class eval_O2S():
     def __init__(self, model, data):
         self.model = model
@@ -574,7 +570,7 @@ class eval_O2S():
                 'level_1': 'v2'
             }
         )
-
+        
     def corr(self, x, y):
         from scipy.stats import pearsonr
         return pearsonr(x, y)[0]
