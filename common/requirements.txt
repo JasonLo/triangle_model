@@ -1,0 +1,8 @@
+# Minimal install script for new VM
+altair 
+pandas-gbq 
+nb_black 
+tables 
+bert-for-tf2 
+sentencepiece 
+nbstripout
