@@ -398,8 +398,7 @@ class vis():
 
     def load_config(self):
         from meta import model_cfg
-        self.cfg = model_cfg(None)
-        self.cfg.load_cfg_json(self.model_folder + '/model_config.json')
+        self.cfg = model_cfg(self.model_folder + '/model_config.json', bypass_chk=True)
         
     def training_hist(self):
         self.t_hist = training_history(self.cfg.path_history_pickle)

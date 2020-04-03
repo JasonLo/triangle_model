@@ -65,19 +65,61 @@ class model_cfg:
                     'batch_size',
                     'learning_rate',
                     'save_freq']
+    
+    aux_cfgs = ['sem_param_gf',
+                'sem_param_gi',
+                'sem_param_kf',
+                'sem_param_ki',
+                'sem_param_hf',
+                'sem_param_hi',
+                'embed_attractor_cfg',
+                'embed_attractor_h5',
+                'bq_dataset', 
+                'path_weights_list', 
+                'steps_per_epoch', 
+                'eval_freq', 
+                'w_pp_noise', 
+                'w_hp_noise', 
+                'uuid', 
+                'path_weights_checkpoint', 
+                'w_pc_noise_backup', 
+                'w_oh_noise_backup', 
+                'w_cp_noise', 
+                'path_plot_folder', 
+                'nEpo', 
+                'path_weight_folder', 
+                'path_history_pickle', 
+                'n_timesteps', 
+                'w_oh_noise', 
+                'saved_epoch_list', 
+                'w_pp_noise_backup',
+                'w_hp_noise_backup',
+                'path_model_folder',
+                'w_cp_noise_backup', 
+                'save_freq_sample', 
+                'w_pc_noise']
+    
+    all_cfgs_name = minimal_cfgs + aux_cfgs
 
-    def __init__(self, json_file=None, **kwargs):
+    def __init__(self, json_file=None, bypass_chk=False, **kwargs):
         # Validate json file
         if type(json_file) == str and json_file.endswith('.json'):
             with open(json_file) as f:
                 kwargs = json.load(f)
 
         # Set attributes
+        invalid_keys = []
         for key, value in kwargs.items():
-            setattr(self, key, value)   
-
+            if key in self.all_cfgs_name:
+                setattr(self, key, value)
+            else:
+                invalid_keys.append(key)            
+        
+        if len(invalid_keys) > 0:
+            print('These keys in cfg file is not valid: {}'.format(invalid_keys))
+            
         # Check config structure is correct
-        self.chk_cfg()
+        if not bypass_chk: self.chk_cfg()
 
         # Additional initialization for dictionary constructor 
         if json_file == None:
@@ -116,7 +158,8 @@ class model_cfg:
         return str(vars(self))
 
     def chk_cfg(self):
-        all([x in cfg_dict.keys() for x in self.minimal_cfgs])
+        # Check all ingested_keys fufill minimal cfg requirement
+        assert all([x in vars(self) for x in self.minimal_cfgs])
 
         if self.use_semantic == True:
             assert type(self.sem_param_gf) == float

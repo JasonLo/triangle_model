@@ -59,7 +59,7 @@ def sample_generator(cfg, data):
         )
 
         # Preallocate for easier indexing: (batch_size, time_step, input_dim)
-        batch_s = np.zeros((cfg.batch_size, cfg.n_timesteps, cfg.pho_units))
+        batch_s = np.zeros((cfg.batch_size, cfg.n_timesteps, cfg.output_dim))
         batch_y = []
 
         for t in range(cfg.n_timesteps):
@@ -80,7 +80,7 @@ def sample_generator(cfg, data):
                 )  # Because output use zero indexing... we have to -1 step
 
                 batch_s[:, t, :] = np.tile(
-                    np.expand_dims(input_s_cell, 1), [1, cfg.pho_units]
+                    np.expand_dims(input_s_cell, 1), [1, cfg.output_dim]
                 )
 
             batch_y.append(data.y_train[idx])
@@ -106,7 +106,7 @@ def test_set_input(
 
     if cfg.use_semantic:
         batch_s = np.zeros(
-            (len(x_test), cfg.n_timesteps, cfg.pho_units)
+            (len(x_test), cfg.n_timesteps, cfg.output_dim)
         )  # Fill batch_s with Plaut S formula
         batch_y = np.zeros_like(y_test)
 
@@ -126,7 +126,7 @@ def test_set_input(
                     tmax=cfg.max_unit_time - cfg.tau
                 )  # Because of zero indexing
                 batch_s[:, t, :] = np.tile(
-                    np.expand_dims(s_cell, 1), [1, cfg.pho_units]
+                    np.expand_dims(s_cell, 1), [1, cfg.output_dim]
                 )
 
             batch_y = 2 * y_test - 1  # With negative teaching signal

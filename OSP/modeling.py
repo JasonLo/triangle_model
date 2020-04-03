@@ -3,6 +3,9 @@ import tensorflow as tf
 from tensorflow.keras import activations, initializers, regularizers, Model
 from tensorflow.keras.layers import Layer, Input
 import tensorflow.keras.backend as K
+from tensorflow.keras.callbacks import Callback
+from IPython.display import clear_output
+
 
 # Older Semantic
 # def input_s(e, t, f, i,
@@ -505,7 +508,7 @@ class rnn_no_cleanup(Layer):
 
         self.w_oh = self.add_weight(
             name='w_oh',
-            shape=(self.cfg.o_input_dim, self.cfg.hidden_units),
+            shape=(self.cfg.input_dim, self.cfg.hidden_units),
             initializer=self.cfg.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
@@ -513,7 +516,7 @@ class rnn_no_cleanup(Layer):
 
         self.w_hp = self.add_weight(
             name='w_hp',
-            shape=(self.cfg.hidden_units, self.cfg.pho_units),
+            shape=(self.cfg.hidden_units, self.cfg.output_dim),
             initializer=self.cfg.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
@@ -521,7 +524,7 @@ class rnn_no_cleanup(Layer):
 
         self.w_pp = self.add_weight(
             name='w_pp',
-            shape=(self.cfg.pho_units, self.cfg.pho_units),
+            shape=(self.cfg.output_dim, self.cfg.output_dim),
             initializer=self.cfg.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
@@ -535,7 +538,7 @@ class rnn_no_cleanup(Layer):
         )
 
         self.bias_p = self.add_weight(
-            shape=(self.cfg.pho_units, ),
+            shape=(self.cfg.output_dim, ),
             name='bias_p',
             initializer='zeros',
             trainable=True
@@ -547,7 +550,7 @@ class rnn_no_cleanup(Layer):
         # Spliting input_dim below (index = 2)
         if self.cfg.use_semantic == True:
             o_input, s_input = tf.split(
-                inputs, [self.cfg.o_input_dim, self.cfg.pho_units], 2
+                inputs, [self.cfg.input_dim, self.cfg.output_dim], 2
             )
         else:
             o_input = inputs
@@ -564,7 +567,7 @@ class rnn_no_cleanup(Layer):
             tf.zeros((1, self.cfg.hidden_units), dtype=tf.float32)
         )
         self.input_p_list.append(
-            tf.zeros((1, self.cfg.pho_units), dtype=tf.float32)
+            tf.zeros((1, self.cfg.output_dim), dtype=tf.float32)
         )
 
         # Set activations to 0.5
@@ -602,7 +605,7 @@ class rnn_no_cleanup(Layer):
             hp = tf.matmul(self.act_h_list[t - 1], w_hp)
             pp = tf.matmul(
                 self.act_p_list[t - 1],
-                tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.pho_units))
+                tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
             )  # Zero diagonal lock
 
             mem_p = self.input_p_list[t - 1]
@@ -623,7 +626,7 @@ class rnn_no_cleanup(Layer):
         return x + noise
 
     def compute_output_shape(self):
-        return tensor_shape.as_shape([1, cfg.pho_units] + cfg.n_timesteps)
+        return tensor_shape.as_shape([1, cfg.output_dim] + cfg.n_timesteps)
 
     def get_config(self):
         config = {'custom_cfg': self.cfg, 'name': 'rnn'}
@@ -644,7 +647,7 @@ class rnn_no_cleanup_no_pp(Layer):
 
         self.w_oh = self.add_weight(
             name='w_oh',
-            shape=(self.cfg.o_input_dim, self.cfg.hidden_units),
+            shape=(self.cfg.input_dim, self.cfg.hidden_units),
             initializer=self.cfg.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
@@ -652,7 +655,7 @@ class rnn_no_cleanup_no_pp(Layer):
 
         self.w_hp = self.add_weight(
             name='w_hp',
-            shape=(self.cfg.hidden_units, self.cfg.pho_units),
+            shape=(self.cfg.hidden_units, self.cfg.output_dim),
             initializer=self.cfg.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
@@ -660,7 +663,7 @@ class rnn_no_cleanup_no_pp(Layer):
 
         self.w_pp = self.add_weight(
             name='w_pp',
-            shape=(self.cfg.pho_units, self.cfg.pho_units),
+            shape=(self.cfg.output_dim, self.cfg.output_dim),
             initializer=self.cfg.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
@@ -674,7 +677,7 @@ class rnn_no_cleanup_no_pp(Layer):
         )
 
         self.bias_p = self.add_weight(
-            shape=(self.cfg.pho_units, ),
+            shape=(self.cfg.output_dim, ),
             name='bias_p',
             initializer='zeros',
             trainable=True
@@ -686,7 +689,7 @@ class rnn_no_cleanup_no_pp(Layer):
         # Spliting input_dim below (index = 2)
         if self.cfg.use_semantic == True:
             o_input, s_input = tf.split(
-                inputs, [self.cfg.o_input_dim, self.cfg.pho_units], 2
+                inputs, [self.cfg.input_dim, self.cfg.output_dim], 2
             )
         else:
             o_input = inputs
@@ -703,7 +706,7 @@ class rnn_no_cleanup_no_pp(Layer):
             tf.zeros((1, self.cfg.hidden_units), dtype=tf.float32)
         )
         self.input_p_list.append(
-            tf.zeros((1, self.cfg.pho_units), dtype=tf.float32)
+            tf.zeros((1, self.cfg.output_dim), dtype=tf.float32)
         )
 
         # Set activations to 0.5
@@ -757,9 +760,33 @@ class rnn_no_cleanup_no_pp(Layer):
         return x + noise
 
     def compute_output_shape(self):
-        return tensor_shape.as_shape([1, cfg.pho_units] + cfg.n_timesteps)
+        return tensor_shape.as_shape([1, cfg.output_dim] + cfg.n_timesteps)
 
     def get_config(self):
         config = {'custom_cfg': self.cfg, 'name': 'rnn'}
         base_config = super(rnn_pho_task, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+    
+class ModelCheckpoint_custom(Callback):
+    """
+    Modified from original ModelCheckpoint
+    Always save first 10 epochs regardless save period
+    """
+    def __init__(self, filepath, save_weights_only=False, period=1):
+        super(ModelCheckpoint_custom, self).__init__()
+        self.filepath = filepath
+        self.save_weights_only = save_weights_only
+        self.period = period
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        if (((epoch + 1) % self.period == 0) or epoch < 10):
+            filepath = self.filepath.format(epoch=epoch + 1, **logs)
+            clear_output(wait=True)
+            print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
+            if self.save_weights_only:
+                self.model.save_weights(filepath, overwrite=True)
+            else:
+                self.model.save(filepath, overwrite=True)
+                
+                
