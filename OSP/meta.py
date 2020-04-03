@@ -209,7 +209,7 @@ class model_cfg():
         import json
         with open(file) as json_file:
             self.cfg_dict = json.load(json_file)
-
+            
             try:
                 self.uuid = self.cfg_dict['uuid']
                 self.code_name = self.cfg_dict['code_name']
@@ -251,7 +251,7 @@ class model_cfg():
                 self.bq_dataset = self.cfg_dict['bq_dataset']
 
             except:
-                print('Caution: some parameter do not exist in json')
+                print('Caution: some parameters do not exist in json')
 
             self.gen_paths()
             self.gen_cfg_dict()
