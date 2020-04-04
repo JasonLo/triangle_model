@@ -189,12 +189,13 @@ class model_cfg:
 
         self.path_weights_list = []
         self.saved_epoch_list = []
-
-        for epoch in range(self.save_freq, self.nEpo + 1, self.save_freq):
-            self.path_weights_list += [
-                self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5'
-            ]
-
+        
+        for epoch in range(1, 11):
+            self.path_weights_list.append(self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
+            self.saved_epoch_list.append(epoch)
+            
+        for epoch in range(10+self.save_freq, self.nEpo + 1, self.save_freq):
+            self.path_weights_list.append(self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
             self.saved_epoch_list.append(epoch)
 
     def noise_off(self):
@@ -226,15 +227,15 @@ class connect_gbq():
             '../common/triangle-e1fd21bb86a1.json'
         )
 
-    def push_all(self, cfg, strain_i_hist, grain_i_hist, verbose=False):
+    def push_all(self, db_name, cfg, strain_i_hist, grain_i_hist, verbose=False):
         import pandas_gbq
 
         if verbose: print('Writing data to Bigquery')
 
         # Config file
         pandas_gbq.to_gbq(
-            pd.DataFrame([cfg.cfg_dict]),
-            destination_table=cfg.bq_dataset + '.cfg',
+            pd.DataFrame(cfg, index=[0]),
+            destination_table=db_name + '.cfg',
             project_id=self.pid,
             if_exists='append',
             credentials=self.credentials,
@@ -244,7 +245,7 @@ class connect_gbq():
         # Strain eval
         pandas_gbq.to_gbq(
             strain_i_hist,
-            destination_table=cfg.bq_dataset + '.strain',
+            destination_table=db_name + '.strain',
             project_id=self.pid,
             if_exists='append',
             credentials=self.credentials,
@@ -254,7 +255,7 @@ class connect_gbq():
         # Grain eval
         pandas_gbq.to_gbq(
             grain_i_hist,
-            destination_table=cfg.bq_dataset + '.grain',
+            destination_table=db_name + '.grain',
             project_id=self.pid,
             if_exists='append',
             credentials=self.credentials,
