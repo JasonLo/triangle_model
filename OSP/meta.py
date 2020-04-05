@@ -1,3 +1,4 @@
+
 from collections import OrderedDict
 import altair as alt
 import pandas as pd
@@ -66,38 +67,40 @@ class model_cfg:
                     'learning_rate',
                     'save_freq']
     
-    aux_cfgs = ['sem_param_gf',
-                'sem_param_gi',
-                'sem_param_kf',
-                'sem_param_ki',
-                'sem_param_hf',
-                'sem_param_hi',
-                'embed_attractor_cfg',
-                'embed_attractor_h5',
-                'bq_dataset', 
-                'path_weights_list', 
-                'steps_per_epoch', 
-                'eval_freq', 
-                'w_pp_noise', 
-                'w_hp_noise', 
-                'uuid', 
-                'path_weights_checkpoint', 
-                'w_pc_noise_backup', 
-                'w_oh_noise_backup', 
-                'w_cp_noise', 
-                'path_plot_folder', 
-                'nEpo', 
-                'path_weight_folder', 
-                'path_history_pickle', 
-                'n_timesteps', 
-                'w_oh_noise', 
-                'saved_epoch_list', 
-                'w_pp_noise_backup',
-                'w_hp_noise_backup',
-                'path_model_folder',
-                'w_cp_noise_backup', 
-                'save_freq_sample', 
-                'w_pc_noise']
+    aux_cfgs = [
+        'sem_param_gf',
+        'sem_param_gi',
+        'sem_param_kf',
+        'sem_param_ki',
+        'sem_param_hf',
+        'sem_param_hi',
+        'embed_attractor_cfg',
+        'embed_attractor_h5',
+        'w_oh_noise',
+        'w_hp_noise', 
+        'w_pp_noise',
+        'w_pc_noise',
+        'w_cp_noise',
+        'w_oh_noise_backup',
+        'w_hp_noise_backup',
+        'w_pp_noise_backup',
+        'w_pc_noise_backup', 
+        'w_cp_noise_backup',
+        'bq_dataset', 
+        'uuid',
+        'nEpo',
+        'n_timesteps', 
+        'steps_per_epoch',
+        'save_freq_sample', 
+        'eval_freq', 
+        'path_model_folder',
+        'path_weights_checkpoint',              
+        'path_weights_list', 
+        'path_plot_folder', 
+        'path_weight_folder', 
+        'path_history_pickle', 
+        'saved_epoch_list'
+        ]
     
     all_cfgs_name = minimal_cfgs + aux_cfgs
 
