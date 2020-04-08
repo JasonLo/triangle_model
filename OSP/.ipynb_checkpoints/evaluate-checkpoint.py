@@ -147,6 +147,9 @@ def plot_time_course(df, ys, cond='condition', plot_epoch=None):
 
 
 def plot_variables(model, save_file=None):
+    """
+    Plot all the trainable variables in a model in heatmaps
+    """
     nv = len(model.trainable_variables)
     plt.figure(figsize=(20, 20), facecolor='w')
     for i in range(nv):
@@ -169,6 +172,12 @@ def plot_variables(model, save_file=None):
 
 
 class testset():
+    """
+    Testset class for evaluating testset
+    1. Load model h5 by cfg files provided list (cfg.path_weights_list)
+    2. Evaluate test set in each h5 (including every timesteps)
+    3. Stitch to one csv file
+    """
     def __init__(
         self, cfg, data, model, x_test, x_test_wf, x_test_img, y_test, key_df
     ):
@@ -278,6 +287,9 @@ class testset():
         print('Done')
 
 class strain_eval(testset):
+    """
+    For evaluating Strain results, inherit from testset class
+    """
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_strain, data.x_strain_wf,
@@ -349,7 +361,6 @@ class grain_eval():
             print('Saved file to {}'.format(output))
 
 
-            
 def make_df_wnw(df, selected_cond):
     """
     This function make a word vs. nonword data file for plotting
@@ -380,8 +391,19 @@ def make_df_wnw(df, selected_cond):
     plt_df['word_acc'] = pvt.acc.strain
 
     return plt_df
+
             
 class vis():
+    """
+    Visualization for a single run
+    It parse the datafiles with:
+    - parse_strain_cond_df
+    - parse_grain_cond_df
+    - parse_cond_df (= concat all parsed test sets file)
+    - parse_wnw_df (Restructure for condition datafile for Word vs. Nonword plot)
+    Then visualize
+    
+    """
     # Visualize single model
     # Which will parse item level data to condition level data
     # Then plot with Altair
@@ -437,9 +459,17 @@ class vis():
         if output is not None:
             self.cdf.to_csv(output, index=False)
             print('Saved file to {}'.format(output))
-        
+                 
     # Visualization
     def plot_dev(self, y, exp=None, condition='cond', timestep=None):
+        """
+        Plot developlment (x = epoch)
+        Inputs:
+        - y: what to plot on y-axis
+        - exp: filter on exp column (e.g., 'strain', 'grain')
+        - condition: column that group the line color (i.e., separate line by which column)
+        - timestep: filter on timestep column, if none provided, take the last timestep
+        """
         
         if timestep == None: timestep=self.cfg.n_timesteps
         timestep -= 1 # Reindex
@@ -470,6 +500,13 @@ class vis():
         return plot
     
     def plot_dev_interactive(self, y, exp=None, condition='cond'):
+        """
+        Interactive version (slider = timestep) of development plot
+        Inputs:
+        - y: what to plot on y-axis
+        - exp: filter on exp column (e.g., 'strain', 'grain')
+        - condition: column that group the line color (i.e., separate line by which column)
+        """
         
         # Condition highlighter from legend
         select_cond = alt.selection(
@@ -560,8 +597,8 @@ class vis():
         return plot_time
     
     def plot_wnw(self, selected_cond):
-    
-        wnw_df = make_df_wnw(self.cdf, selected_cond=['INC_HF', 'ambiguous', 'unambiguous'])
+
+        wnw_df = make_df_wnw(self.cdf, selected_cond)
 
         wnw_plot = (
             alt.Chart(wnw_df).mark_line(point=True).encode(
