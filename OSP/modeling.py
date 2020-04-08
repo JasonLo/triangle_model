@@ -84,7 +84,9 @@ def input_s(e, t, f, i, gf, gi, kf, ki, tmax=3.8,
 class rnn(Layer):
     """
     Main time-averaged input implementation based on Plaut 96 (Fig 12.)
-    With additional attractor (cleanup) network                            
+    With additional attractor (cleanup) network
+    Option to use semantic input by cfg.use_semantic == True
+    Semantic equation can be change in modeling.input_s()
     """
     # Use keras rnn layer seems more efficient, maybe upgrade later...
     def __init__(self, cfg, input_p_dignostic=False, name='rnn', **kwargs):
@@ -95,7 +97,11 @@ class rnn(Layer):
         self.input_p_dignostic = input_p_dignostic
 
         self.rnn_activation = activations.get(self.cfg.rnn_activation)
-        self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
+        
+        if cfg.regularizer_const == None:
+            self.weight_regularizer = None
+        else:
+            self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
 
         self.w_oh = self.add_weight(
             name='w_oh',
@@ -162,10 +168,13 @@ class rnn(Layer):
         )
 
     def call(self, inputs):
-        # If input_p_dignostic = True, it will output input_p instead of act_p (for troubleshooting)
-        # Hack for complying keras.layers.concatenate() format
-        # Dimension note: (batch, timestep, input_dim)
-        # Spliting input_dim below (index = 2)
+        """
+        If input_p_dignostic = True, it will output input_p instead of act_p (for troubleshooting)
+        Hack for complying keras.layers.concatenate() format
+        Dimension note: (batch, timestep, input_dim)
+        Spliting input_dim below (index = 2)
+        """
+
         if self.cfg.use_semantic == True:
             o_input, s_input = tf.split(
                 inputs, [self.cfg.input_dim, self.cfg.output_dim], 2
