@@ -348,8 +348,7 @@ class grain_eval():
             }
         )
 
-        self.i_hist['acc_acceptable'] = self.i_hist[
-            'acc_large_grain'] * self.i_hist['acc_small_grain'] 
+        self.i_hist['acc_acceptable'] = (self.i_hist.acc_large_grain | self.i_hist.acc_small_grain)
         self.i_hist['sse_acceptable'] = self.i_hist[[
             'sse_large_grain', 'sse_small_grain'
         ]].min(axis=1)
