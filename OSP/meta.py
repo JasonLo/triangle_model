@@ -1,8 +1,9 @@
-
 from collections import OrderedDict
+import tensorflow as tf
 import altair as alt
 import pandas as pd
-import json
+import pandas_gbq
+import json, os
 
 def check_gpu():
     if tf.config.experimental.list_physical_devices("GPU"):
@@ -16,7 +17,6 @@ def gpu_mem_cap(b=2048):
     # By limiting the memory cap per python kernal, we can run multiple models in parallel to maximize efficiency
     # OSP model can archieve 2-3x saving
 
-    import tensorflow as tf
     gpus = tf.config.experimental.list_physical_devices("GPU")
     if gpus:
         try:
@@ -177,7 +177,6 @@ class model_cfg:
             assert type(self.embed_attractor_h5) == str
 
     def gen_paths(self):
-        import os
 
         self.path_model_folder = 'models/' + self.code_name + '/'
         self.path_weight_folder = self.path_model_folder + 'weights/'
@@ -224,14 +223,43 @@ class model_cfg:
 class connect_gbq():
     # Connect to google big query database
     def __init__(self, pid='triangle-272405'):
+        """
+        Store connection infos
+        """
         from google.oauth2 import service_account
         self.pid = pid
         self.credentials = service_account.Credentials.from_service_account_file(
             '../common/triangle-e1fd21bb86a1.json'
         )
+        
+    def push_cfgs(self, db_name, cfgs):
+        """
+        Push a multi runs batch_cfgs object to GBQ
+        """
+        cfgs_df = pd.DataFrame()
+
+        for i in range(len(cfgs)):
+            cfgs_df = pd.concat(
+                [cfgs_df, pd.DataFrame(cfgs[i]['params'], index=[i])]
+            )
+        
+        pandas_gbq.to_gbq(
+            cfgs_df,
+            destination_table=db_name + '.cfg',
+            project_id=self.pid,
+            if_exists='append',
+            credentials=self.credentials,
+            progress_bar=False
+        )
 
     def push_all(self, db_name, cfg, strain_i_hist, grain_i_hist, verbose=False):
-        import pandas_gbq
+        """
+        Push a single run to GBQ including:
+        - cfg
+        - Strain item history
+        - Grain item history
+        """
+        
 
         if verbose: print('Writing data to Bigquery')
 
@@ -244,6 +272,7 @@ class connect_gbq():
             credentials=self.credentials,
             progress_bar=False
         )
+        
 
         # Strain eval
         pandas_gbq.to_gbq(
@@ -268,7 +297,9 @@ class connect_gbq():
         if verbose: print('Completed') 
 
     def read_bq_cfg(self, db_name):
-        import pandas_gbq
+        """
+        Read cfg from GBQ
+        """
         sql = """
         SELECT * FROM `{}.{}.cfg`
         """.format(self.pid, db_name)
@@ -278,6 +309,9 @@ class connect_gbq():
 
 
 def send_mail(batch_name, email='lcmjlo@gmail.com'):
+    """
+    Send an email to myself for super long run
+    """
     import smtplib
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.ehlo()
