@@ -36,6 +36,8 @@ class wf_manager():
         root = np.sqrt(self.wf) / np.sqrt(30000)
         clip = root.clip(0.05, 1.0)
         return self.to_p(clip)
+    
+    
 
     def samp_jay(self):
         cap = self.wf.clip(0, 10000)
@@ -48,7 +50,7 @@ def sample_generator(cfg, data):
     # Dimension guide: (batch_size, timesteps, nodes)
     from modeling import input_s
 
-    np.random.seed(cfg.sample_rng_seed)
+    np.random.seed(cfg.rng_seed)
     epoch = 0
     batch = 0
 
