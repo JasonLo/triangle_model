@@ -48,8 +48,7 @@ class model_cfg:
     """
     minimal_cfgs = ['code_name',
                     'sample_name',
-                    'sample_rng_seed',
-                    'tf_rng_seed',
+                    'rng_seed',
                     'use_semantic',
                     'input_dim',
                     'hidden_units',
@@ -97,7 +96,8 @@ class model_cfg:
         'path_weights_checkpoint',              
         'path_weights_list', 
         'path_plot_folder', 
-        'path_weight_folder', 
+        'path_weight_folder',
+        'path_log_folder',
         'path_history_pickle', 
         'saved_epoch_list'
         ]
@@ -127,6 +127,7 @@ class model_cfg:
         # Additional initialization for dictionary constructor 
         if json_file == None:
             self.init_from_dict()
+            
         
     def init_from_dict(self):
         # Unique identifier
@@ -162,28 +163,31 @@ class model_cfg:
 
     def chk_cfg(self):
         # Check all ingested_keys fufill minimal cfg requirement
-        assert all([x in vars(self) for x in self.minimal_cfgs])
+        if not all([x in vars(self) for x in self.minimal_cfgs]):
+            raise ValueError('Some cfg is undefined, double check cfg contains all necessary params')
 
         if self.use_semantic == True:
-            assert type(self.sem_param_gf) == float
-            assert type(self.sem_param_gi) == float
-            assert type(self.sem_param_kf) == float
-            assert type(self.sem_param_ki) == float
-            assert type(self.sem_param_hf) == float
-            assert type(self.sem_param_hi) == float
+            if not (type(self.sem_param_gf) == float): raise ValueError('check sem_params') 
+            if not (type(self.sem_param_gi) == float): raise ValueError('check sem_params') 
+            if not (type(self.sem_param_kf) == float): raise ValueError('check sem_params') 
+            if not (type(self.sem_param_ki) == float): raise ValueError('check sem_params') 
+            if not (type(self.sem_param_hf) == float): raise ValueError('check sem_params') 
+            if not (type(self.sem_param_hi) == float): raise ValueError('check sem_params') 
 
         if self.use_attractor == True:
-            assert type(self.embed_attractor_cfg) == str
-            assert type(self.embed_attractor_h5) == str
+            if not (type(self.embed_attractor_cfg) == str): raise ValueError('check embed_attractor_cfg') 
+            if not (type(self.embed_attractor_h5) == str): raise ValueError('check embed_attractor_h5') 
 
     def gen_paths(self):
 
         self.path_model_folder = 'models/' + self.code_name + '/'
         self.path_weight_folder = self.path_model_folder + 'weights/'
         self.path_plot_folder = self.path_model_folder + 'plots/'
+        self.path_log_folder = self.path_model_folder + 'logs/'
 
         os.makedirs(self.path_weight_folder, exist_ok = True)
         os.makedirs(self.path_plot_folder, exist_ok = True)
+        os.makedirs(self.path_log_folder, exist_ok = True)
 
         # For model checkpoint
         self.path_weights_checkpoint = self.path_weight_folder + 'ep{epoch:04d}.h5'
@@ -220,37 +224,68 @@ class model_cfg:
             json.dump(vars(self), f)
 
 
+def batch_cfgs_to_df(cfgs):
+    """
+    Converting a batch level super configuration dictiread_csv a pandas dataframe
+    """
+    cfgs_df = pd.DataFrame()
+
+    for i in range(len(cfgs)):
+        cfgs_df = pd.concat(
+            [cfgs_df, pd.DataFrame(cfgs[i]['params'], index=[i])]
+        )
+    return cfgs_df    
+
+
+
+def parse_batch_results(cfgs):
+    from evaluate import vis
+    from tqdm import tqdm
+    """
+    Parse and Concat all condition level results
+    And merge with cfg data (run level meta data) from cfgs
+    cfgs: batch cfgs in pd format 
+    """
+    batch_cdf = pd.DataFrame()
+
+    for run in tqdm(cfgs.code_name):
+        this_eval = vis(
+            'models/'+ run, 'result_strain_item.csv', 'result_grain_item.csv'
+        )  # Eval lesion and grain
+        this_eval.parse_cond_df()
+        batch_cdf = pd.concat([batch_cdf, this_eval.cdf], ignore_index=True)
+
+    return pd.merge(batch_cdf, cfgs, 'left', 'code_name')
+
+
+def check_cfgs_params(cfgs):
+    """
+    Check the config datafram has how many varying and static h-params
+    cfgs: batch cfgs in pd format 
+    """
+    print('===== Batch level varying hyperparams =====')
+    for i, x in enumerate(cfgs.columns):
+        if not x in ['code_name', 'uuid']:
+            if len(cfgs[x].unique()) > 1:
+                print('{}: {}'.format(x, cfgs[x].unique()))
+
+    print('\n===== Batch level static hyperparams =====')
+    for i, x in enumerate(cfgs.columns):
+        if len(cfgs[x].unique()) == 1:
+            print('{}: {}'.format(x, cfgs[x].unique()))
+
+
 class connect_gbq():
-    # Connect to google big query database
+    """
+    All things related to GBQ
+    """
     def __init__(self, pid='triangle-272405'):
-        """
-        Store connection infos
-        """
         from google.oauth2 import service_account
         self.pid = pid
         self.credentials = service_account.Credentials.from_service_account_file(
             '../common/triangle-e1fd21bb86a1.json'
         )
         
-    def push_cfgs(self, db_name, cfgs):
-        """
-        Push a multi runs batch_cfgs object to GBQ
-        """
-        cfgs_df = pd.DataFrame()
-
-        for i in range(len(cfgs)):
-            cfgs_df = pd.concat(
-                [cfgs_df, pd.DataFrame(cfgs[i]['params'], index=[i])]
-            )
-        
-        pandas_gbq.to_gbq(
-            cfgs_df,
-            destination_table=db_name + '.cfg',
-            project_id=self.pid,
-            if_exists='append',
-            credentials=self.credentials,
-            progress_bar=False
-        )
 
     def push_all(self, db_name, cfg, strain_i_hist, grain_i_hist, verbose=False):
         """
@@ -260,7 +295,6 @@ class connect_gbq():
         - Grain item history
         """
         
-
         if verbose: print('Writing data to Bigquery')
 
         # Config file
