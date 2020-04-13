@@ -80,11 +80,6 @@ class model_cfg:
         'w_pp_noise',
         'w_pc_noise',
         'w_cp_noise',
-        'w_oh_noise_backup',
-        'w_hp_noise_backup',
-        'w_pp_noise_backup',
-        'w_pc_noise_backup', 
-        'w_cp_noise_backup',
         'bq_dataset', 
         'uuid',
         'nEpo',
@@ -92,6 +87,13 @@ class model_cfg:
         'steps_per_epoch',
         'save_freq_sample', 
         'eval_freq', 
+        ]
+    
+    tmp_cfgs = ['w_oh_noise_backup',
+        'w_hp_noise_backup',
+        'w_pp_noise_backup',
+        'w_pc_noise_backup', 
+        'w_cp_noise_backup',
         'path_model_folder',
         'path_weights_checkpoint',              
         'path_weights_list', 
@@ -110,7 +112,7 @@ class model_cfg:
             with open(json_file) as f:
                 kwargs = json.load(f)
 
-        # Set attributes
+        # Set attributes from json values
         invalid_keys = []
         for key, value in kwargs.items():
             if key in self.all_cfgs_name:
@@ -121,19 +123,37 @@ class model_cfg:
         if len(invalid_keys) > 0:
             print('These keys in cfg file is not valid: {}'.format(invalid_keys))
             
-        # Check config structure is correct
-        if not bypass_chk: self.chk_cfg()
-
         # Additional initialization for dictionary constructor 
         if json_file == None:
             self.init_from_dict()
             
+        self.store_noise()
+        self.gen_paths()
+               
+        # Checking
+        if not bypass_chk: self.chk_cfg()
+            
+        if json_file == None:
+            self.write_cfg()
         
     def init_from_dict(self):
         # Unique identifier
         import uuid
         self.uuid = uuid.uuid4().hex
 
+        # Additional convienient attributes
+        self.n_timesteps = int(self.max_unit_time * (1 / self.tau))
+        self.nEpo = int(self.n_mil_sample * 1e2)
+        self.steps_per_epoch = int(10000 / self.batch_size)
+
+        # Saving cfg
+        self.save_freq_sample = self.save_freq * self.batch_size * self.steps_per_epoch  # For TF 2.1
+        self.eval_freq = self.save_freq
+
+    def __str__(self):
+        return str(vars(self))
+    
+    def store_noise(self):
         # Noise management
         self.w_pp_noise = self.p_noise
         self.w_pc_noise = self.p_noise
@@ -146,21 +166,7 @@ class model_cfg:
         self.w_pp_noise_backup = self.w_pp_noise
         self.w_pc_noise_backup = self.w_pc_noise
         self.w_cp_noise_backup = self.w_cp_noise
-
-        # Additional convienient attributes
-        self.n_timesteps = int(self.max_unit_time * (1 / self.tau))
-        self.nEpo = int(self.n_mil_sample * 1e2)
-        self.steps_per_epoch = int(10000 / self.batch_size)
-
-        # Saving cfg
-        self.save_freq_sample = self.save_freq * self.batch_size * self.steps_per_epoch  # For TF 2.1
-        self.eval_freq = self.save_freq
-        self.gen_paths()
-        self.write_cfg()
-
-    def __str__(self):
-        return str(vars(self))
-
+        
     def chk_cfg(self):
         # Check all ingested_keys fufill minimal cfg requirement
         if not all([x in vars(self) for x in self.minimal_cfgs]):
@@ -173,10 +179,21 @@ class model_cfg:
             if not (type(self.sem_param_ki) == float): raise ValueError('check sem_params') 
             if not (type(self.sem_param_hf) == float): raise ValueError('check sem_params') 
             if not (type(self.sem_param_hi) == float): raise ValueError('check sem_params') 
+        else:
+            self.sem_param_gf = None
+            self.sem_param_gi = None
+            self.sem_param_kf = None
+            self.sem_param_ki = None
+            self.sem_param_hf = None
+            self.sem_param_hi = None    
 
         if self.use_attractor == True:
             if not (type(self.embed_attractor_cfg) == str): raise ValueError('check embed_attractor_cfg') 
             if not (type(self.embed_attractor_h5) == str): raise ValueError('check embed_attractor_h5') 
+        else:
+            self.embed_attractor_cfg = None
+            self.embed_attractor_h5 = None
+            
 
     def gen_paths(self):
 
@@ -219,14 +236,19 @@ class model_cfg:
         self.w_pc_noise = self.w_pc_noise_backup
         self.w_cp_noise = self.w_cp_noise_backup
 
-    def write_cfg(self):      
+    def write_cfg(self):
+        self.noise_on() # Make sure noise is armed before saving, since loading will copy noise to backup
+        save_cfg = {k: vars(self)[k] for k in self.all_cfgs_name}
         with open(self.path_model_folder + 'model_config.json', 'w') as f:
             json.dump(vars(self), f)
 
 
 def batch_cfgs_to_df(cfgs):
     """
-    Converting a batch level super configuration dictiread_csv a pandas dataframe
+    DO NOT USE: OBSOLETE
+    This will not gather the safty check cfg.uuid
+    Rewrite for safty...
+    Converting a batch level super configuration dict to a pandas dataframe
     """
     cfgs_df = pd.DataFrame()
 
