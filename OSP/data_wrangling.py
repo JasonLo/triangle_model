@@ -16,7 +16,6 @@ def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
 class wf_manager():
     # Note: the probability must sum to 1 when passing it to np.random.choice()
     def __init__(self, wf):
-
         self.wf = np.array(wf)
 
     def wf(self):
@@ -37,8 +36,6 @@ class wf_manager():
         clip = root.clip(0.05, 1.0)
         return self.to_p(clip)
     
-    
-
     def samp_jay(self):
         cap = self.wf.clip(0, 10000)
         root = np.sqrt(cap)
@@ -140,6 +137,10 @@ def test_set_input(
 
 
 class my_data():
+    """
+    This object load all clean data from disk (both training set and testing sets)
+    Also calculate sampling_p according to cfg.sample_name setting
+    """
     def __init__(self, cfg):
 
         self.sample_name = cfg.sample_name
