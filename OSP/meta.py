@@ -336,7 +336,7 @@ def parse_batch_results(cfgs):
         this_eval.parse_cond_df()
         evals_df = pd.concat([evals_df, this_eval.cdf], ignore_index=True)
 
-    return pd.merge(evals_df, cfgs_df, 'left', 'code_name')
+    return cfgs_df, pd.merge(evals_df, cfgs_df, 'left', 'code_name')
 
 
 def check_cfgs_params(cfgs):
