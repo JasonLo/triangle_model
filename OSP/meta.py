@@ -61,6 +61,7 @@ class model_cfg:
                     'w_initializer',
                     'regularizer_const',
                     'p_noise',
+                    'optimizer',
                     'n_mil_sample',
                     'batch_size',
                     'learning_rate',
@@ -104,9 +105,9 @@ class model_cfg:
         'saved_epoch_list'
         ]
     
-    all_cfgs_name = minimal_cfgs + aux_cfgs
+    all_cfgs_name = minimal_cfgs + aux_cfgs + tmp_cfgs
 
-    def __init__(self, json_file=None, bypass_chk=False, **kwargs):
+    def __init__(self, json_file=None, bypass_chk=False, just_chk=False, **kwargs):
         # Validate json file
         if type(json_file) == str and json_file.endswith('.json'):
             with open(json_file) as f:
@@ -132,8 +133,9 @@ class model_cfg:
                
         # Checking
         if not bypass_chk: self.chk_cfg()
+        
+        if (just_chk == False) & (json_file == None):
             
-        if json_file == None:
             self.write_cfg()
         
     def init_from_dict(self):
@@ -150,8 +152,14 @@ class model_cfg:
         self.save_freq_sample = self.save_freq * self.batch_size * self.steps_per_epoch  # For TF 2.1
         self.eval_freq = self.save_freq
 
+    def to_dict(self):
+        """
+        Get a trimed dictionary (dropped attribute in tmp_cfg)
+        """
+        return {key: getattr(self, key) for key in (self.minimal_cfgs + self.aux_cfgs)}
+    
     def __str__(self):
-        return str(vars(self))
+        return str(self.to_dict())
     
     def store_noise(self):
         # Noise management
@@ -235,54 +243,57 @@ class model_cfg:
         self.w_pp_noise = self.w_pp_noise_backup
         self.w_pc_noise = self.w_pc_noise_backup
         self.w_cp_noise = self.w_cp_noise_backup
-
+       
     def write_cfg(self):
-        self.noise_on() # Make sure noise is armed before saving, since loading will copy noise to backup
-        save_cfg = {k: vars(self)[k] for k in self.all_cfgs_name}
-        with open(self.path_model_folder + 'model_config.json', 'w') as f:
-            json.dump(vars(self), f)
-
-
-def batch_cfgs_to_df(cfgs):
-    """
-    DO NOT USE: OBSOLETE
-    This will not gather the safty check cfg.uuid
-    Rewrite for safty...
-    Converting a batch level super configuration dict to a pandas dataframe
-    """
-    cfgs_df = pd.DataFrame()
-
-    for i in range(len(cfgs)):
-        cfgs_df = pd.concat(
-            [cfgs_df, pd.DataFrame(cfgs[i]['params'], index=[i])]
-        )
-    return cfgs_df    
-
-
+        
+        if os.path.isfile(self.path_model_folder + 'model_config.json'): 
+            print('Found model_config.json on disk, I will NEVER overwrite it automatically.')
+            print('Manually delete config if you are sure.')
+            print(' Or save this model into another folder by changing cfg.code_name')
+        
+        else:
+            self.noise_on() # Make sure noise is armed before saving, since loading will copy noise to backup
+            save_cfg = {k: vars(self)[k] for k in self.all_cfgs_name}
+            with open(self.path_model_folder + 'model_config.json', 'w') as f:
+                json.dump(vars(self), f)
 
 def parse_batch_results(cfgs):
     from evaluate import vis
     from tqdm import tqdm
     """
-    Parse and Concat all condition level results
+    Parse and Concat all condition level results from item level csvs
     And merge with cfg data (run level meta data) from cfgs
-    cfgs: batch cfgs in pd format 
+    cfgs: batch cfgs in dictionary format (The one we saved to disk, for running papermill)
     """
-    batch_cdf = pd.DataFrame()
 
-    for run in tqdm(cfgs.code_name):
+    evals_df = pd.DataFrame()
+    cfgs_df = pd.DataFrame()
+
+    for i in tqdm(range(len(cfgs))):
+
+        # Extra cfg (with UUID) from actual saved cfg json
+        this_model_cfg = model_cfg(
+            cfgs[i]['model_folder'] + 'model_config.json'
+        )
+        cfgs_df = pd.concat(
+            [cfgs_df,
+             pd.DataFrame(this_model_cfg.to_dict(), index=[i])]
+        )
+
+        # Evaluate results
         this_eval = vis(
-            'models/'+ run, 'result_strain_item.csv', 'result_grain_item.csv'
-        )  # Eval lesion and grain
+            cfgs[i]['model_folder'], 'result_strain_item.csv',
+            'result_grain_item.csv'
+        )
         this_eval.parse_cond_df()
-        batch_cdf = pd.concat([batch_cdf, this_eval.cdf], ignore_index=True)
+        evals_df = pd.concat([evals_df, this_eval.cdf], ignore_index=True)
 
-    return pd.merge(batch_cdf, cfgs, 'left', 'code_name')
+    return pd.merge(evals_df, cfgs_df, 'left', 'code_name')
 
 
 def check_cfgs_params(cfgs):
     """
-    Check the config datafram has how many varying and static h-params
+    Check the config datafram has how many varying and static hyperparameters
     cfgs: batch cfgs in pd format 
     """
     print('===== Batch level varying hyperparams =====')
@@ -329,7 +340,6 @@ class connect_gbq():
             progress_bar=False
         )
         
-
         # Strain eval
         pandas_gbq.to_gbq(
             strain_i_hist,
