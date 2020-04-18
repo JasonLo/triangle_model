@@ -3,7 +3,7 @@ import tensorflow as tf
 import altair as alt
 import pandas as pd
 import pandas_gbq
-import json, os
+import json, os, itertools
 
 def check_gpu():
     if tf.config.experimental.list_physical_devices("GPU"):
@@ -128,15 +128,14 @@ class model_cfg:
         if json_file == None:
             self.init_from_dict()
             
-        self.store_noise()
-        self.gen_paths()
-               
-        # Checking
         if not bypass_chk: self.chk_cfg()
         
-        if (just_chk == False) & (json_file == None):
+        if (just_chk == False):
+            self.store_noise()
+            self.gen_paths()
             
-            self.write_cfg()
+            if (json_file == None):
+                self.write_cfg()
         
     def init_from_dict(self):
         # Unique identifier
@@ -257,6 +256,55 @@ class model_cfg:
             with open(self.path_model_folder + 'model_config.json', 'w') as f:
                 json.dump(vars(self), f)
 
+def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
+    """
+    Make batch cfg dictionary that can feed into papermill
+    """
+   
+    # Check duplicate keys
+    for key in static_hpar.keys():
+        if key in param_grid.keys():
+            raise ValueError("Key duplicate: {}".format(key))
+
+    # Iterate and create batch level super object: batch_cfgs
+    batch_cfgs = []
+    varying_hpar_names, varying_hpar_values = zip(*param_grid.items())
+    for i, v in enumerate(itertools.product(*varying_hpar_values)):
+        code_name = batch_name + "_r{:04d}".format(i)
+
+        this_hpar = dict(zip(varying_hpar_names, v))
+        this_hpar.update(static_hpar)
+
+        # Add identifier params into param dict
+        this_hpar["code_name"] = code_name
+
+        # Pass into model_cfg to catch error early
+        model_cfg(**this_hpar, just_chk=True)
+
+        batch_cfg = dict(
+            sn=i,
+            in_notebook=in_notebook,
+            code_name=code_name,
+            model_folder="models/" + code_name + "/",
+            out_notebook="models/" + code_name + "/output.ipynb",
+            params=this_hpar,
+        )
+
+        batch_cfgs.append(batch_cfg)
+
+    # Save batch cfg to json
+    batch_output_dir = "batch_eval/{}/".format(batch_name)
+    os.makedirs(batch_output_dir, exist_ok=True)
+    
+    with open(batch_output_dir + "batch_config.json", "w") as f:
+        json.dump(batch_cfgs, f)
+        
+    print("Batch config saved to {}".format(batch_output_dir))
+    print("There are {} models in this batch".format(len(batch_cfgs)))
+    
+    return batch_cfgs
+                
+                
 def parse_batch_results(cfgs):
     from evaluate import vis
     from tqdm import tqdm
