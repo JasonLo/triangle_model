@@ -162,8 +162,8 @@ class model_cfg:
     
     def store_noise(self):
         # Noise management
-        self.w_pp_noise = 0.
-        self.w_pc_noise = 0.
+        self.w_pp_noise = self.p_noise
+        self.w_pc_noise = self.p_noise
         self.w_cp_noise = self.p_noise
         self.w_oh_noise = 0.
         self.w_hp_noise = 0.
