@@ -81,8 +81,10 @@ def sample_generator(cfg, data):
                 batch_s[:, t, :] = np.tile(
                     np.expand_dims(input_s_cell, 1), [1, cfg.output_dim]
                 )
-
-            batch_y.append(data.y_train[idx])
+        
+            # TMP: Shitty 2 step of output ys... please clean it up if decided to use this...
+            if t <= 1: 
+                batch_y.append(data.y_train[idx])
 
         if batch % cfg.steps_per_epoch == 0:
             epoch += 1  # Counting epoch for ramping up input S

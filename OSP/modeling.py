@@ -275,7 +275,11 @@ class rnn(Layer):
         if self.input_p_dignostic == True:
             return self.input_p_list[1:]
         else:
-            return self.act_p_list[1:]
+            # Last two steps BPTT
+            return self.act_p_list[-2:]
+        
+            # All trainable BPTT
+            # return self.act_p_list[1:]
 
     def inject_noise(self, x, noise_sd):
         noise = K.random_normal(shape=K.shape(x), mean=0., stddev=noise_sd)
@@ -283,8 +287,11 @@ class rnn(Layer):
 
     def compute_output_shape(self):
         return tensor_shape.as_shape(
-            [1, self.cfg.output_dim] + self.cfg.n_timesteps
+            [1, self.cfg.output_dim] + 2
         )
+#         return tensor_shape.as_shape(
+#             [1, self.cfg.output_dim] + self.cfg.n_timesteps
+#         )
 
     def get_config(self):
         config = {'custom_cfg': self.cfg}
