@@ -57,13 +57,14 @@ def sample_generator(cfg, data):
             range(len(data.sample_p)), cfg.batch_size, p=data.sample_p
         )
 
-        # Preallocate for easier indexing: (batch_size, time_step, input_dim)
+        # Preallocate
         batch_s = np.zeros((cfg.batch_size, cfg.n_timesteps, cfg.output_dim))
-        batch_y = []
+        
+        # Time invarying output
+        batch_y = [data.y_train[idx]] * cfg.output_ticks
 
-        for t in range(cfg.n_timesteps):
-
-            if cfg.use_semantic == True:
+        if cfg.use_semantic == True:
+            for t in range(cfg.n_timesteps):
                 input_s_cell = input_s(
                     e=epoch,
                     t=t * cfg.tau,
@@ -76,24 +77,21 @@ def sample_generator(cfg, data):
                     hf=cfg.sem_param_hf,
                     hi=cfg.sem_param_hi,
                     tmax=cfg.max_unit_time - cfg.tau
-                )  # Because output use zero indexing... we have to -1 step
+                )
 
                 batch_s[:, t, :] = np.tile(
                     np.expand_dims(input_s_cell, 1), [1, cfg.output_dim]
                 )
-        
-            # TMP: Shitty 2 step of output ys... please clean it up if decided to use this...
-            if t <= 1: 
-                batch_y.append(data.y_train[idx])
 
-        if batch % cfg.steps_per_epoch == 0:
-            epoch += 1  # Counting epoch for ramping up input S
-
-        if cfg.use_semantic == True:
             yield (
                 [data.x_train[idx], batch_s, 2 * data.y_train[idx] - 1], batch_y
-            )  # With negative input signal
+            )
+
+            # Counting epoch for ramping up input S
+            if batch % cfg.steps_per_epoch == 0:
+                epoch += 1
         else:
+            # Non-semantic input
             yield (data.x_train[idx], batch_y)
 
 
