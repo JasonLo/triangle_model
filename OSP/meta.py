@@ -39,12 +39,56 @@ def gpu_mem_cap(b=2048):
 
 class model_cfg:
     """
-    This function keep all global model configurations
+    This function keeps all global model configurations
     It will be use in almost every object downsteam, from modelling, evaluation, and visualization
 
     There are two ways to construct this object
-    1) Using a json file path, which contains a cfg dictionary
+    1) Using a json file path, which contains a cfg dictionary by model_cfg(json_file)
     2) Using a dictionary by model_cfg(**dict) 
+    
+    Arguements details:
+    ------------------------------------------------------------------------------------------------
+    >>>META DATA<<<
+    code_name: Cfg meta-label, it wont' be use in the model, but it will be recorded in the cfg.json
+    
+    >>>TRAINING RELATED<<<
+    sample_name: Sampling probability implementation name, see data_wrangling for details
+    rng_seed: Random seed for sampling and tf
+    w_initializer: Weight initializer
+    regularizer_const: L2 regularization constant (in weight and biases)
+    optimizer: Optimizer ('adam' or 'sgd' only)
+    learning_rate: Learning rate in optimizer
+    n_mil_sample: Stop training after n million sample
+    batch_size: Batch size
+    save_freq: How often (1 = 10k sample) to save weight after 100k samples. 
+               *Model automatically save in every 10k samples in the first 100k sample.
+    
+    >>>MODEL ARCHITECHTURE<<<
+    use_semantic: to use semantic dummy input or not
+        if TRUE, must provide the fomula parameters in the following arguments:
+            sem_param_gf, 
+            sem_param_gi,
+            sem_param_kf,
+            sem_param_ki,
+            sem_param_hf,
+            sem_param_hi
+    input_dim: input dimension
+    hidden_units: number of hidden units in hidden layer
+    cleanup_units: number of cleanup units in attractor network
+    pretrain_attractor: A flag to indicate use pretrained attractor or not
+    if TRUE: must provide the pretrianed attractor cfg and weight in the following arguments:
+        embed_attractor_cfg',
+        embed_attractor_h5',
+    output_dim: output dimension (in one time step)
+    rnn_activation: activation unit use in the recurrent part in the model
+    tau: time averaged input (TAI) parameter tau
+    max_unit_time: TAI max unit of time
+    output_ticks: how many output ticks should be exported and BPTT from
+    p_noise: Gaussian noise in phonolgical system (W_pp, W_pc, W_cp)
+        
+
+    
+    
     """
     minimal_cfgs = ['code_name',
                     'sample_name',
@@ -54,9 +98,10 @@ class model_cfg:
                     'hidden_units',
                     'output_dim',
                     'cleanup_units',
-                    'use_attractor',
+                    'pretrain_attractor',
                     'tau',
                     'max_unit_time',
+                    'output_ticks',
                     'rnn_activation',
                     'w_initializer',
                     'regularizer_const',
@@ -194,7 +239,7 @@ class model_cfg:
             self.sem_param_hf = None
             self.sem_param_hi = None    
 
-        if self.use_attractor == True:
+        if self.pretrain_attractor == True:
             if not (type(self.embed_attractor_cfg) == str): raise ValueError('check embed_attractor_cfg') 
             if not (type(self.embed_attractor_h5) == str): raise ValueError('check embed_attractor_h5') 
         else:
