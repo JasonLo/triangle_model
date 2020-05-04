@@ -122,8 +122,8 @@ def test_set_input(
                     ki=cfg.sem_param_ki,
                     hf=cfg.sem_param_hf,
                     hi=cfg.sem_param_hi,
-                    tmax=cfg.max_unit_time - cfg.tau
-                )  # Because of zero indexing
+                    tmax=cfg.max_unit_time - cfg.tau # zero-indexing
+                )  
                 batch_s[:, t, :] = np.tile(
                     np.expand_dims(s_cell, 1), [1, cfg.output_dim]
                 )

@@ -107,45 +107,6 @@ def get_sse(output, target):
 def get_mean_sse(output, target):
     return np.mean(get_sse(output, target)) / len(output)
 
-
-def plot_development(df, ys, cond='condition', plot_time_step=None):
-    # Choose last time step as default plot
-    if plot_time_step is None:
-        plot_time_step = df['timestep'].max()
-
-    title_suffix = ' (at timestep {})'.format(plot_time_step + 1)
-
-    base = alt.Chart(df[lambda df: df['timestep'] == plot_time_step]
-                    ).mark_line(point=True).encode(x='sample_mil', color=cond)
-
-    dev_plot = alt.hconcat()
-
-    for m in ys:
-        dev_plot |= base.encode(
-            y=m, tooltip=['epoch', 'timestep', 'sample_mil', m]
-        ).properties(title=m + title_suffix)
-    return dev_plot
-
-
-def plot_time_course(df, ys, cond='condition', plot_epoch=None):
-    # Choose last epoch as default plot
-    if plot_epoch is None:
-        plot_epoch = df['epoch'].max()
-
-    title_suffix = ' (at epoch {})'.format(plot_epoch)
-
-    base = alt.Chart(df[lambda df: df['epoch'] == plot_epoch]
-                    ).mark_line(point=True).encode(x='unit_time', color=cond)
-
-    time_plot = alt.hconcat()
-    for m in ys:
-        time_plot |= base.encode(
-            y=m, tooltip=['epoch', 'timestep', 'sample_mil', m]
-        ).properties(title=m + title_suffix)
-
-    return time_plot
-
-
 def plot_variables(model, save_file=None):
     """
     Plot all the trainable variables in a model in heatmaps
@@ -169,7 +130,6 @@ def plot_variables(model, save_file=None):
 
     if save_file is not None:
         plt.savefig(save_file)
-
 
 class testset():
     """
@@ -241,7 +201,7 @@ class testset():
 
             y_pred_matrix = self.model.predict(test_input)
 
-            for timestep in range(self.cfg.n_timesteps):
+            for timestep in range(self.cfg.output_ticks):
 
                 # Extract output from test set
                 y_pred = get_all_pronunciations_fast(
@@ -275,7 +235,7 @@ class testset():
     def parse_eval(self):
         self.i_hist['uuid'] = self.cfg.uuid
         self.i_hist['code_name'] = self.cfg.code_name
-        self.i_hist['unit_time'] = self.i_hist['timestep'] * self.cfg.tau
+        self.i_hist['unit_time'] = round((self.i_hist['timestep'] + (self.cfg.n_timesteps-self.cfg.output_ticks+1)) * self.cfg.tau, 2)
         # self.i_hist['condition'] = self.i_hist['pho_consistency'] + '_' + self.i_hist['frequency']
         self.i_hist['sample'] = self.i_hist[
             'epoch'] * self.cfg.steps_per_epoch * self.cfg.batch_size
@@ -376,7 +336,7 @@ def make_df_wnw(df, selected_cond):
             code_name, epoch, nonword_acc, word_acc
     """
 
-    df_sel = df.loc[(df.timestep == df.timestep.max()) &
+    df_sel = df.loc[(df.unit_time == df.unit_time.max()) &
                     (df.cond.isin(selected_cond)),
                     ['code_name', 'epoch', 'acc', 'exp']]
 
@@ -398,7 +358,7 @@ class vis():
     It parse the datafiles with:
     - parse_strain_cond_df
     - parse_grain_cond_df
-    - parse_cond_df (= concat all parsed test sets file)
+    - parse_cond_df (concat all parsed test sets file)
     - parse_wnw_df (Restructure for condition datafile for Word vs. Nonword plot)
     Then visualize
     
@@ -407,7 +367,7 @@ class vis():
     # Which will parse item level data to condition level data
     # Then plot with Altair
     def __init__(self, model_folder, s_item_csv, g_item_csv):
-        from evaluate import training_history, strain_eval, grain_eval, plot_development
+        from evaluate import training_history, strain_eval, grain_eval
         from data_wrangling import my_data
         import altair as alt
         
@@ -454,33 +414,33 @@ class vis():
         self.parse_strain_cond_df(cond_strain)
         self.parse_grain_cond_df(cond_grain)
         self.cdf = pd.concat([self.scdf, self.gcdf], sort=False)
+        self.cdf['unit_time'] = round(self.cdf.unit_time, 2)  # Round to 2dp
 
         if output is not None:
             self.cdf.to_csv(output, index=False)
             print('Saved file to {}'.format(output))
                  
     # Visualization
-    def plot_dev(self, y, exp=None, condition='cond', timestep=None):
+    def plot_dev(self, y, exp=None, condition='cond', unit_time=None):
         """
         Plot developlment (x = epoch)
         Inputs:
         - y: what to plot on y-axis
         - exp: filter on exp column (e.g., 'strain', 'grain')
         - condition: column that group the line color (i.e., separate line by which column)
-        - timestep: filter on timestep column, if none provided, take the last timestep
+        - unit_time: filter on unit_time column, if none provided, take the last unit_time
         """
         
-        if timestep == None: timestep=self.cfg.n_timesteps
-        timestep -= 1 # Reindex
+        if unit_time == None: unit_time=self.cfg.max_unit_time
 
         # Select data
         if exp is not None: 
-            plot_df = self.cdf.loc[(self.cdf.exp==exp) & (self.cdf.timestep==timestep),]
+            plot_df = self.cdf.loc[(self.cdf.exp==exp) & (self.cdf.unit_time==unit_time),]
         else:
-            plot_df = self.cdf.loc[self.cdf.timestep==timestep,]
+            plot_df = self.cdf.loc[self.cdf.unit_time==unit_time,]
 
         # Plotting
-        title = '{} at timestep {} / unit time {}'.format(y, timestep + 1, self.cfg.max_unit_time)
+        title = '{} at unit_time {} '.format(y, unit_time)
         sel = alt.selection(type='single', on='click', fields=[condition], empty='all')
         plot = alt.Chart(
                     plot_df
@@ -491,7 +451,7 @@ class vis():
                     x='epoch:Q',
                     color=condition,
                     opacity=alt.condition(sel, alt.value(1), alt.value(0)),
-                    tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+                    tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
                 ).add_selection(sel
                 ).interactive(
                 ).properties(title=title)
@@ -500,7 +460,7 @@ class vis():
     
     def plot_dev_interactive(self, y, exp=None, condition='cond'):
         """
-        Interactive version (slider = timestep) of development plot
+        Interactive version (slider = unit_time) of development plot
         Inputs:
         - y: what to plot on y-axis
         - exp: filter on exp column (e.g., 'strain', 'grain')
@@ -512,13 +472,13 @@ class vis():
             type='multi', on='click', fields=[condition], empty='all', bind="legend"
         )
         
-        # Slider timestep filter
-        slider_time = alt.binding_range(min=0, max=self.cfg.n_timesteps - 1, step=1)
+        # Slider unit time filter
+        slider_time = alt.binding_range(min=0, max=self.cfg.max_unit_time, step=self.cfg.tau)
         select_time = alt.selection_single(
             name="filter",
-            fields=['timestep'],
+            fields=['unit_time'],
             bind=slider_time,
-            init={'timestep': self.cfg.n_timesteps - 1}
+            init={'unit_time': self.cfg.max_unit_time}
         )
         
         # Interactive development plot
@@ -527,7 +487,7 @@ class vis():
             x='epoch:Q',
             color=condition,
             opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
-            tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+            tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
         ).add_selection(select_time, select_cond).transform_filter(select_time).properties(
             title='Development plot'
         )
@@ -556,7 +516,7 @@ class vis():
                     x='unit_time:Q',
                     color=condition,
                     opacity=alt.condition(sel, alt.value(1), alt.value(0)),
-                    tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+                    tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
                 ).add_selection(sel
                 ).interactive(
                 ).properties(title=title)
@@ -588,7 +548,7 @@ class vis():
             x='unit_time:Q',
             color=condition,
             opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
-            tooltip=['epoch', 'timestep', 'sample_mil', 'acc', 'sse']
+            tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
         ).add_selection(select_epoch, select_cond).transform_filter(select_epoch).properties(
             title='Interactive time plot',
         )

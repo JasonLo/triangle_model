@@ -64,7 +64,7 @@ class model_cfg:
                *Model automatically save in every 10k samples in the first 100k sample.
     
     >>>MODEL ARCHITECHTURE<<<
-    use_semantic: to use semantic dummy input or not
+    use_semantic: To use semantic dummy input or not
         if TRUE, must provide the fomula parameters in the following arguments:
             sem_param_gf, 
             sem_param_gi,
@@ -72,18 +72,18 @@ class model_cfg:
             sem_param_ki,
             sem_param_hf,
             sem_param_hi
-    input_dim: input dimension
-    hidden_units: number of hidden units in hidden layer
-    cleanup_units: number of cleanup units in attractor network
+    input_dim: Input dimension
+    hidden_units: Number of hidden units in hidden layer
+    cleanup_units: Number of cleanup units in attractor network
     pretrain_attractor: A flag to indicate use pretrained attractor or not
-    if TRUE: must provide the pretrianed attractor cfg and weight in the following arguments:
-        embed_attractor_cfg',
-        embed_attractor_h5',
-    output_dim: output dimension (in one time step)
-    rnn_activation: activation unit use in the recurrent part in the model
-    tau: time averaged input (TAI) parameter tau
+        if TRUE: Must provide the pretrianed attractor cfg and weight in the following arguments:
+            embed_attractor_cfg',
+            embed_attractor_h5',
+    output_dim: Output dimension (in one time step)
+    rnn_activation: Activation unit use in the recurrent part in the model
+    tau: Time averaged input (TAI) parameter tau
     max_unit_time: TAI max unit of time
-    output_ticks: how many output ticks should be exported and BPTT from
+    output_ticks: How many output ticks should be exported and BPTT from
     p_noise: Gaussian noise in phonolgical system (W_pp, W_pc, W_cp)
         
 
