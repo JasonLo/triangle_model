@@ -185,6 +185,8 @@ class my_data():
         print('x_train shape:', self.x_train.shape)
         print('x_strain shape:', self.x_strain.shape)
         print('x_grain shape:', self.x_grain.shape)
+        print('x_taraban shape:', self.x_taraban.shape)
+        print('x_glushko shape:', self.x_glushko.shape)
 
         print('\n==========Phonological representation==========')
         print(len(self.phon_key), ' phonemes: ', self.phon_key.keys())
@@ -192,6 +194,7 @@ class my_data():
         print('y_strain shape:', self.y_strain.shape)
         print('y_large_grain shape:', self.y_large_grain.shape)
         print('y_small_grain shape:', self.y_small_grain.shape)
+        print('y_glushko dimension: {}'.format(len(self.y_glushko['beed'][0])))
 
         self.gen_sample_p()
         self.wf = np.array(self.df_train['wf'], dtype='float32')
