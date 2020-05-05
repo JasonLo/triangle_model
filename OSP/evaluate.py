@@ -3,6 +3,8 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import altair as alt
+import ast
+
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
 from IPython.display import clear_output
@@ -139,7 +141,7 @@ class testset():
     3. Stitch to one csv file
     """
     def __init__(
-        self, cfg, data, model, x_test, x_test_wf, x_test_img, y_test, key_df
+        self, cfg, data, model, x_test, x_test_wf, x_test_img, y_pho, y_test, key_df
     ):
         self.model = model
         self.cfg = cfg
@@ -151,10 +153,8 @@ class testset():
         self.x_test_wf = x_test_wf
         self.x_test_img = x_test_img
 
-        self.y_true_matrix = y_test  # Matrix form y_true
-        self.y_true = get_all_pronunciations_fast(
-            self.y_true_matrix, self.phon_key
-        )
+        self.y_true_matrix = y_test
+        self.y_true = y_pho
 
         self.i_hist = pd.DataFrame()  # item history
 
@@ -170,8 +170,9 @@ class testset():
         y_pred = get_all_pronunciations_fast(
             y_pred_matrix[timestep], self.phon_key
         )
-        
+
         item_eval['output'] = y_pred
+
         item_eval['acc'] = get_accuracy(y_pred, self.y_true)
         item_eval['sse'] = get_sse(y_pred_matrix[timestep], self.y_true_matrix)
 
@@ -235,7 +236,12 @@ class testset():
     def parse_eval(self):
         self.i_hist['uuid'] = self.cfg.uuid
         self.i_hist['code_name'] = self.cfg.code_name
-        self.i_hist['unit_time'] = round((self.i_hist['timestep'] + (self.cfg.n_timesteps-self.cfg.output_ticks+1)) * self.cfg.tau, 2)
+        self.i_hist['unit_time'] = round(
+            (
+                self.i_hist['timestep'] +
+                (self.cfg.n_timesteps - self.cfg.output_ticks + 1)
+            ) * self.cfg.tau, 2
+        )
         # self.i_hist['condition'] = self.i_hist['pho_consistency'] + '_' + self.i_hist['frequency']
         self.i_hist['sample'] = self.i_hist[
             'epoch'] * self.cfg.steps_per_epoch * self.cfg.batch_size
@@ -253,7 +259,7 @@ class strain_eval(testset):
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_strain, data.x_strain_wf,
-            data.x_strain_img, data.y_strain, data.df_strain
+            data.x_strain_img, data.df_strain.pho, data.y_strain, data.df_strain
         )
 
     def parse_eval(self):
@@ -266,7 +272,7 @@ class strain_eval(testset):
         self.i_hist['condition_pfi'
                    ] = self.i_hist['pho_consistency'] + '_' + self.i_hist[
                        'frequency'] + '_' + self.i_hist['imageability']
-
+             
 
 class grain_eval():
     def __init__(self, cfg, data, model):
@@ -279,11 +285,11 @@ class grain_eval():
         self.x_test_img = data.x_grain_img
 
         self.grain_small = testset(
-            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img,
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, self.key_df.pho_small,
             data.y_small_grain, self.key_df
         )
         self.grain_large = testset(
-            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img,
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, self.key_df.pho_large,
             data.y_large_grain, self.key_df
         )
 
@@ -319,8 +325,66 @@ class grain_eval():
             self.i_hist.to_csv(output, index=False)
             print('Saved file to {}'.format(output))
 
+class taraban_eval(testset):
+    """
+    Evaluate Taraban testset
+    """
+    def __init__(self, cfg, data, model):
+        super().__init__(
+            cfg, data, model, data.x_taraban, data.x_taraban_wf,
+            data.x_taraban_img, data.df_taraban.pho, data.y_taraban, data.df_taraban
+        )
+        
+class glushko_eval(testset):
+    """
+    Evaluate Glushko testset
+    """
+    def __init__(self, cfg, data, model):
+        super().__init__(
+            cfg, data, model, data.x_glushko, data.x_glushko_wf,
+            data.x_glushko_img, data.df_glushko.pho, data.y_glushko, data.df_glushko
+        )
 
-def make_df_wnw(df, selected_cond):
+        # self.y_true_matrix = y_test
+        self.y_dict = self.y_true_matrix
+
+    def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
+        from modeling import input_s
+
+        # Item level statistics
+        item_eval = self.key_df
+        item_eval['model'] = h5_name
+        item_eval['epoch'] = epoch
+        item_eval['timestep'] = timestep
+
+        y_pred = get_all_pronunciations_fast(
+            y_pred_matrix[timestep], self.phon_key
+        )
+
+        item_eval['output'] = y_pred
+
+        # Calculate accuracy in each word and each ans
+        acc_list = []
+        for i, y in enumerate(y_pred):
+            y_true_list = ast.literal_eval(self.y_true[i])
+            acc = 1 * np.max([y == ans for ans in y_true_list])
+            acc_list.append(acc)
+        
+        # Calculate sse in each word and each ans
+        sse_list = []
+        for i, y in enumerate(y_pred_matrix[timestep]):
+            y_true_matrix_list = self.y_dict[self.key_df.word[i]]
+            sse = np.min(
+                [np.sum(np.square(y - ans)) for ans in y_true_matrix_list]
+            )
+            sse_list.append(sse)
+
+        item_eval['acc'] = acc_list
+        item_eval['sse'] = sse_list
+
+        return item_eval
+
+def make_df_wnw(df, word_cond, nonword_cond):
     """
     This function make a word vs. nonword data file for plotting
     1) filter to last time step
@@ -337,17 +401,21 @@ def make_df_wnw(df, selected_cond):
     """
 
     df_sel = df.loc[(df.unit_time == df.unit_time.max()) &
-                    (df.cond.isin(selected_cond)),
-                    ['code_name', 'epoch', 'acc', 'exp']]
+                    (df.cond.isin(word_cond + nonword_cond)),
+                    ['code_name', 'epoch', 'acc', 'cond']]
+
+    df_sel['wnw'] = list(
+        map(lambda x: "word" if x in word_cond else "nonword", df_sel.cond)
+    )
 
     pvt = df_sel.pivot_table(index=['code_name', 'epoch'],
-                             columns='exp').reset_index()
+                             columns='wnw').reset_index()
 
     plt_df = pd.DataFrame()
     plt_df['code_name'] = pvt.code_name
     plt_df['epoch'] = pvt.epoch
-    plt_df['nonword_acc'] = pvt.acc.grain
-    plt_df['word_acc'] = pvt.acc.strain
+    plt_df['word_acc'] = pvt.acc.word
+    plt_df['nonword_acc'] = pvt.acc.nonword
 
     return plt_df
 
@@ -360,104 +428,107 @@ class vis():
     - parse_grain_cond_df
     - parse_cond_df (concat all parsed test sets file)
     - parse_wnw_df (Restructure for condition datafile for Word vs. Nonword plot)
-    Then visualize
-    
     """
+
     # Visualize single model
     # Which will parse item level data to condition level data
     # Then plot with Altair
-    def __init__(self, model_folder, s_item_csv, g_item_csv):
+    def __init__(self, model_folder):
         from evaluate import training_history, strain_eval, grain_eval
         from data_wrangling import my_data
-        import altair as alt
-        
-        self.model_folder = model_folder
-        self.load_config()
-                    
-        self.read_eval_from_file(s_item_csv, g_item_csv)
-        self.max_epoch = self.strain_i_hist['epoch'].max()
-
-    def load_config(self):
         from meta import model_cfg
-        self.cfg = model_cfg(self.model_folder + '/model_config.json', bypass_chk=True)
-        
+        import altair as alt
+
+        self.model_folder = model_folder
+        self.cfg = model_cfg(
+            self.model_folder + '/model_config.json', bypass_chk=True
+        )
+        self.strain_i_hist = pd.read_csv(
+            self.model_folder + '/result_strain_item.csv'
+        )
+        self.grain_i_hist = pd.read_csv(
+            self.model_folder + '/result_grain_item.csv'
+        )
+        self.taraban_i_hist = pd.read_csv(
+            self.model_folder + '/result_taraban_item.csv'
+        )
+        self.glushko_i_hist = pd.read_csv(
+            self.model_folder + '/result_glushko_item.csv'
+        )
+
+        self.parse_cond_df()
+
     def training_hist(self):
         self.t_hist = training_history(self.cfg.path_history_pickle)
         return self.t_hist.plot_all()
-        
-    def read_eval_from_file(self, s_item_csv, g_item_csv):
-        self.strain_i_hist = pd.read_csv(self.model_folder + '/' + s_item_csv)
-        self.grain_i_hist = pd.read_csv(self.model_folder + '/' + g_item_csv)
-    
+
     # Condition level parsing
     def parse_strain_cond_df(self, cond):
-        self.scdf = self.strain_i_hist[['code_name', 'epoch', 'sample_mil', 'timestep',
-                                        'unit_time', cond, 'input_s', 'acc', 'sse']]
-        self.scdf = self.scdf.groupby(['code_name', 'epoch', 'timestep', cond],
-                                      as_index=False).mean() 
+        self.scdf = self.strain_i_hist[[
+            'code_name', 'epoch', 'sample_mil', 'timestep', 'unit_time', cond,
+            'input_s', 'acc', 'sse'
+        ]]
+        self.scdf = self.scdf.groupby(
+            ['code_name', 'epoch', 'timestep', cond], as_index=False
+        ).mean()
         self.scdf['cond'] = self.scdf[cond]
         self.scdf['exp'] = 'strain'
-        
+
     def parse_grain_cond_df(self, cond):
-        self.gcdf = self.grain_i_hist[['code_name', 'epoch', 'sample_mil', 'timestep',
-                                       'unit_time', cond, 'input_s',
-                                       'acc_acceptable', 'sse_acceptable',
-                                       'acc_small_grain', 'sse_small_grain',
-                                       'acc_large_grain', 'sse_large_grain']]
-        self.gcdf = self.gcdf.rename(columns={'acc_acceptable':'acc', 'sse_acceptable':'sse'})
-        self.gcdf = self.gcdf.groupby(['code_name', 'epoch', 'timestep', cond],
-                                      as_index=False).mean()
+        self.gcdf = self.grain_i_hist[[
+            'code_name', 'epoch', 'sample_mil', 'timestep', 'unit_time', cond,
+            'input_s', 'acc_acceptable', 'sse_acceptable', 'acc_small_grain',
+            'sse_small_grain', 'acc_large_grain', 'sse_large_grain'
+        ]]
+        self.gcdf = self.gcdf.rename(
+            columns={
+                'acc_acceptable': 'acc',
+                'sse_acceptable': 'sse'
+            }
+        )
+        self.gcdf = self.gcdf.groupby(
+            ['code_name', 'epoch', 'timestep', cond], as_index=False
+        ).mean()
         self.gcdf['cond'] = self.gcdf[cond]
         self.gcdf['exp'] = 'grain'
-        
-    def parse_cond_df(self, cond_strain='condition_pf', cond_grain='condition', output=None):
-        self.parse_strain_cond_df(cond_strain)
-        self.parse_grain_cond_df(cond_grain)
-        self.cdf = pd.concat([self.scdf, self.gcdf], sort=False)
+
+    def parse_taraban_cond_df(self, cond):
+        self.tcdf = self.taraban_i_hist[[
+            'code_name', 'epoch', 'sample_mil', 'timestep', 'unit_time', cond,
+            'input_s', 'acc', 'sse'
+        ]]
+        self.tcdf = self.tcdf.groupby(
+            ['code_name', 'epoch', 'timestep', cond], as_index=False
+        ).mean()
+        self.tcdf['cond'] = self.tcdf[cond]
+        self.tcdf['exp'] = 'taraban'
+
+    def parse_glushko_cond_df(self, cond):
+        self.gkcdf = self.glushko_i_hist[[
+            'code_name', 'epoch', 'sample_mil', 'timestep', 'unit_time', cond,
+            'input_s', 'acc', 'sse'
+        ]]
+        self.gkcdf = self.gkcdf.groupby(
+            ['code_name', 'epoch', 'timestep', cond], as_index=False
+        ).mean()
+        self.gkcdf['cond'] = self.gkcdf[cond]
+        self.gkcdf['exp'] = 'glushko'
+
+    def parse_cond_df(self, output=None):
+        self.parse_strain_cond_df('condition_pf')
+        self.parse_grain_cond_df('condition')
+        self.parse_taraban_cond_df('cond')
+        self.parse_glushko_cond_df('cond')
+
+        self.cdf = pd.concat(
+            [self.scdf, self.gcdf, self.tcdf, self.gkcdf], sort=False
+        ).reset_index(drop=True)
         self.cdf['unit_time'] = round(self.cdf.unit_time, 2)  # Round to 2dp
 
         if output is not None:
             self.cdf.to_csv(output, index=False)
             print('Saved file to {}'.format(output))
-                 
-    # Visualization
-    def plot_dev(self, y, exp=None, condition='cond', unit_time=None):
-        """
-        Plot developlment (x = epoch)
-        Inputs:
-        - y: what to plot on y-axis
-        - exp: filter on exp column (e.g., 'strain', 'grain')
-        - condition: column that group the line color (i.e., separate line by which column)
-        - unit_time: filter on unit_time column, if none provided, take the last unit_time
-        """
-        
-        if unit_time == None: unit_time=self.cfg.max_unit_time
 
-        # Select data
-        if exp is not None: 
-            plot_df = self.cdf.loc[(self.cdf.exp==exp) & (self.cdf.unit_time==unit_time),]
-        else:
-            plot_df = self.cdf.loc[self.cdf.unit_time==unit_time,]
-
-        # Plotting
-        title = '{} at unit_time {} '.format(y, unit_time)
-        sel = alt.selection(type='single', on='click', fields=[condition], empty='all')
-        plot = alt.Chart(
-                    plot_df
-                ).mark_line(
-                    point=True
-                ).encode(
-                    y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
-                    x='epoch:Q',
-                    color=condition,
-                    opacity=alt.condition(sel, alt.value(1), alt.value(0)),
-                    tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
-                ).add_selection(sel
-                ).interactive(
-                ).properties(title=title)
-
-        return plot
-    
     def plot_dev_interactive(self, y, exp=None, condition='cond'):
         """
         Interactive version (slider = unit_time) of development plot
@@ -466,136 +537,115 @@ class vis():
         - exp: filter on exp column (e.g., 'strain', 'grain')
         - condition: column that group the line color (i.e., separate line by which column)
         """
-        
+        if exp is not None:
+            df = self.cdf.loc[self.cdf.exp.isin(exp)]
+        else:
+            df = self.cdf
+
         # Condition highlighter from legend
         select_cond = alt.selection(
-            type='multi', on='click', fields=[condition], empty='all', bind="legend"
+            type='multi',
+            on='click',
+            fields=[condition],
+            empty='all',
+            bind="legend"
         )
-        
+
         # Slider unit time filter
-        slider_time = alt.binding_range(min=0, max=self.cfg.max_unit_time, step=self.cfg.tau)
+        slider_time = alt.binding_range(
+            min=0, max=self.cfg.max_unit_time, step=self.cfg.tau
+        )
         select_time = alt.selection_single(
             name="filter",
             fields=['unit_time'],
             bind=slider_time,
             init={'unit_time': self.cfg.max_unit_time}
         )
-        
+
         # Interactive development plot
-        plot_dev = alt.Chart(self.cdf).mark_line(point=True).encode(
+        plot_dev = alt.Chart(df).mark_line(point=True).encode(
             y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
             x='epoch:Q',
             color=condition,
             opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
             tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
-        ).add_selection(select_time, select_cond).transform_filter(select_time).properties(
-            title='Development plot'
-        )
+        ).add_selection(select_time,
+                        select_cond).transform_filter(select_time).properties(
+                            title='Development plot'
+                        )
 
         return plot_dev
 
-    def plot_time(self, y, exp=None, condition='cond', epoch=None):  
-        if epoch == None: epoch = self.max_epoch
-
-        # Select data
-        if exp is not None: 
-            plot_df = self.cdf.loc[(self.cdf.exp==exp) & (self.cdf.epoch == epoch),]
-        else:
-            plot_df = self.cdf.loc[self.cdf.epoch == epoch,]
-
-        # Plotting
-        title = '{} at epoch {} '.format(y, epoch)
-        sel = alt.selection(type='single', on='click', fields=[condition], empty='all')
-        
-        plot = alt.Chart(
-                    plot_df
-                ).mark_line(
-                    point=True
-                ).encode(
-                    y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
-                    x='unit_time:Q',
-                    color=condition,
-                    opacity=alt.condition(sel, alt.value(1), alt.value(0)),
-                    tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
-                ).add_selection(sel
-                ).interactive(
-                ).properties(title=title)
-
-        return plot
-    
     def plot_time_interactive(self, y, exp=None, condition='cond'):
-        
+
+        if exp is not None:
+            df = self.cdf.loc[self.cdf.exp.isin(exp)]
+        else:
+            df = self.cdf
+
         # Condition highlighter from legend
         select_cond = alt.selection(
-            type='multi', on='click', fields=[condition], empty='all', bind="legend"
+            type='multi',
+            on='click',
+            fields=[condition],
+            empty='all',
+            bind="legend"
         )
-            
+
         # Slider epoch filter
         slider_epoch = alt.binding_range(
             min=self.cfg.save_freq, max=self.cfg.nEpo, step=self.cfg.save_freq
         )
-        
+
         select_epoch = alt.selection_single(
             name="filter",
             fields=['epoch'],
             bind=slider_epoch,
             init={'epoch': self.cfg.nEpo}
         )
-        
+
         # Plot
-        plot_time = alt.Chart(self.cdf).mark_line(point=True).encode(
+        plot_time = alt.Chart(df).mark_line(point=True).encode(
             y=alt.Y(y, scale=alt.Scale(domain=(0, 1))),
             x='unit_time:Q',
             color=condition,
             opacity=alt.condition(select_cond, alt.value(1), alt.value(0.1)),
             tooltip=['epoch', 'unit_time', 'sample_mil', 'acc', 'sse']
-        ).add_selection(select_epoch, select_cond).transform_filter(select_epoch).properties(
-            title='Interactive time plot',
-        )
-        
+        ).add_selection(select_epoch,
+                        select_cond).transform_filter(select_epoch).properties(
+                            title='Interactive time plot',
+                        )
+
         return plot_time
-    
-    def plot_wnw(self, selected_cond):
 
-        wnw_df = make_df_wnw(self.cdf, selected_cond)
+    def plot_wnw(self, word_cond, nonword_cond):
 
-        wnw_plot = (
-            alt.Chart(wnw_df).mark_line(point=True).encode(
-                y=alt.Y("nonword_acc:Q", scale=alt.Scale(domain=(0, 1))),
-                x=alt.X("word_acc:Q", scale=alt.Scale(domain=(0, 1))),
-                color=alt.Color("epoch", scale=alt.Scale(scheme="redyellowgreen")),
-                tooltip=["code_name", "word_acc", "nonword_acc"],
-            ).properties(
-                title="Word vs. Nonword accuracy at final time step"
-            )
+        wnw_df = make_df_wnw(self.cdf, word_cond, nonword_cond)
+
+        wnw_line = alt.Chart(wnw_df).mark_line().encode(
+            y=alt.Y("nonword_acc:Q", scale=alt.Scale(domain=(0, 1))),
+            x=alt.X("word_acc:Q", scale=alt.Scale(domain=(0, 1))),
+            tooltip=["code_name", "word_acc", "nonword_acc"],
+        ).properties(
+            title='Word ({}) vs. Nonword {} accuracy'.
+            format(word_cond, nonword_cond)
         )
-        
+
+        wnw_point = wnw_line.mark_point().encode(
+            color=alt.
+            Color("epoch:Q", scale=alt.Scale(scheme="redyellowgreen"))
+        )
+
         # Plot diagonal
-        diagline = alt.Chart(pd.DataFrame({
+        diagonal = alt.Chart(pd.DataFrame({
             'x': [0, 1],
             'y': [0, 1]
-        })).mark_line().encode(x=alt.X('x', axis=alt.Axis(labels=False)), 
-                               y=alt.Y('y', axis=alt.Axis(labels=False)))
+        })).mark_line(color='black').encode(
+            x=alt.X('x', axis=alt.Axis(labels=False)),
+            y=alt.Y('y', axis=alt.Axis(labels=False))
+        )
 
-        wnw_with_diag = diagline + wnw_plot
-        
-        return wnw_with_diag
+        wnw_plot = diagonal + wnw_line + wnw_point
+
+        return wnw_plot
     
-    def plots(self, mode, ys, cond_strain='condition_pf', cond_grain='condition'):
-        # Mode = dev(d) / time(t)
-        self.parse_cond_df(cond_strain, cond_grain)
-        
-        plots = alt.hconcat()
-        for y in ys:
-            if mode == 'd':
-                plots |= self.plot_dev(y)
-            elif mode == 't':
-                plots |= self.plot_time(y, self.max_epoch)
-            else:
-                print('Use d for development plot, use t for time plot')
-            
-        return plots
-        
-    def export_result(self):
-        self.parse_cond_df()
-        return self.cdf.reset_index(drop=True)

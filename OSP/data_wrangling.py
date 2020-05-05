@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+import pickle
 
 def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
     """
@@ -152,19 +152,31 @@ class my_data():
         self.y_train = np.load(input_path + 'y_train.npz')['data']
 
         self.df_strain = pd.read_csv(input_path + 'df_strain.csv', index_col=0)
-        self.df_grain = pd.read_csv(input_path + 'df_grain.csv', index_col=0)
-
         self.x_strain = np.load(input_path + 'x_strain.npz')['data']
         self.x_strain_wf = np.array(self.df_strain['wf'])
         self.x_strain_img = np.array(self.df_strain['img'])
-
+        self.y_strain = np.load(input_path + 'y_strain.npz')['data']
+        
+        self.df_grain = pd.read_csv(input_path + 'df_grain.csv', index_col=0)
         self.x_grain = np.load(input_path + 'x_grain.npz')['data']
         self.x_grain_wf = np.array(self.df_grain['wf'])
         self.x_grain_img = np.array(self.df_grain['img'])
-
-        self.y_strain = np.load(input_path + 'y_strain.npz')['data']
         self.y_large_grain = np.load(input_path + 'y_large_grain.npz')['data']
         self.y_small_grain = np.load(input_path + 'y_small_grain.npz')['data']
+        
+        self.df_taraban = pd.read_csv(input_path + 'df_taraban.csv', index_col=0)
+        self.x_taraban = np.load(input_path + 'x_taraban.npz')['data']
+        self.x_taraban_wf = np.array(self.df_taraban['wf'])
+        self.x_taraban_img = np.array(self.df_taraban['img'])
+        self.y_taraban = np.load(input_path + 'y_taraban.npz')['data']
+        
+        self.df_glushko = pd.read_csv(input_path + 'df_glushko.csv', index_col=0)
+        self.x_glushko = np.load(input_path + 'x_glushko.npz')['data']
+        self.x_glushko_wf = np.array(self.df_glushko['wf'])
+        self.x_glushko_img = np.array(self.df_glushko['img'])
+        f = open(input_path + 'y_glushko.pkl', "rb")
+        self.y_glushko = pickle.load(f)
+        f.close()        
 
         from data_wrangling import gen_pkey
         self.phon_key = gen_pkey()
