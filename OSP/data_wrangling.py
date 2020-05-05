@@ -194,7 +194,8 @@ class my_data():
         print('y_strain shape:', self.y_strain.shape)
         print('y_large_grain shape:', self.y_large_grain.shape)
         print('y_small_grain shape:', self.y_small_grain.shape)
-        print('y_glushko dimension: {}'.format(len(self.y_glushko['beed'][0])))
+        print('y_taraban shape:', self.y_taraban.shape)
+        print('y_glushko shape: ({}, {})'.format(len(self.y_glushko.items()), len(self.y_glushko['beed'][0])))
 
         self.gen_sample_p()
         self.wf = np.array(self.df_train['wf'], dtype='float32')
