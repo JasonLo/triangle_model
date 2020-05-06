@@ -633,9 +633,6 @@ class vis():
             y=alt.Y("nonword_acc:Q", scale=alt.Scale(domain=(0, 1))),
             x=alt.X("word_acc:Q", scale=alt.Scale(domain=(0, 1))),
             tooltip=["code_name", "word_acc", "nonword_acc"],
-        ).properties(
-            title='Word ({}) vs. Nonword {} accuracy'.
-            format(word_cond, nonword_cond)
         )
 
         wnw_point = wnw_line.mark_point().encode(
