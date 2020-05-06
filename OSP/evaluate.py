@@ -83,7 +83,6 @@ def get_pronunciation_fast(act, phon_key):
 def get_all_pronunciations_fast(act, phon_key):
     return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
 
-
 def get_accuracy(output, target):
     current_word = 0
     accuracy_list = []
@@ -141,7 +140,7 @@ class testset():
     3. Stitch to one csv file
     """
     def __init__(
-        self, cfg, data, model, x_test, x_test_wf, x_test_img, y_pho, y_test, key_df
+        self, cfg, data, model, x_test, x_test_wf, x_test_img, y_test, key_df
     ):
         self.model = model
         self.cfg = cfg
@@ -154,8 +153,6 @@ class testset():
         self.x_test_img = x_test_img
 
         self.y_true_matrix = y_test
-        self.y_true = y_pho
-
         self.i_hist = pd.DataFrame()  # item history
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
@@ -259,7 +256,10 @@ class strain_eval(testset):
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_strain, data.x_strain_wf,
-            data.x_strain_img, data.df_strain.pho, data.y_strain, data.df_strain
+            data.x_strain_img, data.y_strain, data.df_strain
+        )
+        self.y_true = get_all_pronunciations_fast(
+            self.y_true_matrix, self.phon_key
         )
 
     def parse_eval(self):
@@ -283,18 +283,23 @@ class grain_eval():
         self.x_test = data.x_grain
         self.x_test_wf = data.x_grain_wf
         self.x_test_img = data.x_grain_img
+        self.y_true = get_all_pronunciations_fast(
+            self.y_true_matrix, self.phon_key
+        )
 
         self.grain_small = testset(
-            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, self.key_df.pho_small,
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, 
             data.y_small_grain, self.key_df
         )
         self.grain_large = testset(
-            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, self.key_df.pho_large,
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, 
             data.y_large_grain, self.key_df
         )
 
-    def start_evaluate(self, test_use_semantic, output=None):
-
+    def start_evaluate(self, output=None):
+        """
+        Always zero "semantic input"
+        """
         self.grain_small.start_evaluate(test_use_semantic=False)
         self.grain_large.start_evaluate(test_use_semantic=False)
 
@@ -332,21 +337,25 @@ class taraban_eval(testset):
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_taraban, data.x_taraban_wf,
-            data.x_taraban_img, data.df_taraban.pho, data.y_taraban, data.df_taraban
+            data.x_taraban_img, data.y_taraban, data.df_taraban
+        )
+        self.y_true = get_all_pronunciations_fast(
+            self.y_true_matrix, self.phon_key
         )
         
 class glushko_eval(testset):
     """
     Evaluate Glushko testset
+    Need to handle variable y_true
     """
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_glushko, data.x_glushko_wf,
-            data.x_glushko_img, data.df_glushko.pho, data.y_glushko, data.df_glushko
+            data.x_glushko_img, data.y_glushko, data.df_glushko
         )
 
-        # self.y_true_matrix = y_test
-        self.y_dict = self.y_true_matrix
+        self.y_dict = data.y_glushko
+        self.pho_dict = data.pho_glushko
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
         from modeling import input_s
@@ -366,10 +375,10 @@ class glushko_eval(testset):
         # Calculate accuracy in each word and each ans
         acc_list = []
         for i, y in enumerate(y_pred):
-            y_true_list = ast.literal_eval(self.y_true[i])
+            y_true_list = self.pho_dict[self.key_df.word[i]]
             acc = 1 * np.max([y == ans for ans in y_true_list])
             acc_list.append(acc)
-        
+
         # Calculate sse in each word and each ans
         sse_list = []
         for i, y in enumerate(y_pred_matrix[timestep]):
@@ -383,7 +392,7 @@ class glushko_eval(testset):
         item_eval['sse'] = sse_list
 
         return item_eval
-
+    
 def make_df_wnw(df, word_cond, nonword_cond):
     """
     This function make a word vs. nonword data file for plotting

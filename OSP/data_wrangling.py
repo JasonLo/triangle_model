@@ -176,7 +176,10 @@ class my_data():
         self.x_glushko_img = np.array(self.df_glushko['img'])
         f = open(input_path + 'y_glushko.pkl', "rb")
         self.y_glushko = pickle.load(f)
-        f.close()        
+        f.close()
+        f = open(input_path + 'pho_glushko.pkl', "rb")
+        self.pho_glushko = pickle.load(f)
+        f.close()  
 
         from data_wrangling import gen_pkey
         self.phon_key = gen_pkey()
