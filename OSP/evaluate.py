@@ -153,6 +153,11 @@ class testset():
         self.x_test_img = x_test_img
 
         self.y_true_matrix = y_test
+        
+        if type(self.y_true_matrix) is not dict:
+            self.y_true = get_all_pronunciations_fast(
+                self.y_true_matrix, self.phon_key
+            )
         self.i_hist = pd.DataFrame()  # item history
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
@@ -258,9 +263,7 @@ class strain_eval(testset):
             cfg, data, model, data.x_strain, data.x_strain_wf,
             data.x_strain_img, data.y_strain, data.df_strain
         )
-        self.y_true = get_all_pronunciations_fast(
-            self.y_true_matrix, self.phon_key
-        )
+
 
     def parse_eval(self):
         super().parse_eval()
@@ -283,14 +286,12 @@ class grain_eval():
         self.x_test = data.x_grain
         self.x_test_wf = data.x_grain_wf
         self.x_test_img = data.x_grain_img
-        self.y_true = get_all_pronunciations_fast(
-            self.y_true_matrix, self.phon_key
-        )
 
         self.grain_small = testset(
             cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, 
             data.y_small_grain, self.key_df
         )
+        
         self.grain_large = testset(
             cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, 
             data.y_large_grain, self.key_df
@@ -338,9 +339,6 @@ class taraban_eval(testset):
         super().__init__(
             cfg, data, model, data.x_taraban, data.x_taraban_wf,
             data.x_taraban_img, data.y_taraban, data.df_taraban
-        )
-        self.y_true = get_all_pronunciations_fast(
-            self.y_true_matrix, self.phon_key
         )
         
 class glushko_eval(testset):
