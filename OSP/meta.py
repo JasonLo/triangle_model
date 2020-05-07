@@ -305,46 +305,58 @@ def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
     """
     Make batch cfg dictionary that can feed into papermill
     """
-   
-    # Check duplicate keys
-    for key in static_hpar.keys():
-        if key in param_grid.keys():
-            raise ValueError("Key duplicate: {}".format(key))
+    
+    # First check batch json exist
+    batch_output_dir = "batch_eval/{}/".format(batch_name)
+    
+    batch_json = batch_output_dir + "batch_config.json"
+    
+    if os.path.isfile(batch_json):
+        print("Batch config json is found, load cfgs from disk")
+        with open(batch_json) as f:
+            batch_cfgs = json.load(f)
+    else:
+        # Make batch_cfgs from given parameters
+        
+        # Check duplicate keys
+        for key in static_hpar.keys():
+            if key in param_grid.keys():
+                raise ValueError("Key duplicated in vary and static parameter: {}".format(key))
 
-    # Iterate and create batch level super object: batch_cfgs
-    batch_cfgs = []
-    varying_hpar_names, varying_hpar_values = zip(*param_grid.items())
-    for i, v in enumerate(itertools.product(*varying_hpar_values)):
-        code_name = batch_name + "_r{:04d}".format(i)
+        # Iterate and create batch level super object: batch_cfgs
+        batch_cfgs = []
+        varying_hpar_names, varying_hpar_values = zip(*param_grid.items())
+        for i, v in enumerate(itertools.product(*varying_hpar_values)):
+            code_name = batch_name + "_r{:04d}".format(i)
 
-        this_hpar = dict(zip(varying_hpar_names, v))
-        this_hpar.update(static_hpar)
+            this_hpar = dict(zip(varying_hpar_names, v))
+            this_hpar.update(static_hpar)
 
-        # Add identifier params into param dict
-        this_hpar["code_name"] = code_name
+            # Add identifier params into param dict
+            this_hpar["code_name"] = code_name
 
-        # Pass into model_cfg to catch error early
-        model_cfg(**this_hpar, just_chk=True)
+            # Pass into model_cfg to catch error early
+            model_cfg(**this_hpar, just_chk=True)
 
-        batch_cfg = dict(
-            sn=i,
-            in_notebook=in_notebook,
-            code_name=code_name,
-            model_folder="models/" + code_name + "/",
-            out_notebook="models/" + code_name + "/output.ipynb",
-            params=this_hpar,
-        )
+            batch_cfg = dict(
+                sn=i,
+                in_notebook=in_notebook,
+                code_name=code_name,
+                model_folder="models/" + code_name + "/",
+                out_notebook="models/" + code_name + "/output.ipynb",
+                params=this_hpar,
+            )
 
-        batch_cfgs.append(batch_cfg)
+            batch_cfgs.append(batch_cfg)
 
     # Save batch cfg to json
-    batch_output_dir = "batch_eval/{}/".format(batch_name)
-    os.makedirs(batch_output_dir, exist_ok=True)
     
-    with open(batch_output_dir + "batch_config.json", "w") as f:
-        json.dump(batch_cfgs, f)
+        os.makedirs(batch_output_dir, exist_ok=True)
+        with open(batch_json, "w") as f:
+            json.dump(batch_cfgs, f)
         
-    print("Batch config saved to {}".format(batch_output_dir))
+        print("Batch config saved to {}".format(batch_output_dir))
+        
     print("There are {} models in this batch".format(len(batch_cfgs)))
     
     return batch_cfgs
@@ -374,10 +386,7 @@ def parse_batch_results(cfgs):
         )
 
         # Evaluate results
-        this_eval = vis(
-            cfgs[i]['model_folder'], 'result_strain_item.csv',
-            'result_grain_item.csv'
-        )
+        this_eval = vis(cfgs[i]['model_folder'])
         this_eval.parse_cond_df()
         evals_df = pd.concat([evals_df, this_eval.cdf], ignore_index=True)
 
