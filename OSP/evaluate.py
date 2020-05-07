@@ -441,7 +441,6 @@ class vis():
     # Which will parse item level data to condition level data
     # Then plot with Altair
     def __init__(self, model_folder):
-        from evaluate import training_history, strain_eval, grain_eval
         from data_wrangling import my_data
         from meta import model_cfg
         import altair as alt
