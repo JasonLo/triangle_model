@@ -126,13 +126,14 @@ class model_cfg:
         'w_pp_noise',
         'w_pc_noise',
         'w_cp_noise',
-        'bq_dataset', 
         'uuid',
         'nEpo',
         'n_timesteps', 
         'steps_per_epoch',
         'save_freq_sample', 
         'eval_freq', 
+        'bq_dataset', 
+        'batch_unique_setting_string',
         ]
     
     tmp_cfgs = ['w_oh_noise_backup',
@@ -147,7 +148,7 @@ class model_cfg:
         'path_weight_folder',
         'path_log_folder',
         'path_history_pickle', 
-        'saved_epoch_list'
+        'saved_epoch_list',
         ]
     
     all_cfgs_name = minimal_cfgs + aux_cfgs + tmp_cfgs
@@ -303,10 +304,10 @@ class model_cfg:
 
 def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
     """
-    Make batch cfg dictionary that can feed into papermill
+    Make batch cfg dictionary list that can feed into papermill
     """
     
-    # First check batch json exist
+    # Check batch json exist
     batch_output_dir = "batch_eval/{}/".format(batch_name)
     
     batch_json = batch_output_dir + "batch_config.json"
@@ -334,6 +335,11 @@ def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
 
             # Add identifier params into param dict
             this_hpar["code_name"] = code_name
+            
+            setting_list_without_rng_seed = [
+                x + str(this_hpar[x]) for x in varying_hpar_names if x != 'rng_seed'
+            ]
+            this_hpar["batch_unique_setting_string"] = '_'.join(setting_list_without_rng_seed)
 
             # Pass into model_cfg to catch error early
             model_cfg(**this_hpar, just_chk=True)
@@ -349,8 +355,7 @@ def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
 
             batch_cfgs.append(batch_cfg)
 
-    # Save batch cfg to json
-    
+        # Save batch cfg to json
         os.makedirs(batch_output_dir, exist_ok=True)
         with open(batch_json, "w") as f:
             json.dump(batch_cfgs, f)
