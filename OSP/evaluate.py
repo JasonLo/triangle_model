@@ -168,15 +168,24 @@ class testset():
         item_eval['model'] = h5_name
         item_eval['epoch'] = epoch
         item_eval['timestep'] = timestep
+        
+        # Special case when only have one timestep output                
+        if self.cfg.output_ticks > 1:
+            y_pred_matrix_at_this_time = y_pred_matrix[timestep]
+        else:
+            y_pred_matrix_at_this_time = y_pred_matrix
 
+        # Extract output from test set
         y_pred = get_all_pronunciations_fast(
-            y_pred_matrix[timestep], self.phon_key
+            y_pred_matrix_at_this_time, self.phon_key
         )
 
         item_eval['output'] = y_pred
 
         item_eval['acc'] = get_accuracy(y_pred, self.y_true)
-        item_eval['sse'] = get_sse(y_pred_matrix[timestep], self.y_true_matrix)
+        
+        
+        item_eval['sse'] = get_sse(y_pred_matrix_at_this_time, self.y_true_matrix)
 
         return item_eval
 
@@ -203,13 +212,10 @@ class testset():
             )
 
             y_pred_matrix = self.model.predict(test_input)
+            
 
             for timestep in range(self.cfg.output_ticks):
-
-                # Extract output from test set
-                y_pred = get_all_pronunciations_fast(
-                    y_pred_matrix[timestep], self.phon_key
-                )
+                
                 item_eval = self.eval_one(
                     epoch, model_h5_name, timestep, y_pred_matrix
                 )
@@ -363,9 +369,15 @@ class glushko_eval(testset):
         item_eval['model'] = h5_name
         item_eval['epoch'] = epoch
         item_eval['timestep'] = timestep
-
+        
+        # Special case when only have one timestep output                
+        if self.cfg.output_ticks > 1:
+            y_pred_matrix_at_this_time = y_pred_matrix[timestep]
+        else:
+            y_pred_matrix_at_this_time = y_pred_matrix
+        
         y_pred = get_all_pronunciations_fast(
-            y_pred_matrix[timestep], self.phon_key
+            y_pred_matrix_at_this_time, self.phon_key
         )
 
         item_eval['output'] = y_pred
@@ -379,7 +391,7 @@ class glushko_eval(testset):
 
         # Calculate sse in each word and each ans
         sse_list = []
-        for i, y in enumerate(y_pred_matrix[timestep]):
+        for i, y in enumerate(y_pred_matrix_at_this_time):
             y_true_matrix_list = self.y_dict[self.key_df.word[i]]
             sse = np.min(
                 [np.sum(np.square(y - ans)) for ans in y_true_matrix_list]
