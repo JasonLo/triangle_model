@@ -98,15 +98,18 @@ class rnn(Layer):
 
         self.rnn_activation = activations.get(self.cfg.rnn_activation)
         
-        if cfg.regularizer_const == None:
+        
+        if self.cfg.regularizer_const == None:
             self.weight_regularizer = None
         else:
             self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
-
+            
+        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
+        
         self.w_oh = self.add_weight(
             name='w_oh',
             shape=(self.cfg.input_dim, self.cfg.hidden_units),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -114,7 +117,7 @@ class rnn(Layer):
         self.w_hp = self.add_weight(
             name='w_hp',
             shape=(self.cfg.hidden_units, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -122,7 +125,7 @@ class rnn(Layer):
         self.w_pp = self.add_weight(
             name='w_pp',
             shape=(self.cfg.output_dim, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -130,7 +133,7 @@ class rnn(Layer):
         self.w_pc = self.add_weight(
             name='w_pc',
             shape=(self.cfg.output_dim, self.cfg.cleanup_units),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -138,7 +141,7 @@ class rnn(Layer):
         self.w_cp = self.add_weight(
             name='w_cp',
             shape=(self.cfg.cleanup_units, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -245,10 +248,13 @@ class rnn(Layer):
 
             ##### Phonology layer #####
             hp = tf.matmul(self.act_h_list[t - 1], w_hp)
-            pp = tf.matmul(
-                self.act_p_list[t - 1],
-                tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
-            )  # Zero diagonal lock
+            pp = tf.matmul(self.act_p_list[t - 1], w_pp)
+            
+#             # Zero diagonal lock
+#             pp = tf.matmul(
+#                 self.act_p_list[t - 1],
+#                 tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
+#             )  
             cp = tf.matmul(self.act_c_list[t - 1], w_cp)
 
             mem_p = self.input_p_list[t - 1]
@@ -313,27 +319,28 @@ class attractor_rnn(Layer):
         self.cfg = cfg
         self.clamp_steps = clamp_steps
         self.rnn_activation = activations.get(self.cfg.rnn_activation)
+        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
 
     def build(self, input_shape, **kwargs):
 
         self.w_pp = self.add_weight(
             name='w_pp',
             shape=(self.cfg.output_dim, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             trainable=True
         )
 
         self.w_pc = self.add_weight(
             name='w_pc',
             shape=(self.cfg.output_dim, self.cfg.cleanup_units),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             trainable=True
         )
 
         self.w_cp = self.add_weight(
             name='w_cp',
             shape=(self.cfg.cleanup_units, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             trainable=True
         )
 
@@ -391,10 +398,13 @@ class attractor_rnn(Layer):
             
 
             # ##### Phonology layer #####
-            pp = tf.matmul(
-                self.act_p_list[t - 1],
-                tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
-            )  # Zero diagonal lock
+            pp = tf.matmul(self.act_p_list[t - 1], w_pp)
+            
+#             # Zero diagonal lock     
+#             pp = tf.matmul(
+#                 self.act_p_list[t - 1],
+#                 tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
+#             )  
             cp = tf.matmul(self.act_c_list[t - 1], w_cp)
 
             mem_p = self.input_p_list[t - 1]
@@ -514,11 +524,12 @@ class rnn_no_cleanup(Layer):
 
         self.rnn_activation = activations.get(cfg.rnn_activation)
         self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
+        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
 
         self.w_oh = self.add_weight(
             name='w_oh',
             shape=(self.cfg.input_dim, self.cfg.hidden_units),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -526,7 +537,7 @@ class rnn_no_cleanup(Layer):
         self.w_hp = self.add_weight(
             name='w_hp',
             shape=(self.cfg.hidden_units, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -534,7 +545,7 @@ class rnn_no_cleanup(Layer):
         self.w_pp = self.add_weight(
             name='w_pp',
             shape=(self.cfg.output_dim, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -612,10 +623,13 @@ class rnn_no_cleanup(Layer):
 
             ##### Phonology layer #####
             hp = tf.matmul(self.act_h_list[t - 1], w_hp)
-            pp = tf.matmul(
-                self.act_p_list[t - 1],
-                tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
-            )  # Zero diagonal lock
+            pp = tf.matmul(self.act_p_list[t - 1], w_pp)
+            
+#             # Zero diagonal lock
+#             pp = tf.matmul(
+#                 self.act_p_list[t - 1],
+#                 tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
+#             )  
 
             mem_p = self.input_p_list[t - 1]
 
@@ -653,11 +667,12 @@ class rnn_no_cleanup_no_pp(Layer):
 
         self.rnn_activation = activations.get(cfg.rnn_activation)
         self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
+        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
 
         self.w_oh = self.add_weight(
             name='w_oh',
             shape=(self.cfg.input_dim, self.cfg.hidden_units),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -665,7 +680,7 @@ class rnn_no_cleanup_no_pp(Layer):
         self.w_hp = self.add_weight(
             name='w_hp',
             shape=(self.cfg.hidden_units, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
@@ -673,7 +688,7 @@ class rnn_no_cleanup_no_pp(Layer):
         self.w_pp = self.add_weight(
             name='w_pp',
             shape=(self.cfg.output_dim, self.cfg.output_dim),
-            initializer=self.cfg.w_initializer,
+            initializer=self.w_initializer,
             regularizer=self.weight_regularizer,
             trainable=True
         )
