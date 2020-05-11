@@ -1,3 +1,0 @@
-alias gpull='gsutil -m rsync -rd gs://tf-mirror ~/tf'
-alias gpush='gsutil -m rsync -rd ~/tf gs://tf-mirror'
-alias gpu='watch -n1 nvidia-smi'

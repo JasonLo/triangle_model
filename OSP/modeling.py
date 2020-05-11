@@ -7,6 +7,48 @@ from tensorflow.keras.callbacks import Callback
 from IPython.display import clear_output
 
 
+### Zero-error-radius related:
+
+from tensorflow.python.framework import ops, constant_op
+from tensorflow.python.ops import variables as variables_module
+from tensorflow.python.ops import nn, clip_ops, math_ops, array_ops
+from tensorflow.keras.backend import epsilon
+
+def _constant_to_tensor(x, dtype):
+    return constant_op.constant(x, dtype=dtype)
+
+def _backtrack_identity(tensor):
+    while tensor.op.type == "Identity":
+        tensor = tensor.op.inputs[0]
+    return tensor
+
+def zer_replace(target, output, zero_error_raidus):
+    """Replace output by target if value within zero-error-radius
+    """
+    zeros = tf.zeros_like(output, dtype=output.dtype)
+    zer_threshold = tf.constant(zero_error_raidus)
+    zer_mask = tf.math.less(tf.math.abs(output - target), zer_threshold)
+    zer_output = tf.where(zer_mask, target, output)
+    return zer_output
+
+def zer_bce(target, output):
+    if not isinstance(output, (ops.EagerTensor, variables_module.Variable)):
+        output = _backtrack_identity(output)
+
+    # Clip with a tiny constant to avoid zero division
+    epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
+    output = clip_ops.clip_by_value(output, epsilon_, 1.0 - epsilon_)
+
+    # Replace output by target if value within zero error radius of 0.1
+    zer_output = zer_replace(target, output, 0.1)
+
+    # Compute cross entropy from probabilities.
+    bce = target * math_ops.log(zer_output + epsilon())
+    bce += (1 - target) * math_ops.log(1 - zer_output + epsilon())
+    return -bce
+
+###
+
 # Older Semantic
 # def input_s(e, t, f, i,
 #             gf=4, gi=1,
