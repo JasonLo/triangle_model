@@ -152,7 +152,6 @@ class rnn(Layer):
             name='w_oh',
             shape=(self.cfg.input_dim, self.cfg.hidden_units),
             initializer=self.w_initializer,
-            regularizer=self.weight_regularizer,
             trainable=True
         )
 
@@ -160,7 +159,6 @@ class rnn(Layer):
             name='w_hp',
             shape=(self.cfg.hidden_units, self.cfg.output_dim),
             initializer=self.w_initializer,
-            regularizer=self.weight_regularizer,
             trainable=True
         )
 
@@ -192,7 +190,6 @@ class rnn(Layer):
             shape=(self.cfg.hidden_units, ),
             name='bias_h',
             initializer='zeros',
-            regularizer=self.weight_regularizer,
             trainable=True
         )
 
