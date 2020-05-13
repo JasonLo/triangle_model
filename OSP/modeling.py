@@ -251,7 +251,7 @@ class rnn(Layer):
 
         for t in range(1, self.cfg.n_timesteps + 1):
             # Inject noise to weights in each time step
-            # Method 1: Inject noise at each time step with reset
+            # Inject noise at each time step with reset
             if self.cfg.w_oh_noise != 0:
                 w_oh = self.inject_noise(self.w_oh, self.cfg.w_oh_noise)
             else:
@@ -276,11 +276,28 @@ class rnn(Layer):
                 w_cp = self.inject_noise(self.w_cp, self.cfg.w_cp_noise)
             else:
                 w_cp = self.w_cp
+                
+            if self.cfg.bias_h_noise != 0:
+                bias_h = self.inject_noise(self.bias_h, self.cfg.bias_h_noise)
+            else:
+                bias_h = self.bias_h
+                
+            if self.cfg.bias_c_noise != 0:
+                bias_c = self.inject_noise(self.bias_c, self.cfg.bias_c_noise)
+            else:
+                bias_c = self.bias_c
+                
+            if self.cfg.bias_p_noise != 0:
+                bias_p = self.inject_noise(self.bias_p, self.cfg.bias_p_noise)
+            else:
+                bias_p = self.bias_p
+                
+                
 
             ##### Hidden layer #####
             oh = tf.matmul(o_input[:, t - 1, :], w_oh)
             mem_h = self.input_h_list[t - 1]
-            h = self.cfg.tau * (oh + self.bias_h) + (1 - self.cfg.tau) * mem_h
+            h = self.cfg.tau * (oh + bias_h) + (1 - self.cfg.tau) * mem_h
 
             self.input_h_list.append(h)
             self.act_h_list.append(self.rnn_activation(h))
@@ -304,7 +321,7 @@ class rnn(Layer):
                 sp = 0
 
             p = self.cfg.tau * (hp + pp + cp + sp +
-                                self.bias_p) + (1 - self.cfg.tau) * mem_p
+                                bias_p) + (1 - self.cfg.tau) * mem_p
 
             self.input_p_list.append(p)
             self.act_p_list.append(self.rnn_activation(p))
@@ -312,7 +329,7 @@ class rnn(Layer):
             ##### Cleanup layer #####
             pc = tf.matmul(self.act_p_list[t - 1], w_pc)
             mem_c = self.input_c_list[t - 1]
-            c = self.cfg.tau * (pc + self.bias_c) + (1 - self.cfg.tau) * mem_c
+            c = self.cfg.tau * (pc + bias_c) + (1 - self.cfg.tau) * mem_c
 
             self.input_c_list.append(c)
             self.act_c_list.append(self.rnn_activation(c))

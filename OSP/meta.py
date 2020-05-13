@@ -126,6 +126,9 @@ class model_cfg:
         'w_pp_noise',
         'w_pc_noise',
         'w_cp_noise',
+        'bias_h_noise',
+        'bias_c_noise',
+        'bias_p_noise',
         'uuid',
         'nEpo',
         'n_timesteps', 
@@ -141,6 +144,9 @@ class model_cfg:
         'w_pp_noise_backup',
         'w_pc_noise_backup', 
         'w_cp_noise_backup',
+        'bias_h_noise_backup',
+        'bias_c_noise_backup',
+        'bias_p_noise_backup',
         'path_model_folder',
         'path_weights_checkpoint',              
         'path_weights_list', 
@@ -213,12 +219,18 @@ class model_cfg:
         self.w_cp_noise = self.p_noise
         self.w_oh_noise = 0.
         self.w_hp_noise = 0.
+        self.bias_h_noise = 0.
+        self.bias_c_noise = self.p_noise
+        self.bias_p_noise = self.p_noise 
 
         self.w_oh_noise_backup = self.w_oh_noise
         self.w_hp_noise_backup = self.w_hp_noise
         self.w_pp_noise_backup = self.w_pp_noise
         self.w_pc_noise_backup = self.w_pc_noise
         self.w_cp_noise_backup = self.w_cp_noise
+        self.bias_h_noise_backup = self.bias_h_noise
+        self.bias_c_noise_backup = self.bias_c_noise
+        self.bias_p_noise_backup = self.bias_p_noise
         
     def chk_cfg(self):
         # Check all ingested_keys fufill minimal cfg requirement
@@ -280,6 +292,9 @@ class model_cfg:
         self.w_pp_noise = 0.
         self.w_pc_noise = 0.
         self.w_cp_noise = 0.
+        self.bias_h_noise = 0.
+        self.bias_c_noise = 0.
+        self.bias_p_noise = 0.
 
     def noise_on(self):
         # Noise is on by default
@@ -288,13 +303,18 @@ class model_cfg:
         self.w_pp_noise = self.w_pp_noise_backup
         self.w_pc_noise = self.w_pc_noise_backup
         self.w_cp_noise = self.w_cp_noise_backup
+        self.bias_h_noise = self.bias_h_noise_backup
+        self.bias_c_noise = self.bias_c_noise_backup
+        self.bias_p_noise =  self.bias_p_noise_backup
        
     def write_cfg(self):
         
         if os.path.isfile(self.path_model_folder + 'model_config.json'): 
+            print('='*50)
             print('Found model_config.json on disk, I will NEVER overwrite it automatically.')
             print('Manually delete config if you are sure.')
-            print(' Or save this model into another folder by changing cfg.code_name')
+            print('Or save this model into another folder by changing cfg.code_name')
+            print('='*50)
         
         else:
             self.noise_on() # Make sure noise is armed before saving, since loading will copy noise to backup
