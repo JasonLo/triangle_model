@@ -5,6 +5,9 @@ OSP/.ipynb_checkpoints/
 *batch_eval/
 *.csv
 *.npz
+*.tgz
+*.png
+**_weights
 __pycache__
 **models/
 input/
