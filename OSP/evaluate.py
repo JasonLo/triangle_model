@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import seaborn as sns
 import altair as alt
-import ast
+import ast, h5py
 
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
@@ -40,7 +41,8 @@ class training_history():
     def plot_all(self, save_file=None):
         # plot all 3 training history plots
         # Optionally save plot to html file, see altair plot save documentation
-        self.all_plots = self.plot_loss() & self.plot_acc() | self.plot_mse()
+        self.all_plots = self.plot_loss() | self.plot_mse() | self.plot_acc()
+        
         if save_file is not None:
             self.all_plots.save(save_file)
         return self.all_plots
@@ -475,10 +477,16 @@ class vis():
         )
 
         self.parse_cond_df()
+        self.weight = weight(self.cfg.path_weights_list[-1])
 
     def training_hist(self):
         self.t_hist = training_history(self.cfg.path_history_pickle)
         return self.t_hist.plot_all()
+    
+    def load_weight(self, epoch=None):
+        
+        if epoch is not None:
+            self.weight = weight(self.cfg.path_weights_checkpoint.format(epoch=epoch))            
 
     # Condition level parsing
     def parse_strain_cond_df(self, cond):
@@ -663,4 +671,142 @@ class vis():
         wnw_plot = diagonal + wnw_line + wnw_point
 
         return wnw_plot
+    
+    
+def parse_mikenet_weight(file):
+    """Weight parser for MikeNet
+    file: file path
+    outputs: all weights and biases matrix in pd.Series() format
+    All TAOS and DELAYS are ignored
+    """
+    raw = dict()
+    with open(file, "r") as f:
+        for i, line in enumerate(f):
+            try:
+                # Detect number
+                line = float(line)
+            except:
+                pass
+
+            if type(line) is str:
+                # Write to raw dictionary if not at the beginning of file
+                if i > 0:
+                    raw[vname] = vector
+
+                # Clean matrix name
+                vname = line.strip()
+                vector = []
+            else:
+                # Gather matrix values
+                vector.append(line)
+        else:
+            # End of file, one last write to raw dict
+            raw[vname] = vector
+
+    # Pack useful matrix into pd.Dataframe()
+    woh = pd.Series(raw["Ortho -> Hidden"], name="w_oh")
+    whp = pd.Series(raw["Hidden -> Phono"], name="w_hp")
+    wpp = pd.Series(raw["Phono -> Phono"], name="w_pp")
+    wpc = pd.Series(raw["Phono -> PhoHid"], name="w_pc")
+    wcp = pd.Series(raw["PhoHid -> Phono"], name="w_cp")
+
+    biasp = pd.Series(raw["Bias -> Phono"], name="bias_p")
+    biash = pd.Series(raw["Bias -> Hidden"], name="bias_h")
+    biasc = pd.Series(raw["Bias -> PhoHid"], name="bias_c")
+
+    return [biasc, biash, biasp, wcp, whp, woh, wpc, wpp]
+
+
+class weight:
+    """Weight class with multiple formats
+    Directly ingest h5 and parse to list of numpy array (nd-array) and pandas series (flatten)
+    pd : pd.Series()
+    np : np.array()
+    """
+
+    def __init__(self, file, format="tf"):
+        if format == "tf":
+            """Default loading format TensorFlow weight.h5
+            """
+            f = h5py.File(file, "r")
+            ws = f["rnn"]
+
+            self.pd = []
+            self.np = []
+            self.names = []
+
+            for key in ws.keys():
+                self.names.append(key.replace(":0", ""))
+
+                tmp_np = np.array(ws[key][()])
+                # Fix single dimension matrix
+                if tmp_np.ndim == 1:
+                    tmp_np = tmp_np[np.newaxis, :]
+
+                self.np.append(tmp_np)
+                self.pd.append(pd.Series(ws[key][()].flatten(), name=key))
+
+        if format == "mn":
+            """Construct from MikeNet weight file
+            """
+            self.pd = parse_mikenet_weight(file)
+            self.names = [w.name for w in self.pd]
+            
+        self.df = pd.concat(map(self.series_to_df, self.pd))
+        self.df['abs_weight'] = self.df.weight.abs()
+            
+    def series_to_df(self, series):
+        f = pd.DataFrame(series)
+        f.columns = ["weight"]
+        f["matrix"] = series.name.replace(":0", "")
+        return f
+    
+    def violinplot(self, savefig=None):
+        
+        plt.figure(figsize=(15, 5), facecolor="w")
+        plt.subplot(121)
+        sns.violinplot(x="weight", y="matrix", data=self.df, scale="width")
+        plt.subplot(122)
+        sns.violinplot(x="abs_weight", y="matrix", data=self.df, scale="width", cut=0)
+        
+        if savefig is not None:
+            plt.savefig(savefig)
+            
+        plt.show()
+    
+    def heatmap(self, savefig=None):
+
+        plt.figure(figsize=(20, 20), facecolor="w")
+
+        for i, key in enumerate(self.names):
+            plt.subplot(3, 3, i + 1)
+            plt.title(key)
+            plt.imshow(self.np[i], cmap="jet", interpolation="nearest", aspect="auto")
+            plt.colorbar()
+
+        if savefig is not None:
+            plt.savefig(savefig)
+
+        plt.show()
+
+    def boxplot(self, savefig=None):
+
+        plt.figure(figsize=(20, 20))
+
+        for i, key in enumerate(self.names):
+            w = self.pd[i]
+            plt.subplot(3, 3, i + 1)
+            stats = " (Absolute weight: M = {0:.2f}, qt95 = {1:.2f}, max = {2:.2f})".format(
+                w.abs().mean(), w.abs().quantile(0.95), w.abs().max()
+            )
+            plt.title(w.name + stats)
+            w.plot.box()
+
+        if savefig is not None:
+            plt.savefig(savefig)
+
+        plt.show()
+
+    def basic_stat(self):
+        return pd.concat([w.describe() for w in self.pd], axis=1)
     
