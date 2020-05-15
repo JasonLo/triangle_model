@@ -1,6 +1,9 @@
 OSP/.ipynb_checkpoints/
-.ipynb_checkpoints
-.zip
+O2S/embeddings
+O2S/from_noam
+**models/
+*.ipynb_checkpoints
+*.zip
 *.html
 *batch_eval/
 *.csv
@@ -9,9 +12,7 @@ OSP/.ipynb_checkpoints/
 *.png
 **_weights
 __pycache__
-**models/
 input/
 patterns/
 .vscode
-O2S/embeddings
-O2S/from_noam
+
