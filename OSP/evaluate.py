@@ -578,13 +578,13 @@ class vis():
         )
 
         # Slider unit time filter
-        slider_time = alt.binding_range(
-            min=0, max=self.cfg.max_unit_time, step=self.cfg.tau
-        )
+        time_options = np.linspace(self.cfg.tau, self.cfg.max_unit_time, self.cfg.n_timesteps).round(2)
+        radio_time = alt.binding_radio(options=time_options, name = "Unit time: ")
+
         select_time = alt.selection_single(
             name="filter",
             fields=['unit_time'],
-            bind=slider_time,
+            bind=radio_time,
             init={'unit_time': self.cfg.max_unit_time}
         )
 
