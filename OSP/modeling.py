@@ -146,7 +146,9 @@ class rnn(Layer):
         else:
             self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
             
-        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
+        # self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
+        
+        self.w_initializer = tf.random_uniform_initializer(minval=-self.cfg.w_initializer, maxval=self.cfg.w_initializer, seed=self.cfg.rng_seed)
         
         self.w_oh = self.add_weight(
             name='w_oh',
