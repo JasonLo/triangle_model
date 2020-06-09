@@ -86,13 +86,7 @@ def get_all_pronunciations_fast(act, phon_key):
     return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
 
 def get_accuracy(output, target):
-    current_word = 0
-    accuracy_list = []
-    target = target.tolist()
-    for pronunciation in output:
-        accuracy_list.append(int(pronunciation == target[current_word]))
-        current_word += 1
-    return np.array(accuracy_list)
+    return 1 * np.array(output == target)
 
 
 def get_mean_accuracy(output, target):
@@ -100,15 +94,13 @@ def get_mean_accuracy(output, target):
 
 
 def get_sse(output, target):
-    sse_list = []
-    target = target.tolist()
-    for i in range(len(output)):
-        sse_list.append(np.sum(np.square(output[i] - target[i])))
-    return np.array(sse_list)
+    """ Get sum squared error at last axis (item level)
+    """
+    return np.sum(np.square(output - target), axis=-1)
 
 
 def get_mean_sse(output, target):
-    return np.mean(get_sse(output, target)) / len(output)
+    return np.mean(get_sse(output, target))
 
 def plot_variables(model, save_file=None):
     """
