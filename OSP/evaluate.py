@@ -175,10 +175,7 @@ class testset():
         )
 
         item_eval['output'] = y_pred
-
         item_eval['acc'] = get_accuracy(y_pred, self.y_true)
-        
-        
         item_eval['sse'] = get_sse(y_pred_matrix_at_this_time, self.y_true_matrix)
 
         return item_eval
