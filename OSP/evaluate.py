@@ -99,6 +99,13 @@ def get_sse(output, target):
     return np.sum(np.square(output - target), axis=-1)
 
 
+def get_slot_sse(output, target, slot_len=25):
+    """ Get slot based SSE    
+    """
+    segments = target.shape[-1] / slot_len
+    return np.sum(np.array_split(np.square(output - target), segments, axis=-1), axis=-1)
+    
+
 def get_mean_sse(output, target):
     return np.mean(get_sse(output, target))
 
@@ -176,8 +183,25 @@ class testset():
 
         item_eval['output'] = y_pred
         item_eval['acc'] = get_accuracy(y_pred, self.y_true)
-        item_eval['sse'] = get_sse(y_pred_matrix_at_this_time, self.y_true_matrix)
-
+        
+        # Seems more efficient to use slot based SSE to compute total SSE... 
+        # item_eval['sse'] = get_sse(y_pred_matrix_at_this_time, self.y_true_matrix)
+        
+        # Slot based SSE
+        slot_sse = get_slot_sse(y_pred_matrix_at_this_time, self.y_true_matrix)
+        
+        item_eval['sse_slot1'] = slot_sse[0]
+        item_eval['sse_slot2'] = slot_sse[1]
+        item_eval['sse_slot3'] = slot_sse[2]
+        item_eval['sse_slot4'] = slot_sse[3]
+        item_eval['sse_slot5'] = slot_sse[4]
+        item_eval['sse_slot6'] = slot_sse[5]
+        item_eval['sse_slot7'] = slot_sse[6]
+        item_eval['sse_slot8'] = slot_sse[7]
+        item_eval['sse_slot9'] = slot_sse[8]
+        item_eval['sse_slot10'] = slot_sse[9]
+        item_eval['sse'] = slot_sse.sum(axis=0)
+ 
         return item_eval
 
     def start_evaluate(self, test_use_semantic, output=None):
