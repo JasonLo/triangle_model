@@ -33,6 +33,8 @@ class training_history():
         return self.plot(col_contains='_loss', plot_title='Loss')
 
     def plot_acc(self):
+        """ Maybe not very useful
+        """
         return self.plot(col_contains='Accuracy', plot_title='Binary accuracy')
 
     def plot_mse(self):
@@ -41,7 +43,7 @@ class training_history():
     def plot_all(self, save_file=None):
         # plot all 3 training history plots
         # Optionally save plot to html file, see altair plot save documentation
-        self.all_plots = self.plot_loss() | self.plot_mse() | self.plot_acc()
+        self.all_plots = self.plot_loss() | self.plot_mse() 
         
         if save_file is not None:
             self.all_plots.save(save_file)
