@@ -107,6 +107,7 @@ class model_cfg:
                     'regularizer_const',
                     'p_noise',
                     'optimizer',
+                    'zero_error_radius',
                     'n_mil_sample',
                     'batch_size',
                     'learning_rate',
