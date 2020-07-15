@@ -16,4 +16,5 @@ __pycache__
 input/
 patterns/
 .vscode
-
+!common/input/*
+!common/patterns/*
