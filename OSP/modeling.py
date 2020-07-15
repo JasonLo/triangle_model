@@ -32,21 +32,22 @@ def zer_replace(target, output, zero_error_raidus):
     zer_output = tf.where(zer_mask, target, output)
     return zer_output
 
-def zer_bce(target, output):
-    if not isinstance(output, (ops.EagerTensor, variables_module.Variable)):
-        output = _backtrack_identity(output)
+# def zer_bce(target, output):
+#"""Old CustomBCE that cannot take argument"""
+#     if not isinstance(output, (ops.EagerTensor, variables_module.Variable)):
+#         output = _backtrack_identity(output)
 
-    # Clip with a tiny constant to avoid zero division
-    epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
-    output = clip_ops.clip_by_value(output, epsilon_, 1.0 - epsilon_)
+#     # Clip with a tiny constant to avoid zero division
+#     epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
+#     output = clip_ops.clip_by_value(output, epsilon_, 1.0 - epsilon_)
 
-    # Replace output by target if value within zero error radius of 0.1
-    zer_output = zer_replace(target, output, 0.1)
+#     # Replace output by target if value within zero error radius of 0.1
+#     zer_output = zer_replace(target, output, 0.1)
 
-    # Compute cross entropy from probabilities.
-    bce = target * math_ops.log(zer_output + epsilon())
-    bce += (1 - target) * math_ops.log(1 - zer_output + epsilon())
-    return -bce
+#     # Compute cross entropy from probabilities.
+#     bce = target * math_ops.log(zer_output + epsilon())
+#     bce += (1 - target) * math_ops.log(1 - zer_output + epsilon())
+#     return -bce
 
 
 class CustomBCE(keras.losses.Loss):
