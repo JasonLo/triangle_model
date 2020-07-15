@@ -1,0 +1,193 @@
+,id,cond,word,ort,pho,wf,img
+0,0,High-frequency exception,are,___a_re___,___ar_____,177808,1.3
+1,1,High-frequency exception,both,__bo_th___,__boT_____,25695,2.3
+2,2,High-frequency exception,break,_break____,_brek_____,3571,4.5
+3,3,High-frequency exception,choose,_choose___,__Cuz_____,1619,2.3
+4,4,High-frequency exception,come,__co_me___,__k^m_____,12950,2.2
+5,5,High-frequency exception,do,__do______,__du______,27937,1.7
+6,6,High-frequency exception,does,__does____,__d^z_____,8595,1.6
+7,7,High-frequency exception,done,__do_ne___,__d^n_____,6760,2.3
+8,8,High-frequency exception,foot,__foot____,__fUt_____,1258,6.7
+9,9,High-frequency exception,give,__gi_ve___,__gIv_____,12773,2.8
+10,10,High-frequency exception,great,_great____,_gret_____,8781,2.5
+11,11,High-frequency exception,have,__ha_ve___,__h@v_____,165137,1.9
+12,12,High-frequency exception,move,__mo_ve___,__muv_____,15270,3.2
+13,13,High-frequency exception,put,__pu_t____,__pUt_____,13638,2.2
+14,14,High-frequency exception,pull,__pu_ll___,__pUl_____,1259,4.1
+15,15,High-frequency exception,said,__said____,__sEd_____,345647,2.1
+16,16,High-frequency exception,says,__says____,__sEz_____,111942,4.194245614035087
+17,17,High-frequency exception,shall,_sha_ll___,__S@l_____,462,2.0
+18,18,High-frequency exception,want,__wa_nt___,__want____,14241,2.4
+19,19,High-frequency exception,watch,__wa_tch__,__watC____,1793,5.9
+20,20,High-frequency exception,were,__we_re___,__w^r_____,86582,1.5
+21,21,High-frequency exception,what,_wha_t____,__w^t_____,38782,1.4
+22,22,High-frequency exception,word,__wo_rd___,__w^rd____,2853,3.7
+23,23,High-frequency exception,work,__wo_rk___,__w^rk____,22012,3.9
+24,24,High-frequency regular-inconsistent,base,__ba_se___,__bes_____,6018,4.4
+25,25,High-frequency regular-inconsistent,bone,__bo_ne___,__bon_____,395,6.4
+26,26,High-frequency regular-inconsistent,but,__bu_t____,__b^t_____,174118,1.9
+27,27,High-frequency regular-inconsistent,catch,__ca_tch__,__k@tC____,1168,4.4
+28,28,High-frequency regular-inconsistent,cool,__cool____,__kul_____,770,3.3
+29,29,High-frequency regular-inconsistent,days,__days____,__dez_____,18406,4.0
+30,30,High-frequency regular-inconsistent,dear,__dear____,__dir_____,245,3.6
+31,31,High-frequency regular-inconsistent,flew,_flew_____,_flu______,671,3.7
+32,32,High-frequency regular-inconsistent,flat,_fla_t____,_fl@t_____,2476,4.1
+33,33,High-frequency regular-inconsistent,five,__fi_ve___,__fAv_____,20929,5.8
+34,34,High-frequency regular-inconsistent,form,__fo_rm___,__form____,5838,2.5
+35,35,High-frequency regular-inconsistent,go,__go______,__go______,15656,2.2
+36,36,High-frequency regular-inconsistent,goes,__goes____,__goz_____,3827,4.194245614035087
+37,37,High-frequency regular-inconsistent,grow,_grow_____,_gro______,3372,3.9
+38,38,High-frequency regular-inconsistent,here,__he_re___,__hir_____,18471,1.8
+39,39,High-frequency regular-inconsistent,home,__ho_me___,__hom_____,18432,5.7
+40,40,High-frequency regular-inconsistent,meat,__meat____,__mit_____,1041,6.3
+41,41,High-frequency regular-inconsistent,paid,__paid____,__ped_____,11077,4.194245614035087
+42,42,High-frequency regular-inconsistent,plant,_pla_nt___,_pl@nt____,13641,6.3
+43,43,High-frequency regular-inconsistent,roll,__ro_ll___,__rol_____,1082,4.5
+44,44,High-frequency regular-inconsistent,root,__root____,__rut_____,435,6.0
+45,45,High-frequency regular-inconsistent,sand,__sa_nd___,__s@nd____,424,6.7
+46,46,High-frequency regular-inconsistent,small,_sma_ll___,_smal_____,16437,4.2
+47,47,High-frequency regular-inconsistent,speak,_speak____,_spik_____,1409,3.8
+48,48,Low-frequency exception,bowl,__bowl____,__bol_____,462,6.3
+49,49,Low-frequency exception,broad,_broad____,_brad_____,3234,3.3
+50,50,Low-frequency exception,bush,__bu_sh___,__bUS_____,8190,6.3
+51,51,Low-frequency exception,deaf,__deaf____,__dEf_____,130,3.3
+52,52,Low-frequency exception,doll,__do_ll___,__dal_____,180,6.4
+53,53,Low-frequency exception,flood,_flood____,_fl^d_____,691,6.4
+54,54,Low-frequency exception,gross,_gro_ss___,_gros_____,2564,3.8
+55,55,Low-frequency exception,lose,__lo_se___,__luz_____,3089,3.0
+56,56,Low-frequency exception,pear,__pear____,__pEr_____,39,6.0
+57,57,Low-frequency exception,phase,_pha_se___,__fez_____,1431,3.1
+58,58,Low-frequency exception,pint,__pi_nt___,__pAnt____,49,5.2
+59,59,Low-frequency exception,plow,_plow_____,_plW______,90,5.6
+60,60,Low-frequency exception,rouse,__rouse___,__rWz_____,131,4.194245614035087
+61,61,Low-frequency exception,sew,__sew_____,__so______,20,5.2
+62,62,Low-frequency exception,shoe,_shoe_____,__Su______,901,6.5
+63,63,Low-frequency exception,spook,_spook____,_spuk_____,27,3.6
+64,64,Low-frequency exception,swamp,_swa_mp___,_swamp____,106,6.0
+65,65,Low-frequency exception,swarm,_swa_rm___,_sworm____,32,4.8
+66,66,Low-frequency exception,touch,__touch___,__t^C_____,1041,4.2
+67,67,Low-frequency exception,wad,__wa_d____,__wad_____,43,4.0
+68,68,Low-frequency exception,wand,__wa_nd___,__wand____,17,5.6
+69,69,Low-frequency exception,wash,__wa_sh___,__waS_____,1009,5.1
+70,70,Low-frequency exception,wool,__wool____,__wUl_____,153,5.8
+71,71,Low-frequency exception,worm,__wo_rm___,__w^rm____,100,6.6
+72,72,Low-frequency regular-inconsistent,brood,_brood____,_brud_____,24,3.2
+73,73,Low-frequency regular-inconsistent,cook,__cook____,__kUk_____,687,5.4
+74,74,Low-frequency regular-inconsistent,cord,__co_rd___,__kord____,66,5.9
+75,75,Low-frequency regular-inconsistent,cove,__co_ve___,__kov_____,62,4.5
+76,76,Low-frequency regular-inconsistent,cramp,_cra_mp___,_kr@mp____,6,4.5
+77,77,Low-frequency regular-inconsistent,dare,__da_re___,__dEr_____,181,2.5
+78,78,Low-frequency regular-inconsistent,fowl,__fowl____,__fWl_____,16,5.1
+79,79,Low-frequency regular-inconsistent,gull,__gu_ll___,__g^l_____,106,3.3
+80,80,Low-frequency regular-inconsistent,harm,__ha_rm___,__harm____,707,3.3
+81,81,Low-frequency regular-inconsistent,hoe,__hoe_____,__ho______,27,5.9
+82,82,Low-frequency regular-inconsistent,lash,__la_sh___,__l@S_____,24,3.6
+83,83,Low-frequency regular-inconsistent,leaf,__leaf____,__lif_____,248,6.8
+84,84,Low-frequency regular-inconsistent,loss,__lo_ss___,__las_____,19611,2.6
+85,85,Low-frequency regular-inconsistent,mad,__ma_d____,__m@d_____,346,3.8
+86,86,Low-frequency regular-inconsistent,moose,__moose___,__mus_____,38,6.7
+87,87,Low-frequency regular-inconsistent,moth,__mo_th___,__maT_____,13,6.0
+88,88,Low-frequency regular-inconsistent,mouse,__mouse___,__mWs_____,327,4.194245614035087
+89,89,Low-frequency regular-inconsistent,mush,__mu_sh___,__m^S_____,24,4.0
+90,90,Low-frequency regular-inconsistent,pork,__po_rk___,__pork____,957,6.4
+91,91,Low-frequency regular-inconsistent,pose,__po_se___,__poz_____,722,3.6
+92,92,Low-frequency regular-inconsistent,pouch,__pouch___,__pWC_____,22,5.7
+93,93,Low-frequency regular-inconsistent,rave,__ra_ve___,__rev_____,44,3.9
+94,94,Low-frequency regular-inconsistent,tint,__ti_nt___,__tInt____,18,4.6
+95,95,Low-frequency regular-inconsistent,toad,__toad____,__tod_____,9,6.8
+96,96,Regular control for High-frequency exception,out,___out____,___Wt_____,57860,2.2
+97,97,Regular control for High-frequency exception,big,__bi_g____,__bIg_____,28257,4.5
+98,98,Regular control for High-frequency exception,best,__be_st___,__bEst____,11512,2.7
+99,99,Regular control for High-frequency exception,class,_cla_ss___,_kl@s_____,8670,5.6
+100,100,Regular control for High-frequency exception,came,__ca_me___,__kem_____,10386,2.4
+101,101,Regular control for High-frequency exception,did,__di_d____,__dId_____,12250,1.9
+102,102,Regular control for High-frequency exception,tell,__te_ll___,__tEl_____,3809,2.5
+103,103,Regular control for High-frequency exception,dark,__da_rk___,__dark____,1039,4.6
+104,104,Regular control for High-frequency exception,fact,__fa_ct___,__f@kt____,8831,2.6
+105,105,Regular control for High-frequency exception,got,__go_t____,__gat_____,10012,1.8
+106,106,Regular control for High-frequency exception,group,_group____,_grup_____,49355,5.2
+107,107,Regular control for High-frequency exception,him,__hi_m____,__hIm_____,21969,4.2
+108,108,Regular control for High-frequency exception,main,__main____,__men_____,38576,2.5
+109,109,Regular control for High-frequency exception,place,_pla_ce___,_ples_____,9034,3.7
+110,110,Regular control for High-frequency exception,page,__pa_ge___,__peJ_____,3246,5.9
+111,111,Regular control for High-frequency exception,see,__see_____,__si______,15633,3.0
+112,112,Regular control for High-frequency exception,stop,_sto_p____,_stap_____,4719,4.5
+113,113,Regular control for High-frequency exception,soon,__soon____,__sun_____,8343,2.2
+114,114,Regular control for High-frequency exception,which,_whi_ch___,__wIC_____,118913,1.6
+115,115,Regular control for High-frequency exception,week,__week____,__wik_____,31909,3.8
+116,116,Regular control for High-frequency exception,with,__wi_th___,__wIT_____,241752,1.6
+117,117,Regular control for High-frequency exception,when,_whe_n____,__wEn_____,60840,1.7
+118,118,Regular control for High-frequency exception,write,_wri_te___,__rAt_____,4525,4.8
+119,119,Regular control for High-frequency exception,will,__wi_ll___,__wIl_____,164389,2.6
+120,120,Regular control for High-frequency regular-inconsistent,bird,__bi_rd___,__b^rd____,469,6.4
+121,121,Regular control for High-frequency regular-inconsistent,bag,__ba_g____,__b@g_____,628,6.4
+122,122,Regular control for High-frequency regular-inconsistent,by,__by______,__bA______,243832,1.6
+123,123,Regular control for High-frequency regular-inconsistent,clean,_clean____,_klin_____,1737,4.5
+124,124,Regular control for High-frequency regular-inconsistent,corn,__co_rn___,__korn____,2788,6.8
+125,125,Regular control for High-frequency regular-inconsistent,draw,_draw_____,_dra______,1538,5.0
+126,126,Regular control for High-frequency regular-inconsistent,dust,__du_st___,__d^st____,476,5.2
+127,127,Regular control for High-frequency regular-inconsistent,fish,__fi_sh___,__fIS_____,1327,6.8
+128,128,Regular control for High-frequency regular-inconsistent,fine,__fi_ne___,__fAn_____,3133,2.4
+129,129,Regular control for High-frequency regular-inconsistent,fast,__fa_st___,__f@st____,4058,3.0
+130,130,Regular control for High-frequency regular-inconsistent,feet,__feet____,__fit_____,2924,6.7
+131,131,Regular control for High-frequency regular-inconsistent,get,__ge_t____,__gEt_____,24986,1.7
+132,132,Regular control for High-frequency regular-inconsistent,girl,__gi_rl___,__g^rl____,765,6.3
+133,133,Regular control for High-frequency regular-inconsistent,gold,__go_ld___,__gold____,10318,6.3
+134,134,Regular control for High-frequency regular-inconsistent,help,__he_lp___,__hElp____,15132,2.8
+135,135,Regular control for High-frequency regular-inconsistent,high,__hi_gh___,__hA______,28551,4.194245614035087
+136,136,Regular control for High-frequency regular-inconsistent,mile,__mi_le___,__mAl_____,1983,4.7
+137,137,Regular control for High-frequency regular-inconsistent,plate,_pla_te___,_plet_____,428,6.4
+138,138,Regular control for High-frequency regular-inconsistent,piece,__piece___,__pis_____,1850,3.8
+139,139,Regular control for High-frequency regular-inconsistent,rod,__ro_d____,__rad_____,251,5.9
+140,140,Regular control for High-frequency regular-inconsistent,rice,__ri_ce___,__rAs_____,1209,6.8
+141,141,Regular control for High-frequency regular-inconsistent,sent,__se_nt___,__sEnt____,4853,3.2
+142,142,Regular control for High-frequency regular-inconsistent,such,__su_ch___,__s^C_____,48773,1.7
+143,143,Regular control for High-frequency regular-inconsistent,skin,_ski_n____,_skIn_____,868,6.3
+144,144,Regular control for Low-frequency exception,bus,__bu_s____,__b^s_____,1045,6.8
+145,145,Regular control for Low-frequency exception,broke,_bro_ke___,_brok_____,1956,3.7
+146,146,Regular control for Low-frequency exception,beam,__beam____,__bim_____,267,4.6
+147,147,Regular control for Low-frequency exception,deed,__deed____,__did_____,99,3.4
+148,148,Regular control for Low-frequency exception,dots,__do_ts___,__dats____,48,4.194245614035087
+149,149,Regular control for Low-frequency exception,float,_float____,_flot_____,289,5.1
+150,150,Regular control for Low-frequency exception,grape,_gra_pe___,_grep_____,127,6.7
+151,151,Regular control for Low-frequency exception,lunch,__lu_nch__,__l^nC____,862,5.3
+152,152,Regular control for Low-frequency exception,peel,__peel____,__pil_____,38,5.4
+153,153,Regular control for Low-frequency exception,fade,__fa_de___,__fed_____,213,4.0
+154,154,Regular control for Low-frequency exception,pitch,__pi_tch__,__pItC____,644,4.9
+155,155,Regular control for Low-frequency exception,pump,__pu_mp___,__p^mp____,485,4.8
+156,156,Regular control for Low-frequency exception,ripe,__ri_pe___,__rAp_____,264,4.7
+157,157,Regular control for Low-frequency exception,slip,_sli_p____,_slIp_____,535,4.5
+158,158,Regular control for Low-frequency exception,sank,__sa_nk___,__s@nk____,480,3.9
+159,159,Regular control for Low-frequency exception,slam,_sla_m____,_sl@m_____,115,3.8
+160,160,Regular control for Low-frequency exception,stunt,_stu_nt___,_st^nt____,124,3.7
+161,161,Regular control for Low-frequency exception,swore,_swo_re___,_swor_____,27,3.0
+162,162,Regular control for Low-frequency exception,trunk,_tru_nk___,_tr^nk____,102,6.0
+163,163,Regular control for Low-frequency exception,wit,__wi_t____,__wIt_____,193,2.6
+164,164,Regular control for Low-frequency exception,weld,__we_ld___,__wEld____,119,4.2
+165,165,Regular control for Low-frequency exception,wax,__wa_x____,__w@ks____,110,5.6
+166,166,Regular control for Low-frequency exception,wing,__wi_ng___,__wIng____,1331,6.1
+167,167,Regular control for Low-frequency exception,wake,__wa_ke___,__wek_____,2069,3.4
+168,168,Regular control for Low-frequency regular-inconsistent,brisk,_bri_sk___,_brIsk____,557,2.6
+169,169,Regular control for Low-frequency regular-inconsistent,code,__co_de___,__kod_____,2480,3.9
+170,170,Regular control for Low-frequency regular-inconsistent,cane,__ca_ne___,__ken_____,124,6.4
+171,171,Regular control for Low-frequency regular-inconsistent,cope,__co_pe___,__kop_____,531,2.5
+172,172,Regular control for Low-frequency regular-inconsistent,clang,_cla_ng___,_kl@ng____,9,3.0
+173,173,Regular control for Low-frequency regular-inconsistent,dime,__di_me___,__dAm_____,209,6.8
+174,174,Regular control for Low-frequency regular-inconsistent,fawn,__fawn____,__fan_____,43,6.3
+175,175,Regular control for Low-frequency regular-inconsistent,gong,__go_ng___,__gang____,30,4.0
+176,176,Regular control for Low-frequency regular-inconsistent,hide,__hi_de___,__hAd_____,488,3.7
+177,177,Regular control for Low-frequency regular-inconsistent,hike,__hi_ke___,__hAk_____,168,5.6
+178,178,Regular control for Low-frequency regular-inconsistent,loom,__loom____,__lum_____,173,3.3
+179,179,Regular control for Low-frequency regular-inconsistent,leg,__le_g____,__lEg_____,472,6.8
+180,180,Regular control for Low-frequency regular-inconsistent,luck,__lu_ck___,__l^k_____,571,2.4
+181,181,Regular control for Low-frequency regular-inconsistent,mix,__mi_x____,__mIks____,1006,3.4
+182,182,Regular control for Low-frequency regular-inconsistent,mole,__mo_le___,__mol_____,29,6.0
+183,183,Regular control for Low-frequency regular-inconsistent,mist,__mi_st___,__mIst____,66,5.0
+184,184,Regular control for Low-frequency regular-inconsistent,moist,__moist___,__mOst____,21,4.1
+185,185,Regular control for Low-frequency regular-inconsistent,math,__ma_th___,__m@T_____,188,4.2
+186,186,Regular control for Low-frequency regular-inconsistent,pail,__pail____,__pel_____,19,5.3
+187,187,Regular control for Low-frequency regular-inconsistent,peep,__peep____,__pip_____,26,4.2
+188,188,Regular control for Low-frequency regular-inconsistent,peach,__peach___,__piC_____,258,6.9
+189,189,Regular control for Low-frequency regular-inconsistent,reef,__reef____,__rif_____,48,4.3
+190,190,Regular control for Low-frequency regular-inconsistent,taps,__ta_ps___,__t@ps____,83,3.9
+191,191,Regular control for Low-frequency regular-inconsistent,tend,__te_nd___,__tEnd____,2120,2.1

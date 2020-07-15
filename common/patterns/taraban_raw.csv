@@ -1,0 +1,193 @@
+cond,word
+High-frequency exception,are
+High-frequency exception,both
+High-frequency exception,break
+High-frequency exception,choose
+High-frequency exception,come
+High-frequency exception,do
+High-frequency exception,does
+High-frequency exception,done
+High-frequency exception,foot
+High-frequency exception,give
+High-frequency exception,great
+High-frequency exception,have
+High-frequency exception,move
+High-frequency exception,put
+High-frequency exception,pull
+High-frequency exception,said
+High-frequency exception,says
+High-frequency exception,shall
+High-frequency exception,want
+High-frequency exception,watch
+High-frequency exception,were
+High-frequency exception,what
+High-frequency exception,word
+High-frequency exception,work
+High-frequency regular-inconsistent,base
+High-frequency regular-inconsistent,bone
+High-frequency regular-inconsistent,but
+High-frequency regular-inconsistent,catch
+High-frequency regular-inconsistent,cool
+High-frequency regular-inconsistent,days
+High-frequency regular-inconsistent,dear
+High-frequency regular-inconsistent,flew
+High-frequency regular-inconsistent,flat
+High-frequency regular-inconsistent,five
+High-frequency regular-inconsistent,form
+High-frequency regular-inconsistent,go
+High-frequency regular-inconsistent,goes
+High-frequency regular-inconsistent,grow
+High-frequency regular-inconsistent,here
+High-frequency regular-inconsistent,home
+High-frequency regular-inconsistent,meat
+High-frequency regular-inconsistent,paid
+High-frequency regular-inconsistent,plant
+High-frequency regular-inconsistent,roll
+High-frequency regular-inconsistent,root
+High-frequency regular-inconsistent,sand
+High-frequency regular-inconsistent,small
+High-frequency regular-inconsistent,speak
+Low-frequency exception,bowl
+Low-frequency exception,broad
+Low-frequency exception,bush
+Low-frequency exception,deaf
+Low-frequency exception,doll
+Low-frequency exception,flood
+Low-frequency exception,gross
+Low-frequency exception,lose
+Low-frequency exception,pear
+Low-frequency exception,phase
+Low-frequency exception,pint
+Low-frequency exception,plow
+Low-frequency exception,rouse
+Low-frequency exception,sew
+Low-frequency exception,shoe
+Low-frequency exception,spook
+Low-frequency exception,swamp
+Low-frequency exception,swarm
+Low-frequency exception,touch
+Low-frequency exception,wad
+Low-frequency exception,wand
+Low-frequency exception,wash
+Low-frequency exception,wool
+Low-frequency exception,worm
+Low-frequency regular-inconsistent,brood
+Low-frequency regular-inconsistent,cook
+Low-frequency regular-inconsistent,cord
+Low-frequency regular-inconsistent,cove
+Low-frequency regular-inconsistent,cramp
+Low-frequency regular-inconsistent,dare
+Low-frequency regular-inconsistent,fowl
+Low-frequency regular-inconsistent,gull
+Low-frequency regular-inconsistent,harm
+Low-frequency regular-inconsistent,hoe
+Low-frequency regular-inconsistent,lash
+Low-frequency regular-inconsistent,leaf
+Low-frequency regular-inconsistent,loss
+Low-frequency regular-inconsistent,mad
+Low-frequency regular-inconsistent,moose
+Low-frequency regular-inconsistent,moth
+Low-frequency regular-inconsistent,mouse
+Low-frequency regular-inconsistent,mush
+Low-frequency regular-inconsistent,pork
+Low-frequency regular-inconsistent,pose
+Low-frequency regular-inconsistent,pouch
+Low-frequency regular-inconsistent,rave
+Low-frequency regular-inconsistent,tint
+Low-frequency regular-inconsistent,toad
+Regular control for High-frequency exception,out
+Regular control for High-frequency exception,big
+Regular control for High-frequency exception,best
+Regular control for High-frequency exception,class
+Regular control for High-frequency exception,came
+Regular control for High-frequency exception,did
+Regular control for High-frequency exception,tell
+Regular control for High-frequency exception,dark
+Regular control for High-frequency exception,fact
+Regular control for High-frequency exception,got
+Regular control for High-frequency exception,group
+Regular control for High-frequency exception,him
+Regular control for High-frequency exception,main
+Regular control for High-frequency exception,place
+Regular control for High-frequency exception,page
+Regular control for High-frequency exception,see
+Regular control for High-frequency exception,stop
+Regular control for High-frequency exception,soon
+Regular control for High-frequency exception,which
+Regular control for High-frequency exception,week
+Regular control for High-frequency exception,with
+Regular control for High-frequency exception,when
+Regular control for High-frequency exception,write
+Regular control for High-frequency exception,will
+Regular control for High-frequency regular-inconsistent,bird
+Regular control for High-frequency regular-inconsistent,bag
+Regular control for High-frequency regular-inconsistent,by
+Regular control for High-frequency regular-inconsistent,clean
+Regular control for High-frequency regular-inconsistent,corn
+Regular control for High-frequency regular-inconsistent,draw
+Regular control for High-frequency regular-inconsistent,dust
+Regular control for High-frequency regular-inconsistent,fish
+Regular control for High-frequency regular-inconsistent,fine
+Regular control for High-frequency regular-inconsistent,fast
+Regular control for High-frequency regular-inconsistent,feet
+Regular control for High-frequency regular-inconsistent,get
+Regular control for High-frequency regular-inconsistent,girl
+Regular control for High-frequency regular-inconsistent,gold
+Regular control for High-frequency regular-inconsistent,help
+Regular control for High-frequency regular-inconsistent,high
+Regular control for High-frequency regular-inconsistent,mile
+Regular control for High-frequency regular-inconsistent,plate
+Regular control for High-frequency regular-inconsistent,piece
+Regular control for High-frequency regular-inconsistent,rod
+Regular control for High-frequency regular-inconsistent,rice
+Regular control for High-frequency regular-inconsistent,sent
+Regular control for High-frequency regular-inconsistent,such
+Regular control for High-frequency regular-inconsistent,skin
+Regular control for Low-frequency exception,bus
+Regular control for Low-frequency exception,broke
+Regular control for Low-frequency exception,beam
+Regular control for Low-frequency exception,deed
+Regular control for Low-frequency exception,dots
+Regular control for Low-frequency exception,float
+Regular control for Low-frequency exception,grape
+Regular control for Low-frequency exception,lunch
+Regular control for Low-frequency exception,peel
+Regular control for Low-frequency exception,fade
+Regular control for Low-frequency exception,pitch
+Regular control for Low-frequency exception,pump
+Regular control for Low-frequency exception,ripe
+Regular control for Low-frequency exception,slip
+Regular control for Low-frequency exception,sank
+Regular control for Low-frequency exception,slam
+Regular control for Low-frequency exception,stunt
+Regular control for Low-frequency exception,swore
+Regular control for Low-frequency exception,trunk
+Regular control for Low-frequency exception,wit
+Regular control for Low-frequency exception,weld
+Regular control for Low-frequency exception,wax
+Regular control for Low-frequency exception,wing
+Regular control for Low-frequency exception,wake
+Regular control for Low-frequency regular-inconsistent,brisk
+Regular control for Low-frequency regular-inconsistent,code
+Regular control for Low-frequency regular-inconsistent,cane
+Regular control for Low-frequency regular-inconsistent,cope
+Regular control for Low-frequency regular-inconsistent,clang
+Regular control for Low-frequency regular-inconsistent,dime
+Regular control for Low-frequency regular-inconsistent,fawn
+Regular control for Low-frequency regular-inconsistent,gong
+Regular control for Low-frequency regular-inconsistent,hide
+Regular control for Low-frequency regular-inconsistent,hike
+Regular control for Low-frequency regular-inconsistent,loom
+Regular control for Low-frequency regular-inconsistent,leg
+Regular control for Low-frequency regular-inconsistent,luck
+Regular control for Low-frequency regular-inconsistent,mix
+Regular control for Low-frequency regular-inconsistent,mole
+Regular control for Low-frequency regular-inconsistent,mist
+Regular control for Low-frequency regular-inconsistent,moist
+Regular control for Low-frequency regular-inconsistent,math
+Regular control for Low-frequency regular-inconsistent,pail
+Regular control for Low-frequency regular-inconsistent,peep
+Regular control for Low-frequency regular-inconsistent,peach
+Regular control for Low-frequency regular-inconsistent,reef
+Regular control for Low-frequency regular-inconsistent,taps
+Regular control for Low-frequency regular-inconsistent,tend

@@ -1,0 +1,87 @@
+id,cond,nonword,p,o
+0,Exception,coth,"['__kaT_____', '__koT_____']",___co_th______
+1,Exception,heen,['__hin_____'],___heen_______
+2,Exception,drood,"['_drUd_____', '_drud_____', '_dr^d_____']",__drood_______
+3,Exception,shead,"['__SEd_____', '__Sid_____']",__shead_______
+4,Exception,wull,"['__w^l_____', '__wUl_____']",___wu_ll______
+5,Exception,nush,"['__n^S_____', '__nUS_____']",___nu_sh______
+6,Exception,pomb,"['__pum_____', '__pom_____', '__pam_____']",___po_mb______
+7,Exception,gome,"['__gom_____', '__g^m_____']",___go_me______
+8,Exception,fead,"['__fEd_____', '__fid_____']",___fead_______
+9,Exception,heaf,"['__hif_____', '__hEf_____']",___heaf_______
+10,Exception,blead,"['_blEd_____', '_blid_____']",__blead_______
+11,Exception,mone,"['__mon_____', '__m^n_____']",___mo_ne______
+12,Exception,poot,"['__put_____', '__pUt_____']",___poot_______
+13,Exception,sood,"['__sUd_____', '__sud_____', '__s^d_____']",___sood_______
+14,Exception,steat,"['_stit_____', '_stEt_____', '_stet_____']",__steat_______
+15,Exception,tave,"['__tev_____', '__tav_____', '__t@v_____']",___ta_ve______
+16,Exception,wead,"['__wEd_____', '__wid_____']",___wead_______
+17,Exception,bood,"['__bUd_____', '__bud_____', '__b^d_____']",___bood_______
+18,Exception,moof,"['__muf_____', '__mUf_____']",___moof_______
+19,Exception,cose,"['__koz_____', '__kos_____', '__kuz_____']",___co_se______
+20,Exception,hove,"['__hov_____', '__h^v_____', '__huv_____']",___ho_ve______
+21,Exception,bild,"['__bAld____', '__bIld____']",___bi_ld______
+22,Exception,pove,"['__pov_____', '__p^v_____', '__puv_____']",___po_ve______
+23,Exception,sost,"['__sost____', '__sast____']",___so_st______
+24,Exception,wone,"['__won_____', '__w^n_____']",___wo_ne______
+25,Exception,bint,"['__bInt____', '__bAnt____']",___bi_nt______
+26,Exception,praid,"['_pred_____', '_prEd_____', '_pr@d_____']",__praid_______
+27,Exception,bost,"['__bost____', '__bast____']",___bo_st______
+28,Exception,wush,"['__w^S_____', '__wUS_____']",___wu_sh______
+29,Exception,brove,"['_brov_____', '_br^v_____', '_bruv_____']",__bro_ve______
+30,Exception,sull,"['__s^l_____', '__sUl_____']",___su_ll______
+31,Exception,plove,"['_plov_____', '_pl^v_____', '_pluv_____']",__plo_ve______
+32,Exception,haid,"['__hed_____', '__hEd_____', '__h@d_____']",___haid_______
+33,Exception,lome,"['__lom_____', '__l^m_____']",___lo_me______
+34,Exception,doot,"['__dut_____', '__dUt_____']",___doot_______
+35,Exception,grook,"['_grUk_____', '_gruk_____']",__grook_______
+36,Exception,sweak,"['_swik_____', '_swek_____']",__sweak_______
+37,Exception,speat,"['_spit_____', '_spEt_____', '_spet_____']",__speat_______
+38,Exception,domb,"['__dum_____', '__dom_____', '__dam_____']",___do_mb______
+39,Exception,lool,"['__lul_____', '__lUl_____']",___lool_______
+40,Exception,mear,"['__mir_____', '__mEr_____']",___mear_______
+41,Exception,pild,"['__pAld____', '__pIld____']",___pi_ld______
+42,Exception,dere,"['__dEr_____', '__dir_____', '__d^r_____']",___de_re______
+43,Regular,cath,"['__k@T_____', '__kaT_____']",___ca_th______
+44,Regular,heef,['__hif_____'],___heef_______
+45,Regular,dreed,['_drid_____'],__dreed_______
+46,Regular,sheed,['__Sid_____'],__sheed_______
+47,Regular,wuff,['__w^f_____'],___wu_ff______
+48,Regular,nust,['__n^st____'],___nu_st______
+49,Regular,pold,['__pold____'],___po_ld______
+50,Regular,gode,['__god_____'],___go_de______
+51,Regular,feal,['__fil_____'],___feal_______
+52,Regular,hean,['__hin_____'],___hean_______
+53,Regular,bleam,['_blim_____'],__bleam_______
+54,Regular,mune,['__mun_____'],___mu_ne______
+55,Regular,peet,['__pit_____'],___peet_______
+56,Regular,soad,"['__sod_____', '__sad_____']",___soad_______
+57,Regular,steet,['_stit_____'],__steet_______
+58,Regular,taze,['__tez_____'],___ta_ze______
+59,Regular,weat,"['__wit_____', '__wEt_____', '__wet_____']",___weat_______
+60,Regular,beed,['__bid_____'],___beed_______
+61,Regular,moop,['__mup_____'],___moop_______
+62,Regular,cobe,['__kob_____'],___co_be______
+63,Regular,hode,['__hod_____'],___ho_de______
+64,Regular,beld,['__bEld____'],___be_ld______
+65,Regular,pode,['__pod_____'],___po_de______
+66,Regular,sust,['__s^st____'],___su_st______
+67,Regular,wote,['__wot_____'],___wo_te______
+68,Regular,bink,['__bInk____'],___bi_nk______
+69,Regular,prain,['_pren_____'],__prain_______
+70,Regular,bort,['__bort____'],___bo_rt______
+71,Regular,wosh,['__waS_____'],___wo_sh______
+72,Regular,brobe,['_brob_____'],__bro_be______
+73,Regular,suff,['__s^f_____'],___su_ff______
+74,Regular,plore,['_plor_____'],__plo_re______
+75,Regular,hoil,['__hOl_____'],___hoil_______
+76,Regular,lole,['__lol_____'],___lo_le______
+77,Regular,doon,['__dun_____'],___doon_______
+78,Regular,grool,"['_grul_____', '_grUl_____']",__grool_______
+79,Regular,sweal,['_swil_____'],__sweal_______
+80,Regular,speet,['_spit_____'],__speet_______
+81,Regular,dold,['__dold____'],___do_ld______
+82,Regular,lail,['__lel_____'],___lail_______
+83,Regular,meak,"['__mik_____', '__mek_____']",___meak_______
+84,Regular,pilt,['__pIlt____'],___pi_lt______
+85,Regular,dore,['__dor_____'],___do_re______

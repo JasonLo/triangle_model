@@ -1,0 +1,87 @@
+,id,cond,word,pseudoword,word_head,word_body,pseudoword_head,pseudoword_body,word_pho_head,word_pho_body,nw_pho_head,nw_pho_body,word_pho_head_chk,word_pho_body_chk,nw_all_p,w_all_o,nw_all_o,w_all_p
+0,0,Exception,both,coth,b,oth,c,oth,b,oT,['k'],"['aT', 'oT']",['b'],"['aT', 'oT']","['__kaT_____', '__koT_____']",___bo_th______,___co_th______,__boT_____
+1,1,Exception,been,heen,b,een,h,een,b,in,['h'],['in'],['b'],['in'],['__hin_____'],___been_______,___heen_______,__bin_____
+2,2,Exception,blood,drood,bl,ood,dr,ood,bl,^d,['dr'],"['ud', 'Ud', '^d']",['bl'],"['ud', 'Ud', '^d']","['_drud_____', '_drUd_____', '_dr^d_____']",__blood_______,__drood_______,_bl^d_____
+3,3,Exception,bread,shead,br,ead,sh,ead,br,Ed,['S'],"['Ed', 'id']",['br'],"['Ed', 'id']","['__SEd_____', '__Sid_____']",__bread_______,__shead_______,_brEd_____
+4,4,Exception,bull,wull,b,ull,w,ull,b,Ul,['w'],"['^l', 'Ul']",['b'],"['^l', 'Ul']","['__w^l_____', '__wUl_____']",___bu_ll______,___wu_ll______,__bUl_____
+5,5,Exception,bush,nush,b,ush,n,ush,b,US,['n'],"['^S', 'US']",['b'],"['^S', 'US']","['__n^S_____', '__nUS_____']",___bu_sh______,___nu_sh______,__bUS_____
+6,6,Exception,comb,pomb,c,omb,p,omb,k,om,['p'],"['um', 'am', 'om']",['k'],"['um', 'am', 'om']","['__pum_____', '__pam_____', '__pom_____']",___co_mb______,___po_mb______,__kom_____
+7,7,Exception,come,gome,c,ome,g,ome,k,^m,['g'],"['om', '^m']",['k'],"['om', '^m']","['__gom_____', '__g^m_____']",___co_me______,___go_me______,__k^m_____
+8,8,Exception,dead,fead,d,ead,f,ead,d,Ed,['f'],"['Ed', 'id']",['d'],"['Ed', 'id']","['__fEd_____', '__fid_____']",___dead_______,___fead_______,__dEd_____
+9,9,Exception,deaf,heaf,d,eaf,h,eaf,d,Ef,['h'],"['if', 'Ef']",['d'],"['if', 'Ef']","['__hif_____', '__hEf_____']",___deaf_______,___heaf_______,__dEf_____
+10,10,Exception,dread,blead,dr,ead,bl,ead,dr,Ed,['bl'],"['Ed', 'id']",['dr'],"['Ed', 'id']","['_blEd_____', '_blid_____']",__dread_______,__blead_______,_drEd_____
+11,11,Exception,done,mone,d,one,m,one,d,^n,['m'],"['on', '^n']",['d'],"['on', '^n']","['__mon_____', '__m^n_____']",___do_ne______,___mo_ne______,__d^n_____
+12,12,Exception,foot,poot,f,oot,p,oot,f,Ut,['p'],"['ut', 'Ut']",['f'],"['ut', 'Ut']","['__put_____', '__pUt_____']",___foot_______,___poot_______,__fUt_____
+13,13,Exception,good,sood,g,ood,s,ood,g,Ud,['s'],"['ud', 'Ud', '^d']",['g'],"['ud', 'Ud', '^d']","['__sud_____', '__sUd_____', '__s^d_____']",___good_______,___sood_______,__gUd_____
+14,14,Exception,great,steat,gr,eat,st,eat,gr,et,['st'],"['it', 'Et', 'et']",['gr'],"['it', 'Et', 'et']","['_stit_____', '_stEt_____', '_stet_____']",__great_______,__steat_______,_gret_____
+15,15,Exception,have,tave,h,ave,t,ave,h,@v,['t'],"['ev', 'av', '@v']",['h'],"['ev', 'av', '@v']","['__tev_____', '__tav_____', '__t@v_____']",___ha_ve______,___ta_ve______,__h@v_____
+16,16,Exception,head,wead,h,ead,w,ead,h,Ed,['w'],"['Ed', 'id']",['h'],"['Ed', 'id']","['__wEd_____', '__wid_____']",___head_______,___wead_______,__hEd_____
+17,17,Exception,hood,bood,h,ood,b,ood,h,Ud,['b'],"['ud', 'Ud', '^d']",['h'],"['ud', 'Ud', '^d']","['__bud_____', '__bUd_____', '__b^d_____']",___hood_______,___bood_______,__hUd_____
+18,18,Exception,hoof,moof,h,oof,m,oof,h,Uf,['m'],"['uf', 'Uf']",['h'],"['uf', 'Uf']","['__muf_____', '__mUf_____']",___hoof_______,___moof_______,__hUf_____
+19,19,Exception,lose,cose,l,ose,c,ose,l,uz,['k'],"['oz', 'os', 'uz']",['l'],"['oz', 'os', 'uz']","['__koz_____', '__kos_____', '__kuz_____']",___lo_se______,___co_se______,__luz_____
+20,20,Exception,love,hove,l,ove,h,ove,l,^v,['h'],"['ov', '^v', 'uv']",['l'],"['ov', '^v', 'uv']","['__hov_____', '__h^v_____', '__huv_____']",___lo_ve______,___ho_ve______,__l^v_____
+21,21,Exception,mild,bild,m,ild,b,ild,m,Ald,['b'],"['Ald', 'Ild']",['m'],"['Ald', 'Ild']","['__bAld____', '__bIld____']",___mi_ld______,___bi_ld______,__mAld____
+22,22,Exception,move,pove,m,ove,p,ove,m,uv,['p'],"['ov', '^v', 'uv']",['m'],"['ov', '^v', 'uv']","['__pov_____', '__p^v_____', '__puv_____']",___mo_ve______,___po_ve______,__muv_____
+23,23,Exception,most,sost,m,ost,s,ost,m,ost,['s'],"['ost', 'ast']",['m'],"['ost', 'ast']","['__sost____', '__sast____']",___mo_st______,___so_st______,__most____
+24,24,Exception,none,wone,n,one,w,one,n,^n,['w'],"['on', '^n']",['n'],"['on', '^n']","['__won_____', '__w^n_____']",___no_ne______,___wo_ne______,__n^n_____
+25,25,Exception,pint,bint,p,int,b,int,p,Ant,['b'],"['Int', 'Ant']",['p'],"['Int', 'Ant']","['__bInt____', '__bAnt____']",___pi_nt______,___bi_nt______,__pAnt____
+26,26,Exception,plaid,praid,pl,aid,pr,aid,pl,@d,['pr'],"['ed', 'Ed', '@d']",['pl'],"['ed', 'Ed', '@d']","['_pred_____', '_prEd_____', '_pr@d_____']",__plaid_______,__praid_______,_pl@d_____
+27,27,Exception,post,bost,p,ost,b,ost,p,ost,['b'],"['ost', 'ast']",['p'],"['ost', 'ast']","['__bost____', '__bast____']",___po_st______,___bo_st______,__post____
+28,28,Exception,push,wush,p,ush,w,ush,p,US,['w'],"['^S', 'US']",['p'],"['^S', 'US']","['__w^S_____', '__wUS_____']",___pu_sh______,___wu_sh______,__pUS_____
+29,29,Exception,prove,brove,pr,ove,br,ove,pr,uv,['br'],"['ov', '^v', 'uv']",['pr'],"['ov', '^v', 'uv']","['_brov_____', '_br^v_____', '_bruv_____']",__pro_ve______,__bro_ve______,_pruv_____
+30,30,Exception,pull,sull,p,ull,s,ull,p,Ul,['s'],"['^l', 'Ul']",['p'],"['^l', 'Ul']","['__s^l_____', '__sUl_____']",___pu_ll______,___su_ll______,__pUl_____
+31,31,Exception,shove,plove,sh,ove,pl,ove,S,^v,['pl'],"['ov', '^v', 'uv']",['S'],"['ov', '^v', 'uv']","['_plov_____', '_pl^v_____', '_pluv_____']",__sho_ve______,__plo_ve______,__S^v_____
+32,32,Exception,said,haid,s,aid,h,aid,s,Ed,['h'],"['ed', 'Ed', '@d']",['s'],"['ed', 'Ed', '@d']","['__hed_____', '__hEd_____', '__h@d_____']",___said_______,___haid_______,__sEd_____
+33,33,Exception,some,lome,s,ome,l,ome,s,^m,['l'],"['om', '^m']",['s'],"['om', '^m']","['__lom_____', '__l^m_____']",___so_me______,___lo_me______,__s^m_____
+34,34,Exception,soot,doot,s,oot,d,oot,s,Ut,['d'],"['ut', 'Ut']",['s'],"['ut', 'Ut']","['__dut_____', '__dUt_____']",___soot_______,___doot_______,__sUt_____
+35,35,Exception,spook,grook,sp,ook,gr,ook,sp,uk,['gr'],"['Uk', 'uk']",['sp'],"['Uk', 'uk']","['_grUk_____', '_gruk_____']",__spook_______,__grook_______,_spuk_____
+36,36,Exception,steak,sweak,st,eak,sw,eak,st,ek,['sw'],"['ik', 'ek']",['st'],"['ik', 'ek']","['_swik_____', '_swek_____']",__steak_______,__sweak_______,_stek_____
+37,37,Exception,sweat,speat,sw,eat,sp,eat,sw,Et,['sp'],"['it', 'Et', 'et']",['sw'],"['it', 'Et', 'et']","['_spit_____', '_spEt_____', '_spet_____']",__sweat_______,__speat_______,_swEt_____
+38,38,Exception,tomb,domb,t,omb,d,omb,t,um,['d'],"['um', 'am', 'om']",['t'],"['um', 'am', 'om']","['__dum_____', '__dam_____', '__dom_____']",___to_mb______,___do_mb______,__tum_____
+39,39,Exception,wool,lool,w,ool,l,ool,w,Ul,['l'],"['ul', 'Ul']",['w'],"['ul', 'Ul']","['__lul_____', '__lUl_____']",___wool_______,___lool_______,__wUl_____
+40,40,Exception,wear,mear,w,ear,m,ear,w,Er,['m'],"['ir', 'Er']",['w'],"['ir', 'Er']","['__mir_____', '__mEr_____']",___wear_______,___mear_______,__wEr_____
+41,41,Exception,wild,pild,w,ild,p,ild,w,Ald,['p'],"['Ald', 'Ild']",['w'],"['Ald', 'Ild']","['__pAld____', '__pIld____']",___wi_ld______,___pi_ld______,__wAld____
+42,42,Exception,were,dere,w,ere,d,ere,w,^r,['d'],"['ir', 'Er', '^r']",['w'],"['ir', 'Er', '^r']","['__dir_____', '__dEr_____', '__d^r_____']",___we_re______,___de_re______,__w^r_____
+43,43,Regular,bath,cath,b,ath,c,ath,b,@T,['k'],"['@T', 'aT']",['b'],"['@T', 'aT']","['__k@T_____', '__kaT_____']",___ba_th______,___ca_th______,__b@T_____
+44,44,Regular,beef,heef,b,eef,h,eef,b,if,['h'],['if'],['b'],['if'],['__hif_____'],___beef_______,___heef_______,__bif_____
+45,45,Regular,bleed,dreed,bl,eed,dr,eed,bl,id,['dr'],['id'],['bl'],['id'],['_drid_____'],__bleed_______,__dreed_______,_blid_____
+46,46,Regular,breed,sheed,br,eed,sh,eed,br,id,['S'],['id'],['br'],['id'],['__Sid_____'],__breed_______,__sheed_______,_brid_____
+47,47,Regular,buff,wuff,b,uff,w,uff,b,^f,['w'],['^f'],['b'],['^f'],['__w^f_____'],___bu_ff______,___wu_ff______,__b^f_____
+48,48,Regular,bust,nust,b,ust,n,ust,b,^st,['n'],['^st'],['b'],['^st'],['__n^st____'],___bu_st______,___nu_st______,__b^st____
+49,49,Regular,cold,pold,c,old,p,old,k,old,['p'],['old'],['k'],['old'],['__pold____'],___co_ld______,___po_ld______,__kold____
+50,50,Regular,code,gode,c,ode,g,ode,k,od,['g'],['od'],['k'],['od'],['__god_____'],___co_de______,___go_de______,__kod_____
+51,51,Regular,deal,feal,d,eal,f,eal,d,il,['f'],['il'],['d'],['il'],['__fil_____'],___deal_______,___feal_______,__dil_____
+52,52,Regular,dean,hean,d,ean,h,ean,d,in,['h'],['in'],['d'],['in'],['__hin_____'],___dean_______,___hean_______,__din_____
+53,53,Regular,dream,bleam,dr,eam,bl,eam,dr,im,['bl'],['im'],['dr'],['im'],['_blim_____'],__dream_______,__bleam_______,_drim_____
+54,54,Regular,dune,mune,d,une,m,une,d,un,['m'],['un'],['d'],['un'],['__mun_____'],___du_ne______,___mu_ne______,__dun_____
+55,55,Regular,feet,peet,f,eet,p,eet,f,it,['p'],['it'],['f'],['it'],['__pit_____'],___feet_______,___peet_______,__fit_____
+56,56,Regular,goad,soad,g,oad,s,oad,g,od,['s'],"['od', 'ad']",['g'],"['od', 'ad']","['__sod_____', '__sad_____']",___goad_______,___soad_______,__god_____
+57,57,Regular,greet,steet,gr,eet,st,eet,gr,it,['st'],['it'],['gr'],['it'],['_stit_____'],__greet_______,__steet_______,_grit_____
+58,58,Regular,haze,taze,h,aze,t,aze,h,ez,['t'],['ez'],['h'],['ez'],['__tez_____'],___ha_ze______,___ta_ze______,__hez_____
+59,59,Regular,heat,weat,h,eat,w,eat,h,it,['w'],"['it', 'Et', 'et']",['h'],"['it', 'Et', 'et']","['__wit_____', '__wEt_____', '__wet_____']",___heat_______,___weat_______,__hit_____
+60,60,Regular,heed,beed,h,eed,b,eed,h,id,['b'],['id'],['h'],['id'],['__bid_____'],___heed_______,___beed_______,__hid_____
+61,61,Regular,hoop,moop,h,oop,m,oop,h,up,['m'],['up'],['h'],['up'],['__mup_____'],___hoop_______,___moop_______,__hup_____
+62,62,Regular,lobe,cobe,l,obe,c,obe,l,ob,['k'],['ob'],['l'],['ob'],['__kob_____'],___lo_be______,___co_be______,__lob_____
+63,63,Regular,lode,hode,l,ode,h,ode,l,od,['h'],['od'],['l'],['od'],['__hod_____'],___lo_de______,___ho_de______,__lod_____
+64,64,Regular,meld,beld,m,eld,b,eld,m,Eld,['b'],['Eld'],['m'],['Eld'],['__bEld____'],___me_ld______,___be_ld______,__mEld____
+65,65,Regular,mode,pode,m,ode,p,ode,m,od,['p'],['od'],['m'],['od'],['__pod_____'],___mo_de______,___po_de______,__mod_____
+66,66,Regular,must,sust,m,ust,s,ust,m,^st,['s'],['^st'],['m'],['^st'],['__s^st____'],___mu_st______,___su_st______,__m^st____
+67,67,Regular,note,wote,n,ote,w,ote,n,ot,['w'],['ot'],['n'],['ot'],['__wot_____'],___no_te______,___wo_te______,__not_____
+68,68,Regular,pink,bink,p,ink,b,ink,p,Ink,['b'],['Ink'],['p'],['Ink'],['__bInk____'],___pi_nk______,___bi_nk______,__pInk____
+69,69,Regular,plain,prain,pl,ain,pr,ain,pl,en,['pr'],['en'],['pl'],['en'],['_pren_____'],__plain_______,__prain_______,_plen_____
+70,70,Regular,port,bort,p,ort,b,ort,p,ort,['b'],['ort'],['p'],['ort'],['__bort____'],___po_rt______,___bo_rt______,__port____
+71,71,Regular,posh,wosh,p,osh,w,osh,p,aS,['w'],['aS'],['p'],['aS'],['__waS_____'],___po_sh______,___wo_sh______,__paS_____
+72,72,Regular,probe,brobe,pr,obe,br,obe,pr,ob,['br'],['ob'],['pr'],['ob'],['_brob_____'],__pro_be______,__bro_be______,_prob_____
+73,73,Regular,puff,suff,p,uff,s,uff,p,^f,['s'],['^f'],['p'],['^f'],['__s^f_____'],___pu_ff______,___su_ff______,__p^f_____
+74,74,Regular,shore,plore,sh,ore,pl,ore,S,or,['pl'],['or'],['S'],['or'],['_plor_____'],__sho_re______,__plo_re______,__Sor_____
+75,75,Regular,soil,hoil,s,oil,h,oil,s,Ol,['h'],['Ol'],['s'],['Ol'],['__hOl_____'],___soil_______,___hoil_______,__sOl_____
+76,76,Regular,sole,lole,s,ole,l,ole,s,ol,['l'],['ol'],['s'],['ol'],['__lol_____'],___so_le______,___lo_le______,__sol_____
+77,77,Regular,soon,doon,s,oon,d,oon,s,un,['d'],['un'],['s'],['un'],['__dun_____'],___soon_______,___doon_______,__sun_____
+78,78,Regular,spool,grool,sp,ool,gr,ool,sp,ul,['gr'],"['ul', 'Ul']",['sp'],"['ul', 'Ul']","['_grul_____', '_grUl_____']",__spool_______,__grool_______,_spul_____
+79,79,Regular,steal,sweal,st,eal,sw,eal,st,il,['sw'],['il'],['st'],['il'],['_swil_____'],__steal_______,__sweal_______,_stil_____
+80,80,Regular,sweet,speet,sw,eet,sp,eet,sw,it,['sp'],['it'],['sw'],['it'],['_spit_____'],__sweet_______,__speet_______,_swit_____
+81,81,Regular,told,dold,t,old,d,old,t,old,['d'],['old'],['t'],['old'],['__dold____'],___to_ld______,___do_ld______,__told____
+82,82,Regular,wail,lail,w,ail,l,ail,w,el,['l'],['el'],['w'],['el'],['__lel_____'],___wail_______,___lail_______,__wel_____
+83,83,Regular,weak,meak,w,eak,m,eak,w,ik,['m'],"['ik', 'ek']",['w'],"['ik', 'ek']","['__mik_____', '__mek_____']",___weak_______,___meak_______,__wik_____
+84,84,Regular,wilt,pilt,w,ilt,p,ilt,w,Ilt,['p'],['Ilt'],['w'],['Ilt'],['__pIlt____'],___wi_lt______,___pi_lt______,__wIlt____
+85,85,Regular,wore,dore,w,ore,d,ore,w,or,['d'],['or'],['w'],['or'],['__dor_____'],___wo_re______,___do_re______,__wor_____
