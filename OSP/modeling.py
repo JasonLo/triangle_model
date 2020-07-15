@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.keras as keras
 from tensorflow.keras import activations, initializers, regularizers, Model
 from tensorflow.keras.layers import Layer, Input
 import tensorflow.keras.backend as K
@@ -46,6 +47,34 @@ def zer_bce(target, output):
     bce = target * math_ops.log(zer_output + epsilon())
     bce += (1 - target) * math_ops.log(1 - zer_output + epsilon())
     return -bce
+
+
+class CustomBCE(keras.losses.Loss):
+    """ Binarycross entropy loss with variable zero-error-radius
+    """
+    def __init__(self, radius=0.1, name="bce_with_ZER"):
+        super().__init__(name=name)
+        self.radius = radius
+
+    def call(self, y_true, y_pred):
+        if not isinstance(y_pred, (ops.EagerTensor, variables_module.Variable)):
+            y_pred = _backtrack_identity(y_pred)
+
+        # Clip with a tiny constant to avoid zero division
+        epsilon_ = _constant_to_tensor(epsilon(), y_pred.dtype.base_dtype)
+        y_pred = clip_ops.clip_by_value(y_pred, epsilon_, 1.0 - epsilon_)
+
+        # Replace output by target if value within zero error radius
+        zer_output = zer_replace(y_true, y_pred, self.radius)
+
+        # Compute cross entropy from probabilities.
+        bce = y_true * math_ops.log(zer_output + epsilon())
+        bce += (1 - y_true) * math_ops.log(1 - zer_output + epsilon())
+        return -bce
+
+
+
+
 
 ###
 

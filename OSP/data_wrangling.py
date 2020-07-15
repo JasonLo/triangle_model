@@ -2,19 +2,21 @@ import numpy as np
 import pandas as pd
 import pickle
 
-def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
-    """
-    Read phonological patterns from the mapping file
+def gen_pkey(p_file="/home/jupyter/tf/common/patterns/mappingv2.txt"):
+    """ Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
     """
-
+    
     mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
     m_dict = mapping.set_index(0).T.to_dict('list')
     return m_dict
 
 
 class wf_manager():
-    # Note: the probability must sum to 1 when passing it to np.random.choice()
+    """ Calculate sampling probability
+    Note: the probability must sum to 1 when passing it to np.random.choice()
+    """
+
     def __init__(self, wf):
         self.wf = np.array(wf)
 
@@ -44,7 +46,9 @@ class wf_manager():
 
 # Input for training set
 def sample_generator(cfg, data):
-    # Dimension guide: (batch_size, timesteps, nodes)
+    """Generate training set sample
+    Dimension guide: (batch_size, timesteps, nodes)"""
+
     from modeling import input_s
 
     np.random.seed(cfg.rng_seed)
@@ -98,9 +102,10 @@ def sample_generator(cfg, data):
 def test_set_input(
     x_test, x_test_wf, x_test_img, y_test, epoch, cfg, test_use_semantic
 ):
-    # We need to separate whether the model use semantic by cfg.use_semantic
-    # And whether the test set has semantic input by test_use_semantic
-    # If model use semantic, we need to return a list of 3 inputs (x, s[time step varying], y), otherwise (x) is enough
+    """ Automatically restructure testset input vectors and calculate hypothetical semantic (if exist in the model)
+    If model use semantic, we need to return a list of 3 inputs (x, s[time step varying], y), otherwise (x) is enough
+    """
+
     from modeling import input_s
 
     if cfg.use_semantic:
@@ -145,7 +150,7 @@ class my_data():
 
         self.sample_name = cfg.sample_name
 
-        input_path = '../common/input/'
+        input_path = '/home/jupyter/tf/common/input/'
 
         self.df_train = pd.read_csv(input_path + 'df_train.csv', index_col=0)
         self.x_train = np.load(input_path + 'x_train.npz')['data']
@@ -181,7 +186,6 @@ class my_data():
         self.pho_glushko = pickle.load(f)
         f.close()  
 
-        from data_wrangling import gen_pkey
         self.phon_key = gen_pkey()
 
         print('==========Orthographic representation==========')
@@ -205,7 +209,7 @@ class my_data():
         self.img = np.array(self.df_train['img'], dtype='float32')
 
     def gen_sample_p(self):
-        from data_wrangling import wf_manager
+        """Calculate sampling p by different methods"""
         wf = wf_manager(self.df_train['wf'])
         if self.sample_name == 'hs04':
             self.sample_p = wf.samp_hs04()
