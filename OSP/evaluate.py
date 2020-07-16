@@ -203,6 +203,10 @@ class testset():
         item_eval['sse_slot9'] = slot_sse[8]
         item_eval['sse_slot10'] = slot_sse[9]
         item_eval['sse'] = slot_sse.sum(axis=0)
+        
+        slot_output = np.array_split(y_pred_matrix_at_this_time, 10, axis=-1)
+        item_eval['mean_output_slot4'] = slot_output[3].mean(axis=-1)
+        item_eval['mean_output_slot10'] = slot_output[9].mean(axis=-1)
  
         return item_eval
 
