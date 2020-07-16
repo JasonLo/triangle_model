@@ -1,15 +1,17 @@
-from collections import OrderedDict
 import tensorflow as tf
-import altair as alt
 import pandas as pd
 import pandas_gbq
-import json, os, itertools
+import json
+import os
+import itertools
+
 
 def check_gpu():
     if tf.config.experimental.list_physical_devices("GPU"):
         print("GPU is available \n")
     else:
         print("GPU is NOT AVAILABLE \n")
+
 
 def gpu_mem_cap(b=2048):
     # Set GPU memory cap per python kernal for parallel run
@@ -37,6 +39,7 @@ def gpu_mem_cap(b=2048):
             # Virtual devices must be set before GPUs have been initialized
             print(e)
 
+
 class model_cfg:
     """
     This function keeps all global model configurations
@@ -45,12 +48,12 @@ class model_cfg:
     There are two ways to construct this object
     1) Using a json file path, which contains a cfg dictionary by model_cfg(json_file)
     2) Using a dictionary by model_cfg(**dict) 
-    
+
     Arguements details:
     ------------------------------------------------------------------------------------------------
     >>>META DATA<<<
     code_name: Cfg meta-label, it wont' be use in the model, but it will be recorded in the cfg.json
-    
+
     >>>TRAINING RELATED<<<
     sample_name: Sampling probability implementation name, see data_wrangling for details
     rng_seed: Random seed for sampling and tf
@@ -62,7 +65,7 @@ class model_cfg:
     batch_size: Batch size
     save_freq: How often (1 = 10k sample) to save weight after 100k samples. 
                *Model automatically save in every 10k samples in the first 100k sample.
-    
+
     >>>MODEL ARCHITECHTURE<<<
     use_semantic: To use semantic dummy input or not
         if TRUE, must provide the fomula parameters in the following arguments:
@@ -85,10 +88,10 @@ class model_cfg:
     max_unit_time: TAI max unit of time
     output_ticks: How many output ticks should be exported and BPTT from
     p_noise: Gaussian noise in phonolgical system (W_pp, W_pc, W_cp)
-        
 
-    
-    
+
+
+
     """
     minimal_cfgs = ['code_name',
                     'sample_name',
@@ -112,7 +115,7 @@ class model_cfg:
                     'batch_size',
                     'learning_rate',
                     'save_freq']
-    
+
     aux_cfgs = [
         'sem_param_gf',
         'sem_param_gi',
@@ -123,7 +126,7 @@ class model_cfg:
         'embed_attractor_cfg',
         'embed_attractor_h5',
         'w_oh_noise',
-        'w_hp_noise', 
+        'w_hp_noise',
         'w_pp_noise',
         'w_pc_noise',
         'w_cp_noise',
@@ -132,32 +135,32 @@ class model_cfg:
         'bias_p_noise',
         'uuid',
         'nEpo',
-        'n_timesteps', 
+        'n_timesteps',
         'steps_per_epoch',
-        'save_freq_sample', 
-        'eval_freq', 
-        'bq_dataset', 
+        'save_freq_sample',
+        'eval_freq',
+        'bq_dataset',
         'batch_unique_setting_string',
-        ]
-    
+    ]
+
     tmp_cfgs = ['w_oh_noise_backup',
-        'w_hp_noise_backup',
-        'w_pp_noise_backup',
-        'w_pc_noise_backup', 
-        'w_cp_noise_backup',
-        'bias_h_noise_backup',
-        'bias_c_noise_backup',
-        'bias_p_noise_backup',
-        'path_model_folder',
-        'path_weights_checkpoint',              
-        'path_weights_list', 
-        'path_plot_folder', 
-        'path_weight_folder',
-        'path_log_folder',
-        'path_history_pickle', 
-        'saved_epoch_list',
-        ]
-    
+                'w_hp_noise_backup',
+                'w_pp_noise_backup',
+                'w_pc_noise_backup',
+                'w_cp_noise_backup',
+                'bias_h_noise_backup',
+                'bias_c_noise_backup',
+                'bias_p_noise_backup',
+                'path_model_folder',
+                'path_weights_checkpoint',
+                'path_weights_list',
+                'path_plot_folder',
+                'path_weight_folder',
+                'path_log_folder',
+                'path_history_pickle',
+                'saved_epoch_list',
+                ]
+
     all_cfgs_name = minimal_cfgs + aux_cfgs + tmp_cfgs
 
     def __init__(self, json_file=None, bypass_chk=False, just_chk=False, **kwargs):
@@ -172,24 +175,25 @@ class model_cfg:
             if key in self.all_cfgs_name:
                 setattr(self, key, value)
             else:
-                invalid_keys.append(key)            
-        
+                invalid_keys.append(key)
+
         if len(invalid_keys) > 0:
             print('These keys in cfg file is not valid: {}'.format(invalid_keys))
-            
-        # Additional initialization for dictionary constructor 
+
+        # Additional initialization for dictionary constructor
         if json_file == None:
             self.init_from_dict()
-            
-        if not bypass_chk: self.chk_cfg()
-        
+
+        if not bypass_chk:
+            self.chk_cfg()
+
         if (just_chk == False):
             self.store_noise()
             self.gen_paths()
-            
+
             if (json_file == None):
                 self.write_cfg()
-        
+
     def init_from_dict(self):
         # Unique identifier
         import uuid
@@ -201,7 +205,8 @@ class model_cfg:
         self.steps_per_epoch = int(10000 / self.batch_size)
 
         # Saving cfg
-        self.save_freq_sample = self.save_freq * self.batch_size * self.steps_per_epoch  # For TF 2.1
+        self.save_freq_sample = self.save_freq * \
+            self.batch_size * self.steps_per_epoch  # For TF 2.1
         self.eval_freq = self.save_freq
 
     def to_dict(self):
@@ -209,10 +214,10 @@ class model_cfg:
         Get a trimed dictionary (dropped attribute in tmp_cfg)
         """
         return {key: getattr(self, key) for key in (self.minimal_cfgs + self.aux_cfgs)}
-    
+
     def __str__(self):
         return str(self.to_dict())
-    
+
     def store_noise(self):
         # Noise management
         self.w_pp_noise = self.p_noise
@@ -222,7 +227,7 @@ class model_cfg:
         self.w_hp_noise = 0.
         self.bias_h_noise = 0.
         self.bias_c_noise = self.p_noise
-        self.bias_p_noise = self.p_noise 
+        self.bias_p_noise = self.p_noise
 
         self.w_oh_noise_backup = self.w_oh_noise
         self.w_hp_noise_backup = self.w_hp_noise
@@ -232,34 +237,42 @@ class model_cfg:
         self.bias_h_noise_backup = self.bias_h_noise
         self.bias_c_noise_backup = self.bias_c_noise
         self.bias_p_noise_backup = self.bias_p_noise
-        
+
     def chk_cfg(self):
         # Check all ingested_keys fufill minimal cfg requirement
         if not all([x in vars(self) for x in self.minimal_cfgs]):
-            raise ValueError('Some cfg is undefined, double check cfg contains all necessary params')
+            raise ValueError(
+                'Some cfg is undefined, double check cfg contains all necessary params')
 
         if self.use_semantic == True:
-            if not (type(self.sem_param_gf) == float): raise ValueError('check sem_params') 
-            if not (type(self.sem_param_gi) == float): raise ValueError('check sem_params') 
-            if not (type(self.sem_param_kf) == float): raise ValueError('check sem_params') 
-            if not (type(self.sem_param_ki) == float): raise ValueError('check sem_params') 
-            if not (type(self.sem_param_hf) == float): raise ValueError('check sem_params') 
-            if not (type(self.sem_param_hi) == float): raise ValueError('check sem_params') 
+            if not (type(self.sem_param_gf) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_gi) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_kf) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_ki) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_hf) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_hi) == float):
+                raise ValueError('check sem_params')
         else:
             self.sem_param_gf = None
             self.sem_param_gi = None
             self.sem_param_kf = None
             self.sem_param_ki = None
             self.sem_param_hf = None
-            self.sem_param_hi = None    
+            self.sem_param_hi = None
 
         if self.pretrain_attractor == True:
-            if not (type(self.embed_attractor_cfg) == str): raise ValueError('check embed_attractor_cfg') 
-            if not (type(self.embed_attractor_h5) == str): raise ValueError('check embed_attractor_h5') 
+            if not (type(self.embed_attractor_cfg) == str):
+                raise ValueError('check embed_attractor_cfg')
+            if not (type(self.embed_attractor_h5) == str):
+                raise ValueError('check embed_attractor_h5')
         else:
             self.embed_attractor_cfg = None
             self.embed_attractor_h5 = None
-            
 
     def gen_paths(self):
 
@@ -268,23 +281,26 @@ class model_cfg:
         self.path_plot_folder = self.path_model_folder + 'plots/'
         self.path_log_folder = self.path_model_folder + 'logs/'
 
-        os.makedirs(self.path_weight_folder, exist_ok = True)
-        os.makedirs(self.path_plot_folder, exist_ok = True)
-        os.makedirs(self.path_log_folder, exist_ok = True)
+        os.makedirs(self.path_weight_folder, exist_ok=True)
+        os.makedirs(self.path_plot_folder, exist_ok=True)
+        os.makedirs(self.path_log_folder, exist_ok=True)
 
         # For model checkpoint
-        self.path_weights_checkpoint = self.path_weight_folder + 'ep{epoch:04d}.h5'
+        self.path_weights_checkpoint = self.path_weight_folder + \
+            'ep{epoch:04d}.h5'
         self.path_history_pickle = self.path_model_folder + 'history.pickle'
 
         self.path_weights_list = []
         self.saved_epoch_list = []
-        
+
         for epoch in range(1, 11):
-            self.path_weights_list.append(self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
+            self.path_weights_list.append(
+                self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
             self.saved_epoch_list.append(epoch)
-            
+
         for epoch in range(10+self.save_freq, self.nEpo + 1, self.save_freq):
-            self.path_weights_list.append(self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
+            self.path_weights_list.append(
+                self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
             self.saved_epoch_list.append(epoch)
 
     def noise_off(self):
@@ -306,44 +322,48 @@ class model_cfg:
         self.w_cp_noise = self.w_cp_noise_backup
         self.bias_h_noise = self.bias_h_noise_backup
         self.bias_c_noise = self.bias_c_noise_backup
-        self.bias_p_noise =  self.bias_p_noise_backup
-       
+        self.bias_p_noise = self.bias_p_noise_backup
+
     def write_cfg(self):
-        
-        if os.path.isfile(self.path_model_folder + 'model_config.json'): 
+
+        if os.path.isfile(self.path_model_folder + 'model_config.json'):
             print('='*50)
-            print('Found model_config.json on disk, I will NEVER overwrite it automatically.')
+            print(
+                'Found model_config.json on disk, I will NEVER overwrite it automatically.')
             print('Manually delete config if you are sure.')
             print('Or save this model into another folder by changing cfg.code_name')
             print('='*50)
-        
+
         else:
-            self.noise_on() # Make sure noise is armed before saving, since loading will copy noise to backup
+            # Make sure noise is armed before saving, since loading will copy noise to backup
+            self.noise_on()
             save_cfg = {k: vars(self)[k] for k in self.all_cfgs_name}
             with open(self.path_model_folder + 'model_config.json', 'w') as f:
-                json.dump(vars(self), f)
+                json.dump(save_cfg, f)
+
 
 def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
     """
     Make batch cfg dictionary list that can feed into papermill
     """
-    
+
     # Check batch json exist
     batch_output_dir = "batch_eval/{}/".format(batch_name)
-    
+
     batch_json = batch_output_dir + "batch_config.json"
-    
+
     if os.path.isfile(batch_json):
         print("Batch config json is found, load cfgs from disk")
         with open(batch_json) as f:
             batch_cfgs = json.load(f)
     else:
         # Make batch_cfgs from given parameters
-        
+
         # Check duplicate keys
         for key in static_hpar.keys():
             if key in param_grid.keys():
-                raise ValueError("Key duplicated in vary and static parameter: {}".format(key))
+                raise ValueError(
+                    "Key duplicated in vary and static parameter: {}".format(key))
 
         # Iterate and create batch level super object: batch_cfgs
         batch_cfgs = []
@@ -356,11 +376,12 @@ def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
 
             # Add identifier params into param dict
             this_hpar["code_name"] = code_name
-            
+
             setting_list_without_rng_seed = [
                 x + str(this_hpar[x]) for x in varying_hpar_names if x != 'rng_seed'
             ]
-            this_hpar["batch_unique_setting_string"] = '_'.join(setting_list_without_rng_seed)
+            this_hpar["batch_unique_setting_string"] = '_'.join(
+                setting_list_without_rng_seed)
 
             # Pass into model_cfg to catch error early
             model_cfg(**this_hpar, just_chk=True)
@@ -380,14 +401,14 @@ def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
         os.makedirs(batch_output_dir, exist_ok=True)
         with open(batch_json, "w") as f:
             json.dump(batch_cfgs, f)
-        
+
         print("Batch config saved to {}".format(batch_output_dir))
-        
+
     print("There are {} models in this batch".format(len(batch_cfgs)))
-    
+
     return batch_cfgs
-                
-                
+
+
 def parse_batch_results(cfgs):
     from evaluate import vis
     from tqdm import tqdm
@@ -425,13 +446,13 @@ def check_cfgs_params(cfgs):
     cfgs: batch cfgs in pd format 
     """
     print('===== Batch level varying hyperparams =====')
-    for i, x in enumerate(cfgs.columns):
+    for x in cfgs.columns:
         if not x in ['code_name', 'uuid']:
             if len(cfgs[x].unique()) > 1:
                 print('{}: {}'.format(x, cfgs[x].unique()))
 
     print('\n===== Batch level static hyperparams =====')
-    for i, x in enumerate(cfgs.columns):
+    for x in cfgs.columns:
         if len(cfgs[x].unique()) == 1:
             print('{}: {}'.format(x, cfgs[x].unique()))
 
@@ -440,13 +461,13 @@ class connect_gbq():
     """
     All things related to GBQ
     """
+
     def __init__(self, pid='triangle-272405'):
         from google.oauth2 import service_account
         self.pid = pid
         self.credentials = service_account.Credentials.from_service_account_file(
             '../common/triangle-e1fd21bb86a1.json'
         )
-        
 
     def push_all(self, db_name, cfg, strain_i_hist, grain_i_hist, verbose=False):
         """
@@ -455,8 +476,9 @@ class connect_gbq():
         - Strain item history
         - Grain item history
         """
-        
-        if verbose: print('Writing data to Bigquery')
+
+        if verbose:
+            print('Writing data to Bigquery')
 
         # Config file
         pandas_gbq.to_gbq(
@@ -467,7 +489,7 @@ class connect_gbq():
             credentials=self.credentials,
             progress_bar=False
         )
-        
+
         # Strain eval
         pandas_gbq.to_gbq(
             strain_i_hist,
@@ -488,7 +510,8 @@ class connect_gbq():
             progress_bar=False
         )
 
-        if verbose: print('Completed') 
+        if verbose:
+            print('Completed')
 
     def read_bq_cfg(self, db_name):
         """
