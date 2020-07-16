@@ -14,7 +14,7 @@ import modeling
 import evaluate
 from IPython.display import clear_output
 
-code_name = "boo_local_zer3"
+code_name = "boo_local_zer2"
 
 sample_name = "jay"
 rng_seed = 53797
@@ -36,7 +36,7 @@ output_ticks = 2
 optimizer = "adam"
 regularizer_const = None
 w_initializer = 0.1
-zero_error_radius = 0.3
+zero_error_radius = 0.2
 
 n_mil_sample = 1.0
 batch_size = 128
