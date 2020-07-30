@@ -50,14 +50,14 @@ def zer_replace(target, output, zero_error_radius):
     # Opposite end
     opp_threshold = tf.constant(1-zero_error_radius)
     
-    # If out - target > opposite threshold, i.e., target = 0, output > 0.9: replace to 0.9
-    opp_mask_0 = tf.math.greater(output - target, opp_threshold)
+    # Case0: Target == 0, Output > Opposite threshold (1-ZER), replace to opposite threshold
+    opp_mask_0 = tf.math.logical_and(tf.math.equal(target, 0), tf.math.greater(output, opp_threshold))
     zer_output = tf.where(opp_mask_0, opp_threshold, zer_output)
     
-    # If target - output > opposite threshold, i.e., target = 1, output < 0.1: replace to 0.1
-    opp_mask_1 = tf.math.greater(target - output, opp_threshold)
+    # Case1: Target == 1, Output < ZER, replace to ZER
+    opp_mask_1 = tf.math.logical_and(tf.math.equal(target, 1), tf.math.less(output, zer_threshold))
     zer_output = tf.where(opp_mask_1, zer_threshold, zer_output)
-
+    
     return zer_output
 
 
