@@ -23,13 +23,28 @@ def _backtrack_identity(tensor):
         tensor = tensor.op.inputs[0]
     return tensor
 
-def zer_replace(target, output, zero_error_raidus):
+def zer_replace(target, output, zero_error_radius):
     """Replace output by target if value within zero-error-radius
+    Update 200730: also replace opposite end to limit error same as MikeNet
     """
+    
+    # Without zero-error-radius
     zeros = tf.zeros_like(output, dtype=output.dtype)
-    zer_threshold = tf.constant(zero_error_raidus)
+    zer_threshold = tf.constant(zero_error_radius)
     zer_mask = tf.math.less(tf.math.abs(output - target), zer_threshold)
     zer_output = tf.where(zer_mask, target, output)
+    
+    # Opposite end
+    opp_threshold = tf.constant(1-zero_error_radius)
+    
+    # If out - target > opposite threshold, i.e., target = 0, output > 0.9: replace to 0.9
+    opp_mask_0 = tf.math.greater(output - target, opp_threshold)
+    zer_output = tf.where(opp_mask_0, opp_threshold, zer_output)
+    
+    # If target - output > opposite threshold, i.e., target = 1, output < 0.1: replace to 0.1
+    opp_mask_1 = tf.math.greater(target - output, opp_threshold)
+    zer_output = tf.where(opp_mask_1, zer_threshold, zer_output)
+
     return zer_output
 
 # def zer_bce(target, output):
