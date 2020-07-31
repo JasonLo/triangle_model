@@ -35,30 +35,24 @@ def _backtrack_identity(tensor):
     
 #     return zer_output
 
-
 def zer_replace(target, output, zero_error_radius):
     """Replace output by target if value within zero-error-radius
-    Update 200730: also replace opposite end to limit error same as MikeNet
+    Version 4 implementation
+    1. Clip first: clip all output outside ZER
+    2. Replace all output at ZER boundary to target
     """
-    
-    # Within zero-error-radius
-    zeros = tf.zeros_like(output, dtype=output.dtype)
-    zer_threshold = tf.constant(zero_error_radius)
-    zer_mask = tf.math.less(tf.math.abs(output - target), zer_threshold)
-    zer_output = tf.where(zer_mask, target, output)
-    
-    # Opposite end
-    opp_threshold = tf.constant(1-zero_error_radius)
-    
-    # Case0: Target == 0, Output > Opposite threshold (1-ZER), replace to opposite threshold
-    opp_mask_0 = tf.math.logical_and(tf.math.equal(target, 0), tf.math.greater(output, opp_threshold))
-    zer_output = tf.where(opp_mask_0, opp_threshold, zer_output)
-    
-    # Case1: Target == 1, Output < ZER, replace to ZER
-    opp_mask_1 = tf.math.logical_and(tf.math.equal(target, 1), tf.math.less(output, zer_threshold))
-    zer_output = tf.where(opp_mask_1, zer_threshold, zer_output)
-    
-    return zer_output
+
+    # Output clipping
+    clip_out = tf.clip_by_value(
+        output, tf.constant(zero_error_radius), tf.constant(1 - zero_error_radius)
+    )
+
+    # Replace output by target if at boundary
+    zer_mask = tf.math.less_equal(
+        tf.math.abs(output - target), tf.constant(zero_error_radius)
+    )
+
+    return tf.where(zer_mask, target, clip_out)
 
 
 class CustomBCE(keras.losses.Loss):
