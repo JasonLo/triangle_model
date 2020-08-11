@@ -23,36 +23,32 @@ def _backtrack_identity(tensor):
         tensor = tensor.op.inputs[0]
     return tensor
 
-# def zer_replace(target, output, zero_error_radius):
-#     """Replace output by target if value within zero-error-radius
-#     """
-    
-#     # Within zero-error-radius
-#     zeros = tf.zeros_like(output, dtype=output.dtype)
-#     zer_threshold = tf.constant(zero_error_radius)
-#     zer_mask = tf.math.less(tf.math.abs(output - target), zer_threshold)
-#     zer_output = tf.where(zer_mask, target, output)
-    
-#     return zer_output
-
 def zer_replace(target, output, zero_error_radius):
     """Replace output by target if value within zero-error-radius
-    Version 4 implementation
-    1. Clip first: clip all output outside ZER
-    2. Replace all output at ZER boundary to target
     """
+    within_zer = tf.math.less_equal(tf.math.abs(output - target), tf.constant(zero_error_radius))
+    return tf.where(within_zer, target, output)
 
-    # Output clipping
-    clip_out = tf.clip_by_value(
-        output, tf.constant(zero_error_radius), tf.constant(1 - zero_error_radius)
-    )
+# def zer_replace(target, output, zero_error_radius):
+#     """Replace output by target if value within zero-error-radius
+#     Version 4 implementation
+#     1. Clip first: clip all output outside ZER
+#     2. Replace all output at ZER boundary to target
+#     Obsolete, due to unexpectedly high impact to behaviral results and lacks of 
+#     documentation in major literactures
+#     """
 
-    # Replace output by target if at boundary
-    zer_mask = tf.math.less_equal(
-        tf.math.abs(output - target), tf.constant(zero_error_radius)
-    )
+#     # Output clipping
+#     clip_out = tf.clip_by_value(
+#         output, tf.constant(zero_error_radius), tf.constant(1 - zero_error_radius)
+#     )
 
-    return tf.where(zer_mask, target, clip_out)
+#     # Replace output by target if at boundary
+#     zer_mask = tf.math.less_equal(
+#         tf.math.abs(output - target), tf.constant(zero_error_radius)
+#     )
+
+#     return tf.where(zer_mask, target, clip_out)
 
 
 class CustomBCE(keras.losses.Loss):
