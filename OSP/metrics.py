@@ -26,18 +26,18 @@ class NodeCounter(tf.keras.metrics.Metric):
         
         
 class ZERCount(tf.keras.metrics.Metric):
-    """Export last slot average output in last batch of a epoch
+    """Count the number of node that has < 0.1 Absolute error
     """
 
     def __init__(self, name="zer_counter", **kwargs):
         super(ZERCount, self).__init__(name=name, **kwargs)
         self.out = self.add_weight(name="zer_counter", initializer="zeros")
-
+        
     def update_state(self, y_true, y_pred, sample_weight=None):
         self.out.assign(
             tf.reduce_sum(
                 tf.cast(
-                    tf.math.less(tf.math.abs(y_pred - y_true), cfg.zero_error_radius),
+                    tf.math.less(tf.math.abs(y_pred - y_true), 0.1),
                     tf.float32,
                 )
             )
@@ -50,7 +50,7 @@ class ZERCount(tf.keras.metrics.Metric):
         self.out.assign(0.0)
         
 class ZERWrongSideCount(tf.keras.metrics.Metric):
-    """Export last slot average output in last batch of a epoch
+    """Count the number of node that has > 0.9 Absolute error
     """
 
     def __init__(self, name="zer_wrong_counter", **kwargs):
@@ -62,7 +62,7 @@ class ZERWrongSideCount(tf.keras.metrics.Metric):
             tf.reduce_sum(
                 tf.cast(
                     tf.math.greater(
-                        tf.math.abs(y_pred - y_true), 1 - cfg.zero_error_radius
+                        tf.math.abs(y_pred - y_true), 0.9
                     ),
                     tf.float32,
                 )
