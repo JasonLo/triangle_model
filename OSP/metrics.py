@@ -1,6 +1,7 @@
 import tensorflow as tf
 """ Custom metrics for diagnostic or experimental purpose"""
 
+
 class NodeCounter(tf.keras.metrics.Metric):
     """Export last slot average output in a batch
     """
@@ -13,7 +14,8 @@ class NodeCounter(tf.keras.metrics.Metric):
         self.out.assign(
             tf.reduce_sum(
                 tf.cast(
-                    tf.math.greater_equal(tf.math.abs(y_pred - y_true), 0), tf.float32,
+                    tf.math.greater_equal(tf.math.abs(
+                        y_pred - y_true), 0), tf.float32,
                 )
             )
         )
@@ -23,8 +25,8 @@ class NodeCounter(tf.keras.metrics.Metric):
 
     def reset_states(self):
         self.out.assign(0.0)
-        
-        
+
+
 class ZERCount(tf.keras.metrics.Metric):
     """Count the number of node that has < 0.1 Absolute error
     """
@@ -32,7 +34,7 @@ class ZERCount(tf.keras.metrics.Metric):
     def __init__(self, name="zer_counter", **kwargs):
         super(ZERCount, self).__init__(name=name, **kwargs)
         self.out = self.add_weight(name="zer_counter", initializer="zeros")
-        
+
     def update_state(self, y_true, y_pred, sample_weight=None):
         self.out.assign(
             tf.reduce_sum(
@@ -48,14 +50,16 @@ class ZERCount(tf.keras.metrics.Metric):
 
     def reset_states(self):
         self.out.assign(0.0)
-        
+
+
 class ZERWrongSideCount(tf.keras.metrics.Metric):
     """Count the number of node that has > 0.9 Absolute error
     """
 
     def __init__(self, name="zer_wrong_counter", **kwargs):
         super(ZERWrongSideCount, self).__init__(name=name, **kwargs)
-        self.out = self.add_weight(name="zer_wrong_counter", initializer="zeros")
+        self.out = self.add_weight(
+            name="zer_wrong_counter", initializer="zeros")
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         self.out.assign(
@@ -74,7 +78,8 @@ class ZERWrongSideCount(tf.keras.metrics.Metric):
 
     def reset_states(self):
         self.out.assign(0.0)
-        
+
+
 class OutputOfZeroTarget(tf.keras.metrics.Metric):
     """Export last slot average output in last batch of a epoch
     """
@@ -109,3 +114,5 @@ class OutputOfOneTarget(tf.keras.metrics.Metric):
 
     def reset_states(self):
         self.out.assign(0.0)
+
+
