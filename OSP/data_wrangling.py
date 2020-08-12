@@ -20,9 +20,6 @@ class wf_manager():
     def __init__(self, wf):
         self.wf = np.array(wf)
 
-    def wf(self):
-        return self.wf
-
     def to_p(self, x):
         return x / np.sum(x)
 
