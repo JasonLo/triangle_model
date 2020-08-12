@@ -440,21 +440,7 @@ def parse_batch_results(cfgs):
     return cfgs_df, pd.merge(evals_df, cfgs_df, 'left', 'code_name')
 
 
-def check_cfgs_params(cfgs):
-    """
-    Check the config datafram has how many varying and static hyperparameters
-    cfgs: batch cfgs in pd format 
-    """
-    print('===== Batch level varying hyperparams =====')
-    for x in cfgs.columns:
-        if not x in ['code_name', 'uuid']:
-            if len(cfgs[x].unique()) > 1:
-                print('{}: {}'.format(x, cfgs[x].unique()))
 
-    print('\n===== Batch level static hyperparams =====')
-    for x in cfgs.columns:
-        if len(cfgs[x].unique()) == 1:
-            print('{}: {}'.format(x, cfgs[x].unique()))
 
 
 class connect_gbq():
