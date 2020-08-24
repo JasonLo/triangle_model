@@ -1,266 +1,301 @@
-  
-class model_cfg():
-    # This function keep all global model setting
-    # It will be use in almost every object downsteam, from modelling, evaluation, and visualization
-    # Just keep model_cfg() light... and don't attach any heavy object here for efficiency
-    
-    def __init__(self, code_name=None, sample_name='hs04', sample_rng_seed=329, tf_rng_seed=123,
-                 use_semantic=False,
-                 sem_param_gf=4, sem_param_gi=1, 
-                 sem_param_kf=100, sem_param_ki=100,
-                 sem_param_hf=5, sem_param_hi=5,
-                 o_input_dim=119, hidden_units=150, pho_units=250, cleanup_units=50, 
-                 embed_attractor=None,
-                 w_oh_noise=0., w_hp_noise=0., w_pp_noise=0., w_pc_noise=0., w_cp_noise=0.,
-                 tau=0.2, unit_time=4.,
-                 n_mil_sample=1., batch_size=128, rnn_activation='sigmoid',
-                 w_initializer='glorot_uniform', learning_rate=0.01, save_freq=5,
-                 bq_dataset='batch_test'):
-        
-        # Unique run id for easier tracking
+class model_cfg:
+    """
+    This function keeps all global model configurations
+    It will be use in almost every object downsteam, from modelling, evaluation, and visualization
+
+    There are two ways to construct this object
+    1) Using a json file path, which contains a cfg dictionary by model_cfg(json_file)
+    2) Using a dictionary by model_cfg(**dict) 
+
+    Arguements details:
+    ------------------------------------------------------------------------------------------------
+    >>>META DATA<<<
+    code_name: Cfg meta-label, it wont' be use in the model, but it will be recorded in the cfg.json
+
+    >>>TRAINING RELATED<<<
+    sample_name: Sampling probability implementation name, see data_wrangling for details
+    rng_seed: Random seed for sampling and tf
+    w_initializer: Weight initializer
+    regularizer_const: L2 regularization constant (in weight and biases)
+    optimizer: Optimizer ('adam' or 'sgd' only)
+    learning_rate: Learning rate in optimizer
+    n_mil_sample: Stop training after n million sample
+    batch_size: Batch size
+    save_freq: How often (1 = 10k sample) to save weight after 100k samples. 
+               *Model automatically save in every 10k samples in the first 100k sample.
+
+    >>>MODEL ARCHITECHTURE<<<
+    use_semantic: To use semantic dummy input or not
+        if TRUE, must provide the fomula parameters in the following arguments:
+            sem_param_gf, 
+            sem_param_gi,
+            sem_param_kf,
+            sem_param_ki,
+            sem_param_hf,
+            sem_param_hi
+    input_dim: Input dimension
+    hidden_units: Number of hidden units in hidden layer
+    cleanup_units: Number of cleanup units in attractor network
+    pretrain_attractor: A flag to indicate use pretrained attractor or not
+        if TRUE: Must provide the pretrianed attractor cfg and weight in the following arguments:
+            embed_attractor_cfg',
+            embed_attractor_h5',
+    output_dim: Output dimension (in one time step)
+    rnn_activation: Activation unit use in the recurrent part in the model
+    tau: Time averaged input (TAI) parameter tau
+    max_unit_time: TAI max unit of time
+    output_ticks: How many output ticks should be exported and BPTT from
+    p_noise: Gaussian noise in phonolgical system (W_pp, W_pc, W_cp)
+
+
+
+
+    """
+    minimal_cfgs = ['code_name',
+                    'sample_name',
+                    'rng_seed',
+                    'use_semantic',
+                    'input_dim',
+                    'hidden_units',
+                    'output_dim',
+                    'cleanup_units',
+                    'pretrain_attractor',
+                    'tau',
+                    'max_unit_time',
+                    'output_ticks',
+                    'rnn_activation',
+                    'w_initializer',
+                    'regularizer_const',
+                    'p_noise',
+                    'optimizer',
+                    'zero_error_radius',
+                    'n_mil_sample',
+                    'batch_size',
+                    'learning_rate',
+                    'save_freq']
+
+    aux_cfgs = [
+        'sem_param_gf',
+        'sem_param_gi',
+        'sem_param_kf',
+        'sem_param_ki',
+        'sem_param_hf',
+        'sem_param_hi',
+        'embed_attractor_cfg',
+        'embed_attractor_h5',
+        'w_oh_noise',
+        'w_hp_noise',
+        'w_pp_noise',
+        'w_pc_noise',
+        'w_cp_noise',
+        'bias_h_noise',
+        'bias_c_noise',
+        'bias_p_noise',
+        'uuid',
+        'nEpo',
+        'n_timesteps',
+        'steps_per_epoch',
+        'save_freq_sample',
+        'eval_freq',
+        'bq_dataset',
+        'batch_unique_setting_string',
+    ]
+
+    tmp_cfgs = ['w_oh_noise_backup',
+                'w_hp_noise_backup',
+                'w_pp_noise_backup',
+                'w_pc_noise_backup',
+                'w_cp_noise_backup',
+                'bias_h_noise_backup',
+                'bias_c_noise_backup',
+                'bias_p_noise_backup',
+                'path_model_folder',
+                'path_weights_checkpoint',
+                'path_weights_list',
+                'path_plot_folder',
+                'path_weight_folder',
+                'path_log_folder',
+                'path_history_pickle',
+                'saved_epoch_list',
+                ]
+
+    all_cfgs_name = minimal_cfgs + aux_cfgs + tmp_cfgs
+
+    def __init__(self, json_file=None, bypass_chk=False, just_chk=False, **kwargs):
+        # Validate json file
+        if type(json_file) == str and json_file.endswith('.json'):
+            with open(json_file) as f:
+                kwargs = json.load(f)
+
+        # Set attributes from json values
+        invalid_keys = []
+        for key, value in kwargs.items():
+            if key in self.all_cfgs_name:
+                setattr(self, key, value)
+            else:
+                invalid_keys.append(key)
+
+        if len(invalid_keys) > 0:
+            print('These keys in cfg file is not valid: {}'.format(invalid_keys))
+
+        # Additional initialization for dictionary constructor
+        if json_file == None:
+            self.init_from_dict()
+
+        if not bypass_chk:
+            self.chk_cfg()
+
+        if (just_chk == False):
+            self.store_noise()
+            self.gen_paths()
+
+            if (json_file == None):
+                self.write_cfg()
+
+    def init_from_dict(self):
+        # Unique identifier
         import uuid
         self.uuid = uuid.uuid4().hex
-        
-        self.code_name = code_name
-        
-        # Sampling
-        self.sample_name = sample_name
-        self.sample_rng_seed = sample_rng_seed
-        self.tf_rng_seed = tf_rng_seed
 
-        # Semantic input parameters
-        self.use_semantic = use_semantic
-        self.sem_param_gf = sem_param_gf
-        self.sem_param_gi = sem_param_gi
-        
-        self.sem_param_kf = sem_param_kf
-        self.sem_param_ki = sem_param_ki
-        
-        self.sem_param_hf = sem_param_hf 
-        self.sem_param_hi = sem_param_hi
-        
-        # Architechture
-        self.o_input_dim = o_input_dim
-        self.hidden_units = hidden_units
-        self.pho_units = pho_units
-        self.cleanup_units = cleanup_units
-        
-        self.embed_attractor = embed_attractor
+        # Additional convienient attributes
+        self.n_timesteps = int(self.max_unit_time * (1 / self.tau))
+        self.nEpo = int(self.n_mil_sample * 1e2)
+        self.steps_per_epoch = int(10000 / self.batch_size)
 
-        self.w_oh_noise = w_oh_noise
-        self.w_hp_noise = w_hp_noise
-        self.w_pp_noise = w_pp_noise
-        self.w_pc_noise = w_pc_noise
-        self.w_cp_noise = w_cp_noise
+        # Saving cfg
+        self.save_freq_sample = self.save_freq * \
+            self.batch_size * self.steps_per_epoch  # For TF 2.1
+        self.eval_freq = self.save_freq
 
-        ## This is for switching between testing and training mode
-        self.w_oh_noise_backup = self.w_oh_noise   
+    def to_dict(self):
+        """
+        Get a trimed dictionary (dropped attribute in tmp_cfg)
+        """
+        return {key: getattr(self, key) for key in (self.minimal_cfgs + self.aux_cfgs)}
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def store_noise(self):
+        # Noise management
+        self.w_pp_noise = self.p_noise
+        self.w_pc_noise = self.p_noise
+        self.w_cp_noise = self.p_noise
+        self.w_oh_noise = 0.
+        self.w_hp_noise = 0.
+        self.bias_h_noise = 0.
+        self.bias_c_noise = self.p_noise
+        self.bias_p_noise = self.p_noise
+
+        self.w_oh_noise_backup = self.w_oh_noise
         self.w_hp_noise_backup = self.w_hp_noise
         self.w_pp_noise_backup = self.w_pp_noise
         self.w_pc_noise_backup = self.w_pc_noise
         self.w_cp_noise_backup = self.w_cp_noise
+        self.bias_h_noise_backup = self.bias_h_noise
+        self.bias_c_noise_backup = self.bias_c_noise
+        self.bias_p_noise_backup = self.bias_p_noise
 
-        self.tau = tau
-        self.unit_time = unit_time
-        self.n_timesteps = int(self.unit_time * (1/self.tau))
+    def chk_cfg(self):
+        # Check all ingested_keys fufill minimal cfg requirement
+        if not all([x in vars(self) for x in self.minimal_cfgs]):
+            raise ValueError(
+                'Some cfg is undefined, double check cfg contains all necessary params')
 
-        # Training
-        self.n_mil_sample = n_mil_sample
-        self.nEpo = int(n_mil_sample * 1e2)                 
-        self.batch_size = batch_size
-        self.steps_per_epoch = int(10000/batch_size)
-        self.rnn_activation = rnn_activation
-        self.w_initializer = w_initializer
-        self.learning_rate = learning_rate
+        if self.use_semantic == True:
+            if not (type(self.sem_param_gf) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_gi) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_kf) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_ki) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_hf) == float):
+                raise ValueError('check sem_params')
+            if not (type(self.sem_param_hi) == float):
+                raise ValueError('check sem_params')
+        else:
+            self.sem_param_gf = None
+            self.sem_param_gi = None
+            self.sem_param_kf = None
+            self.sem_param_ki = None
+            self.sem_param_hf = None
+            self.sem_param_hi = None
 
-        # Saving
-        self.save_freq = save_freq          
-        self.eval_freq = self.save_freq
-        self.bq_dataset = bq_dataset
+        if self.pretrain_attractor == True:
+            if not (type(self.embed_attractor_cfg) == str):
+                raise ValueError('check embed_attractor_cfg')
+            if not (type(self.embed_attractor_h5) == str):
+                raise ValueError('check embed_attractor_h5')
+        else:
+            self.embed_attractor_cfg = None
+            self.embed_attractor_h5 = None
 
-        if self.code_name is not None:
-            self.gen_paths()
-            self.gen_cfg_dict()
-            self.write_cfg()
+    def gen_paths(self):
 
-    def gen_cfg_dict(self):
-        self.cfg_dict = {'uuid': self.uuid, 
-                        'code_name': self.code_name,
-                        'sample_name': self.sample_name,
-                        'sample_rng_seed': self.sample_rng_seed,
-                        'tf_rng_seed': self.tf_rng_seed,
-                        'use_semantic': self.use_semantic,
-                        'sem_param_gf': self.sem_param_gf,   
-                        'sem_param_gi': self.sem_param_gi,
-                        'sem_param_kf': self.sem_param_kf,
-                        'sem_param_ki': self.sem_param_ki,
-                        'sem_param_hf': self.sem_param_hf,
-                        'sem_param_hi': self.sem_param_hi,
-                        'o_input_dim': self.o_input_dim,
-                        'hidden_units': self.hidden_units,
-                        'pho_units': self.pho_units,
-                        'cleanup_units': self.cleanup_units, 
-                        'embed_attractor': self.embed_attractor,
-                        'w_oh_noise': self.w_oh_noise,
-                        'w_hp_noise': self.w_hp_noise,
-                        'w_pp_noise': self.w_pp_noise,
-                        'w_pc_noise': self.w_pc_noise,
-                        'w_cp_noise': self.w_cp_noise,
-                        'tau': self.tau,
-                        'unit_time': self.unit_time,
-                        'n_timesteps': self.n_timesteps,
-                        'n_mil_sample': self.n_mil_sample, 
-                        'nEpo': self.nEpo, 
-                        'batch_size': self.batch_size, 
-                        'steps_per_epoch': self.steps_per_epoch, 
-                        'rnn_activation': self.rnn_activation, 
-                        'w_initializer': self.w_initializer, 
-                        'learning_rate': self.learning_rate}
-        
+        self.path_model_folder = 'models/' + self.code_name + '/'
+        self.path_weight_folder = self.path_model_folder + 'weights/'
+        self.path_plot_folder = self.path_model_folder + 'plots/'
+        self.path_log_folder = self.path_model_folder + 'logs/'
+
+        os.makedirs(self.path_weight_folder, exist_ok=True)
+        os.makedirs(self.path_plot_folder, exist_ok=True)
+        os.makedirs(self.path_log_folder, exist_ok=True)
+
+        # For model checkpoint
+        self.path_weights_checkpoint = self.path_weight_folder + \
+            'ep{epoch:04d}.h5'
+        self.path_history_pickle = self.path_model_folder + 'history.pickle'
+
+        self.path_weights_list = []
+        self.saved_epoch_list = []
+
+        for epoch in range(1, 11):
+            self.path_weights_list.append(
+                self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
+            self.saved_epoch_list.append(epoch)
+
+        for epoch in range(10+self.save_freq, self.nEpo + 1, self.save_freq):
+            self.path_weights_list.append(
+                self.path_weight_folder + 'ep' + str(epoch).zfill(4) + '.h5')
+            self.saved_epoch_list.append(epoch)
+
     def noise_off(self):
         self.w_oh_noise = 0.
         self.w_hp_noise = 0.
         self.w_pp_noise = 0.
         self.w_pc_noise = 0.
         self.w_cp_noise = 0.
-        
+        self.bias_h_noise = 0.
+        self.bias_c_noise = 0.
+        self.bias_p_noise = 0.
+
     def noise_on(self):
-        # This is the default mode
+        # Noise is on by default
         self.w_oh_noise = self.w_oh_noise_backup
         self.w_hp_noise = self.w_hp_noise_backup
         self.w_pp_noise = self.w_pp_noise_backup
         self.w_pc_noise = self.w_pc_noise_backup
         self.w_cp_noise = self.w_cp_noise_backup
-        
-    def load_cfg_json(self, file):
-        import json
-        with open(file) as json_file:
-            self.cfg_dict = json.load(json_file)
-            
-            try:
-                self.uuid = self.cfg_dict['uuid']
-                self.code_name = self.cfg_dict['code_name']
-                self.sample_name = self.cfg_dict['sample_name']
-                self.sample_rng_seed = self.cfg_dict['sample_rng_seed']
-                self.tf_rng_seed = self.cfg_dict['tf_rng_seed']
-                self.use_semantic = self.cfg_dict['use_semantic']
-                self.sem_param_gf = self.cfg_dict['sem_param_gf']
-                self.sem_param_gi = self.cfg_dict['sem_param_gi']
-                self.sem_param_kf = self.cfg_dict['sem_param_kf']
-                self.sem_param_ki = self.cfg_dict['sem_param_ki']
-                self.sem_param_hf = self.cfg_dict['sem_param_hf']
-                self.sem_param_hi = self.cfg_dict['sem_param_hi']
-                self.o_input_dim = self.cfg_dict['o_input_dim']
-                self.hidden_units = self.cfg_dict['hidden_units']
-                self.pho_units = self.cfg_dict['pho_units']
-                self.cleanup_units = self.cfg_dict['cleanup_units']
-                self.embed_attractor = self.cfg_dict['embed_attractor']
-                self.w_oh_noise = self.cfg_dict['w_oh_noise']
-                self.w_hp_noise = self.cfg_dict['w_hp_noise']
-                self.w_pp_noise = self.cfg_dict['w_pp_noise']
-                self.w_pc_noise = self.cfg_dict['w_pc_noise']
-                self.w_cp_noise = self.cfg_dict['w_cp_noise']
-                self.tau = self.cfg_dict['tau']
-                self.unit_time = self.cfg_dict['unit_time']
-                self.n_timesteps = self.cfg_dict['n_timesteps']
-                self.n_mil_sample = self.cfg_dict['n_mil_sample']
-                self.nEpo = self.cfg_dict['nEpo']
-                self.batch_size = self.cfg_dict['batch_size']
-                self.steps_per_epoch = self.cfg_dict['steps_per_epoch']
-                self.rnn_activation = self.cfg_dict['rnn_activation']
-                self.w_initializer = self.cfg_dict['w_initializer']
-                self.learning_rate = self.cfg_dict['learning_rate']
-            except:
-                print('Caution: some parameter do not exist in json')
-            
-            self.gen_paths()
+        self.bias_h_noise = self.bias_h_noise_backup
+        self.bias_c_noise = self.bias_c_noise_backup
+        self.bias_p_noise = self.bias_p_noise_backup
 
     def write_cfg(self):
-        import json
-        json = json.dumps(self.cfg_dict)
-        f = open(self.path_model_folder + 'model_config.json',"w")
-        f.write(json)
-        f.close()
-       
-    def gen_paths(self):
-        import os
-        
-        self.path_model_folder = 'models/'+ self.code_name + '/'
-        self.path_log_folder = self.path_model_folder + 'log/'
-        self.path_weight_folder = self.path_model_folder + 'weights/'
-        self.path_plot_folder = self.path_model_folder + 'plots/'
 
-        self.path_weights_checkpoint = self.path_weight_folder + 'ep{epoch:04d}.h5'
-        self.path_history_pickle = self.path_model_folder + 'history.pickle'
-        
-        if self.embed_attractor is not None:
-            self.path_attractor = 'models/'+ self.embed_attractor + '/model.h5'
-        
-        if not os.path.exists(self.path_model_folder): os.mkdir(self.path_model_folder) 
-        if not os.path.exists(self.path_weight_folder): os.mkdir(self.path_weight_folder) 
-        if not os.path.exists(self.path_log_folder): os.mkdir(self.path_log_folder) 
-        if not os.path.exists(self.path_plot_folder): os.mkdir(self.path_plot_folder)  
+        if os.path.isfile(self.path_model_folder + 'model_config.json'):
+            print('='*50)
+            print(
+                'Found model_config.json on disk, I will NEVER overwrite it automatically.')
+            print('Manually delete config if you are sure.')
+            print('Or save this model into another folder by changing cfg.code_name')
+            print('='*50)
 
-        self.path_weights_list = []
-        self.saved_epoch_list = []
-        
-        for epoch in range(self.save_freq, self.nEpo+1, self.save_freq):
-            self.path_weights_list += [self.path_weight_folder + 'ep' + 
-                                       str(epoch).zfill(4) + '.h5']
-            
-            self.saved_epoch_list.append(epoch)
+        else:
+            # Make sure noise is armed before saving, since loading will copy noise to backup
+            self.noise_on()
+            save_cfg = {k: vars(self)[k] for k in self.all_cfgs_name}
+            with open(self.path_model_folder + 'model_config.json', 'w') as f:
+                json.dump(save_cfg, f)
 
-        self.strain_item_csv = self.path_model_folder + 'result_strain_item.csv'
-        self.strain_epoch_csv = self.path_model_folder + 'result_strain_epoch.csv'
-        self.grain_item_csv = self.path_model_folder + 'result_grain_item.csv'
-        self.grain_epoch_csv = self.path_model_folder + 'result_grain_epoch.csv'
-
-
-def bq_conn(pid='idyllic-web-267716'):
-    from google.oauth2 import service_account
-    project_id = pid
-    credentials = service_account.Credentials.from_service_account_file(
-                 '../common/bq_credential.json')
-
-    
-def write_all_to_bq(cfg, strain_i_hist, grain_i_hist):
-    import pandas as pd
-    import pandas_gbq
-    
-    bq_conn()
-
-    print('Writing data to Bigquery')
-    
-    # Config file
-    pandas_gbq.to_gbq(pd.DataFrame([cfg.cfg_dict]), 
-                      destination_table = cfg.bq_dataset + '.cfg', 
-                      project_id='idyllic-web-267716', 
-                      if_exists='append')
-    
-    # Strain eval
-    pandas_gbq.to_gbq(strain_i_hist, 
-                      destination_table = cfg.bq_dataset + '.strain', 
-                      project_id='idyllic-web-267716', 
-                      if_exists='append')
-    
-    # Grain eval
-    pandas_gbq.to_gbq(grain_i_hist, 
-                      destination_table = cfg.bq_dataset + '.grain', 
-                      project_id='idyllic-web-267716', 
-                      if_exists='append')
-    
-    print('Completed')
-    
-    
-def yapf_all():
-    # Code formatter using yapf
-    # Look for .py in the entire working directory and format all scripts
-    import os
-    from yapf.yapflib.yapf_api import FormatFile
-
-    for file in os.listdir():
-        if file.endswith('.py'):
-            FormatFile(file, in_place=True)
-
-    
-    
