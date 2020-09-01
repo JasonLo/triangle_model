@@ -1,9 +1,10 @@
-import tensorflow as tf
-import pandas as pd
-import pandas_gbq
+import itertools
 import json
 import os
-import itertools
+
+import pandas as pd
+import pandas_gbq
+import tensorflow as tf
 
 
 def check_gpu():
@@ -14,10 +15,13 @@ def check_gpu():
 
 
 def gpu_mem_cap(b=2048):
-    # Set GPU memory cap per python kernal for parallel run
-    # Smaller models usually do not need 100% GPU throughput
-    # By limiting the memory cap per python kernal, we can run multiple models in parallel to maximize efficiency
-    # OSP model can archieve 2-3x saving
+    """
+    Set GPU memory cap per python kernal for parallel run
+    Smaller models usually do not need 100% GPU throughput
+    By limiting the memory cap per python kernal, 
+    we can run multiple models in parallel to maximize efficiency
+    OSP model can archieve 2-3x saving
+    """
 
     gpus = tf.config.experimental.list_physical_devices("GPU")
     if gpus:
@@ -88,10 +92,6 @@ class model_cfg:
     max_unit_time: TAI max unit of time
     output_ticks: How many output ticks should be exported and BPTT from
     p_noise: Gaussian noise in phonolgical system (W_pp, W_pc, W_cp)
-
-
-
-
     """
     minimal_cfgs = ['code_name',
                     'sample_name',
