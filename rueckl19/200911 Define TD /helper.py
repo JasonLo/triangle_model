@@ -65,3 +65,4 @@ def get_rank(df):
     gacc = gacc[["code_name", "score"]]
     gacc["rank_pc"] = gacc.score.rank(pct=True)
     return df.merge(gacc[["code_name", "rank_pc"]], how="left")
+
