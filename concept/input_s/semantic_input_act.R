@@ -8,21 +8,16 @@ input_s_v1 <- function(e, t, f, g, k, tmax){
 }
 
 sigmoid <- function(x){
-  sigmoid <- 1/(1+exp(-(x)))
+  return(1/(1+exp(-(x))))
 }
 
 
 # Plotting Wrapper
 plot_s <- function(g, k){
-  
-  sigmoid <- function(x){
-    sigmoid <- 1/(1+exp(-(x)))
-  }
-  
+
   strain_high_frequency = 7700
   strain_low_frequency = 402
   
-  # Preliminary working parameter, gf=20, kf=5000
   e = 1:1000
   
   # At last time step t=3.8 (zero indexing in python...)
@@ -33,13 +28,13 @@ plot_s <- function(g, k){
     mutate(a_lowf = sigmoid(s_lowf)) %>%
     mutate(a_highf = sigmoid(s_highf))
   
-  input = ggplot(df) + 
+  input <- ggplot(df) + 
     geom_line(aes(e, s_lowf), color = 'red') +
     geom_line(aes(e, s_highf), color = 'blue') +
     ylab('Semantic input to P') +
     xlab('Epoch')
   
-  act = ggplot(df)  + 
+  act <- ggplot(df)  + 
     geom_line(aes(e, a_lowf), color = 'red') +
     geom_line(aes(e, a_highf), color = 'blue') +
     ylab('Semantic activation to P') +
