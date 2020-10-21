@@ -113,28 +113,44 @@ def add_origin(df):
         return df
 
 
-def count_grid(df, hpar):
+    
+def count_grid(df, hpar, input_type="parsed"):
     """Counting how many runs in each h-param cell 
     """
-
-    settings = df[["code_name"] + hpar].pivot_table(index="code_name")
-    settings["code_name"] = settings.index
-    settings["learning_rate"] = settings.learning_rate.round(4)
+    
+    if input_type == "parsed":
+        id_var = "code_name"
+        lr_var = "learning_rate"
+        noise_var = "p_noise"
+        cleanup_var = "cleanup_units"
+        hidden_var = "hidden_units"
+    else:
+        id_var = "ID"
+        lr_var = "Epsilon"
+        noise_var = "Pnoise"
+        cleanup_var = "PhoHid"
+        hidden_var = "Hidden"
+        
+    
+    
+    settings = df[[id_var] + hpar].pivot_table(index=id_var)
+    settings[id_var] = settings.index
+    settings[lr_var] = settings[lr_var].round(4)
 
     count_settings = settings.pivot_table(
-        index=hpar, aggfunc="count", values="code_name",
+        index=hpar, aggfunc="count", values=id_var,
     )
     count_settings.reset_index(inplace=True)
-    count_settings.rename(columns={"code_name": "n"}, inplace=True)
+    count_settings.rename(columns={id_var: "n"}, inplace=True)
 
     return (
         alt.Chart(count_settings)
         .mark_rect()
         .encode(
-            x="p_noise:O",
-            y=alt.Y("hidden_units:O", sort="descending"),
-            row=alt.Row("learning_rate:O", sort="descending"),
-            column=alt.Column("cleanup_units:O", sort="descending"),
+            x=noise_var+":O",
+            y=alt.Y(hidden_var+":O", sort="descending"),
+            row=alt.Row(lr_var+":O", sort="descending"),
+            column=alt.Column(cleanup_var+":O", sort="descending"),
             color="n:O",
             tooltip=hpar + ["n"],
         )
