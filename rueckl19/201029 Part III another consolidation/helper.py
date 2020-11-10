@@ -85,7 +85,6 @@ def parse_from_file(filename):
     )
     df = df.loc[df.measure == "Accuracy"]
     df = add_origin(df)
-    df = df.loc[df.cleanup_units == 20]
     
     df["type"] = df.cond.apply(
         lambda x: "word" if x in ["HF_CON", "HF_INC", "LF_CON", "LF_INC"] else "nonword"
