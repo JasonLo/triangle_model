@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import altair as alt
+alt.data_transformers.disable_max_rows()
 
 def parse_mikenet_sims(file_name, task):
     """ Parse item level raw output from MikeNet to Condition level format
@@ -577,3 +578,309 @@ class SimResults:
         )
 
         return self.diagonal + plot
+
+    
+class RDGrouping(SimResults):
+    def __init__(self, main_df, baseline_df):
+        super().__init__(main_df)
+
+        # Criterion measures
+        self.include_conds = ["HF_CON", "HF_INC", "LF_CON", "LF_INC"]
+
+        self.td_df = baseline_df
+        self.td_stat = self.get_stat(self.td_df)
+
+        self.cadf = self._make_cadf()
+        self.zdf = self._make_zdf(self.cadf)
+        self.pcdf = self._make_pcdf(self.cadf)
+        self.mzdf = self._melt_zdf(self.zdf)
+        self.mpcdf = self._melt_pcdf(self.pcdf)
+
+    def get_stat(self, df):
+        """Baseline statistics
+        Return mean and sd by epoch in word 
+        """
+        return (
+            df.loc[df.cond.isin(self.include_conds),]
+            .groupby(["code_name", "epoch"])
+            .mean()
+            .reset_index()
+            .groupby(["epoch"])
+            .agg(["mean", "std"])
+            .score.reset_index()
+        ).to_dict()
+
+    def _reduce_epoch_resolution(self, df):
+        sel_epoch = [0.01, 0.03, 0.05, 0.07, 0.09, 0.2, 0.4, 0.6, 0.8, 1.0]
+        return df.loc[
+            df.epoch.isin(sel_epoch),
+        ]
+
+    def _calcuate_z_deviance(self, row):
+        """Calcuate z score relative to TD at each epoch
+        """
+        m = self.td_stat["mean"][row["epoch_idx"]]
+        sd = self.td_stat["std"][row["epoch_idx"]]
+
+        # Avoid zero division
+        if sd == 0:
+            sd = 1e-6
+
+        return (row["score"] - m) / sd
+
+    def _calcuate_percetage_of_baseline(self, row):
+        """Calcuate % relative to TD at each epoch
+        """
+        m = self.td_stat["mean"][row["epoch_idx"]]
+
+        return row["score"] / m
+
+    def _make_cadf(self):
+        """Make condition avergage df (aggregate cond) with reduced epoch resolution"""
+        cadf = (
+            self.df.loc[self.df.cond.isin(self.include_conds),]
+            .groupby(["code_name", "epoch"])
+            .mean()
+            .reset_index()
+        )
+        cadf["learning_rate"] = round(cadf.learning_rate, 4)
+        cadf["epoch_idx"] = cadf.apply(
+            lambda x: x.epoch * 100 if x.epoch <= 0.1 else x.epoch * 10 + 9, axis=1
+        )
+        cadf["epoch_idx"] = cadf.epoch_idx.astype(int)
+        return self._reduce_epoch_resolution(cadf)
+
+    def _make_pcdf(self, cadf):
+        """ Make percetange based df"""
+        cadf["pc"] = cadf.apply(self._calcuate_percetage_of_baseline, axis=1)
+
+        # Different cutoff of RDs by percentage (0 = RD, 1 = TD)
+        cadf["pc_group_50"] = 1 * (cadf.pc > 0.50)
+        cadf["pc_group_55"] = 1 * (cadf.pc > 0.55)
+        cadf["pc_group_60"] = 1 * (cadf.pc > 0.60)
+        cadf["pc_group_65"] = 1 * (cadf.pc > 0.65)
+        cadf["pc_group_70"] = 1 * (cadf.pc > 0.70)
+        cadf["pc_group_75"] = 1 * (cadf.pc > 0.75)
+        cadf["pc_group_80"] = 1 * (cadf.pc > 0.80)
+        cadf["pc_group_85"] = 1 * (cadf.pc > 0.85)
+        cadf["pc_group_90"] = 1 * (cadf.pc > 0.90)
+
+        return cadf
+
+    def _make_zdf(self, cadf):
+        """Make z-score based df"""
+
+        cadf["z_deviance"] = cadf.apply(self._calcuate_z_deviance, axis=1)
+
+        # Different cutoff of RDs (0 = RD, 1 = TD)
+        cadf["group_10"] = 1 * (cadf.z_deviance > -1.0)
+        cadf["group_11"] = 1 * (cadf.z_deviance > -1.1)
+        cadf["group_12"] = 1 * (cadf.z_deviance > -1.2)
+        cadf["group_13"] = 1 * (cadf.z_deviance > -1.3)
+        cadf["group_14"] = 1 * (cadf.z_deviance > -1.4)
+        cadf["group_15"] = 1 * (cadf.z_deviance > -1.5)
+        cadf["group_16"] = 1 * (cadf.z_deviance > -1.6)
+        cadf["group_17"] = 1 * (cadf.z_deviance > -1.7)
+        cadf["group_18"] = 1 * (cadf.z_deviance > -1.8)
+        cadf["group_19"] = 1 * (cadf.z_deviance > -1.9)
+        cadf["group_20"] = 1 * (cadf.z_deviance > -2.0)
+        cadf["group_21"] = 1 * (cadf.z_deviance > -2.1)
+        cadf["group_22"] = 1 * (cadf.z_deviance > -2.2)
+        cadf["group_23"] = 1 * (cadf.z_deviance > -2.3)
+        cadf["group_24"] = 1 * (cadf.z_deviance > -2.4)
+        cadf["group_25"] = 1 * (cadf.z_deviance > -2.5)
+        cadf["group_26"] = 1 * (cadf.z_deviance > -2.6)
+        cadf["group_27"] = 1 * (cadf.z_deviance > -2.7)
+        cadf["group_28"] = 1 * (cadf.z_deviance > -2.8)
+        cadf["group_29"] = 1 * (cadf.z_deviance > -2.9)
+        cadf["group_30"] = 1 * (cadf.z_deviance > -3.0)
+
+        return cadf
+
+    def _melt_pcdf(self, df):
+
+        mdf = df.melt(
+            id_vars=[
+                "code_name",
+                "epoch",
+                "hidden_units",
+                "cleanup_units",
+                "p_noise",
+                "learning_rate",
+            ],
+            value_vars=[
+                "pc_group_50",
+                "pc_group_55",
+                "pc_group_60",
+                "pc_group_65",
+                "pc_group_70",
+                "pc_group_75",
+                "pc_group_80",
+                "pc_group_85",
+                "pc_group_90",
+            ],
+        )
+
+        mdf["cutoff"] = mdf.variable.str[-2:].astype(float)
+
+        return mdf
+
+    def _melt_zdf(self, df):
+
+        mdf = df.melt(
+            id_vars=[
+                "code_name",
+                "epoch",
+                "hidden_units",
+                "cleanup_units",
+                "p_noise",
+                "learning_rate",
+            ],
+            value_vars=[
+                "group_10",
+                "group_11",
+                "group_12",
+                "group_13",
+                "group_14",
+                "group_15",
+                "group_16",
+                "group_17",
+                "group_18",
+                "group_19",
+                "group_20",
+                "group_21",
+                "group_22",
+                "group_23",
+                "group_24",
+                "group_25",
+                "group_26",
+                "group_27",
+                "group_28",
+                "group_29",
+                "group_30",
+            ],
+        )
+
+        mdf["cutoff"] = mdf.variable.str[-2:].astype(float) / 10
+
+        return mdf
+
+    def plot_heatmap(self, var):
+        """Z-score deviance over epoch"""
+        if var == "z_deviance":
+            domain = (-5, 5)
+            df = self.zdf
+        elif var == "score":
+            domain = (0, 1)
+            df = self.zdf
+        elif var == "pc":
+            domain = (0, 1)
+            df = self.pcdf
+
+        mean_var = f"mean({var})"
+
+        hm = (
+            alt.Chart(df)
+            .mark_rect()
+            .encode(
+                x="p_noise:O",
+                y=alt.Y("hidden_units:O", sort="descending"),
+                row=alt.Column("learning_rate:O", sort="descending"),
+                column="epoch:O",
+                color=alt.Color(
+                    mean_var, scale=alt.Scale(domain=domain, scheme="redyellowgreen"),
+                ),
+                tooltip=["mean(score)", mean_var],
+            )
+        )
+
+        return hm
+
+    def _get_acc_cut(self, epoch, xsd, cond=None):
+        """Get accuracy cut off value with reference to xsd below mean of TD
+        td_df: data file of typically developing readers (created by Select_Model().df)
+        epoch: at what epoch to classify RD [list]
+        xsd: how many sd below mean of TD
+        cond: include what condition, default = all conditions (no filtering)
+        """
+
+        sel = (
+            self.td_df.loc[self.td_df.epoch.isin(epoch)]
+            if (cond is None)
+            else self.td_df.loc[
+                self.td_df.epoch.isin(epoch) & self.td_df.cond.isin(cond)
+            ]
+        )
+
+        stat = sel.groupby("code_name").mean().score.agg(["mean", "std"])
+        return stat["mean"] - xsd * stat["std"]
+
+    def select_by_relative_sd(self, epoch, xsd, cond=None):
+        """Select the models that has at least
+        X SD <xsd> below mean of TD at <epoch>"""
+
+        tmp = (
+            self.df.loc[self.df.epoch.isin(epoch)]
+            if (cond is None)
+            else self.df.loc[self.df.epoch.isin(epoch) & self.df.cond.isin(cond)]
+        )
+
+        mean_tmp = tmp.groupby("code_name").mean().reset_index()
+        sel = mean_tmp.loc[mean_tmp.score < self._get_acc_cut(epoch, xsd, cond)]
+        self.df = self.df.loc[self.df.code_name.isin(sel["code_name"])]
+
+        # Make deviance
+        self.cadf = self.make_condition_averaged_df()
+
+    def plot_interactive_group_heatmap(self, version="pc"):
+        """ Plot interactive grouping heatmap
+        version: "pc" percentage definition
+                 "z" z-score definition
+        """
+        assert (version == "pc") or (version == "z")
+        if version == "pc":
+            use_df = self.mpcdf
+            slider = alt.binding_range(
+                min=50.0, max=90.0, step=5.0, name="percentage cutoff:"
+            )
+            selector = alt.selection_single(
+                name="SelectorName",
+                fields=["cutoff"],
+                bind=slider,
+                init={"cutoff": 80.0},
+            )
+        else:
+            use_df = self.mzdf
+            slider = alt.binding_range(min=1.0, max=3.0, step=0.1, name="z cutoff:")
+            selector = alt.selection_single(
+                name="SelectorName",
+                fields=["cutoff"],
+                bind=slider,
+                init={"cutoff": 2.0},
+            )
+
+        df = (
+            use_df.groupby(
+                ["hidden_units", "p_noise", "learning_rate", "epoch", "cutoff"]
+            )
+            .mean()
+            .reset_index()
+        )
+
+        interactive_group_heatmap = (
+            alt.Chart(df)
+            .mark_rect()
+            .encode(
+                x="p_noise:O",
+                y=alt.Y("hidden_units:O", sort="descending"),
+                row=alt.Column("learning_rate:O", sort="descending"),
+                column="epoch:O",
+                color=alt.Color(
+                    "value", scale=alt.Scale(domain=(0, 1), scheme="redyellowgreen"),
+                ),
+            )
+            .add_selection(selector)
+            .transform_filter(selector)
+        )
+
+        return interactive_group_heatmap
