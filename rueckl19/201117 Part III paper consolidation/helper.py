@@ -203,6 +203,8 @@ class SimResults:
             + self.df.p_noise.astype(str)
             + "_l"
             + self.df.learning_rate.astype(str)
+            + "_c"
+            + self.df.cleanup_units.astype(str)
         )
 
         self.df["risk_count"] = (
@@ -301,7 +303,7 @@ class SimResults:
 
     ### Plotting ###
 
-    def plot_control_space(self, color="count(code_name)"):
+    def plot_control_space(self, color="count(code_name)", with_cleanup=False):
         """Plot selected models at control space"""
         pdf = (
             self.df.groupby(["cell_code", "control_region", "code_name"])
@@ -329,37 +331,42 @@ class SimResults:
             )
             .add_selection(self.select_control_space)
         )
+
+        if with_cleanup:
+            control_space = (
+                alt.Chart(pdf)
+                .mark_rect(stroke="white", strokeWidth=2)
+                .encode(
+                    x="p_noise:O",
+                    y=alt.Y("hidden_units:O", sort="descending"),
+                    column=alt.Column("learning_rate:O", sort="descending"),
+                    row=alt.Row("cleanup_units:O", sort="descending"),
+                    color=color,
+                    detail="cell_code",
+                    opacity=alt.condition(
+                        self.select_control_space, alt.value(1), alt.value(0.2)
+                    ),
+                )
+                .add_selection(self.select_control_space)
+            )
+        else:
+            control_space = (
+                alt.Chart(pdf)
+                .mark_rect(stroke="white", strokeWidth=2)
+                .encode(
+                    x="p_noise:O",
+                    y=alt.Y("hidden_units:O", sort="descending"),
+                    column=alt.Column("learning_rate:O", sort="descending"),
+                    color=color,
+                    detail="cell_code",
+                    opacity=alt.condition(
+                        self.select_control_space, alt.value(1), alt.value(0.2)
+                    ),
+                )
+                .add_selection(self.select_control_space)
+            )
+
         return control_space
-
-    #     THIS FUNCTION IS COMBINED WITH plot_mean_dev()
-    #     def _interactive_dev(self, show_sd, baseline=None):
-    #         """Plot the mean development of all selected models"""
-
-    #         development_space_sd = (
-    #             alt.Chart(self.df)
-    #             .mark_errorband(extent="stdev")
-    #             .encode(
-    #                 y=alt.Y("score:Q", scale=alt.Scale(domain=(0, 1))),
-    #                 x="epoch:Q",
-    #                 color=alt.Color("cond:N", legend=alt.Legend(orient="top")),
-    #             )
-    #             .properties(
-    #                 title="Developmental space: Accuracy in each condition over epoch"
-    #             )
-    #             .transform_filter(self.select_control_space)
-    #         )
-
-    #         development_space_mean = development_space_sd.mark_line().encode(
-    #             y="mean(score):Q"
-    #         )
-
-    #         if show_sd:
-    #             development_space_mean += development_space_sd
-
-    #         if baseline is not None:
-    #             development_space_mean += baseline
-
-    #         return development_space_mean
 
     def make_wnw(self):
         """ Averaged word vs. nonword over epoch
