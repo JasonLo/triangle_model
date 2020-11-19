@@ -441,7 +441,8 @@ class SimResults:
 
         if by_cond:
             development_space_sd = development_space_sd.encode(
-                color=alt.Color("cond:N", legend=alt.Legend(orient="top"))
+                color=alt.Color("cond:N", legend=alt.Legend(orient="none", legendX=300, legendY=180))
+                
             )
 
         if interactive:
