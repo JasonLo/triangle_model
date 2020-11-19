@@ -188,8 +188,8 @@ class SimResults:
             alt.Chart(pd.DataFrame({"x": [0, 1], "y": [0, 1]}))
             .mark_line(color="#D3D3D3")
             .encode(
-                x=alt.X("x", axis=alt.Axis(title="word")),
-                y=alt.X("y", axis=alt.Axis(title="nonword")),
+                x=alt.X("x", axis=alt.Axis(title="Word")),
+                y=alt.Y("y", axis=alt.Axis(title="Nonword")),
             )
         )
 
@@ -394,8 +394,8 @@ class SimResults:
             alt.Chart(df)
             .mark_line(color="black")
             .encode(
-                y=alt.Y("mean_nw:Q", scale=alt.Scale(domain=(0, 1))),
-                x=alt.X("mean_w:Q", scale=alt.Scale(domain=(0, 1))),
+                y=alt.Y("mean_nw:Q", scale=alt.Scale(domain=(0, 1)), title="Nonword"),
+                x=alt.X("mean_w:Q", scale=alt.Scale(domain=(0, 1)), title="Word"),
                 tooltip=["epoch", "mean_w:Q", "mean_nw:Q"],
             )
             .transform_filter(self.select_control_space)
