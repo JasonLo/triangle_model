@@ -1,6 +1,7 @@
+import altair as alt
 import numpy as np
 import pandas as pd
-import altair as alt
+
 alt.data_transformers.disable_max_rows()
 
 def parse_mikenet_sims(file_name, task):
@@ -612,15 +613,20 @@ class RDGrouping(SimResults):
         # Criterion measures
         self.include_conds = ["HF_CON", "HF_INC", "LF_CON", "LF_INC"]
 
+        self.df = main_df
         self.td_df = baseline_df
         self.td_stat = self.get_stat(self.td_df)
 
+        # Make all dynamic data files
+        self._make_dfs()
+
+    def _make_dfs(self):
         self.cadf = self._make_cadf()
         self.zdf = self._make_zdf(self.cadf)
         self.pcdf = self._make_pcdf(self.cadf)
         self.mzdf = self._melt_zdf(self.zdf)
         self.mpcdf = self._melt_pcdf(self.pcdf)
-
+        
     def get_stat(self, df):
         """Baseline statistics
         Return mean and sd by epoch in word 
@@ -854,8 +860,8 @@ class RDGrouping(SimResults):
         sel = mean_tmp.loc[mean_tmp.score < self._get_acc_cut(epoch, xsd, cond)]
         self.df = self.df.loc[self.df.code_name.isin(sel["code_name"])]
 
-        # Make deviance
-        self.cadf = self.make_condition_averaged_df()
+        # remake dfs
+        self._make_dfs()
 
     def plot_interactive_group_heatmap(self, version="pc"):
         """ Plot interactive grouping heatmap
