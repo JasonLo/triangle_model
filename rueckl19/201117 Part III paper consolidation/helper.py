@@ -358,7 +358,35 @@ class SimResults:
             )
 
         return control_space
+    
+    
+    def _interactive_dev(self, show_sd, baseline=None):
+        """Plot the mean development of all selected models"""
+        development_space_mean = (
+            alt.Chart(self.df)
+            .mark_line()
+            .encode(
+                y=alt.Y("mean(score):Q", title="Accuracy", scale=alt.Scale(domain=(0, 1))),
+                x=alt.X("epoch:Q", title="Sample (M)"),
+                color=alt.Color(
+                    "cond:N", legend=alt.Legend(orient='none', legendX=300, legendY=180), title="Condition"
+                ),
+            )
+            .properties(title="Developmental space")
+            .transform_filter(self.select_control_space)
+        )
 
+        if show_sd:
+            development_space_sd = development_space_mean.mark_errorband(
+                extent="stdev"
+            ).encode(y=alt.Y("score:Q", title="Accuracy", scale=alt.Scale(domain=(0, 1))))
+            development_space_mean += development_space_sd
+
+        if baseline is not None:
+            development_space_mean += baseline
+
+        return development_space_mean
+    
     def make_wnw(self):
         """ Averaged word vs. nonword over epoch
         """
@@ -419,7 +447,7 @@ class SimResults:
             base_wnw += baseline
 
         return (self.diagonal + base_wnw).properties(
-            title="Performance space: Nonword accuracy vs. Word accuracy"
+            title="Performance space (Nonword vs. Word)"
         )
 
     def plot_mean_dev(self, show_sd, by_cond=True, interactive=False, baseline=None):
@@ -429,9 +457,23 @@ class SimResults:
         show_sd: Show SD in plot or not
         by_cond: True: plot condition in separate line; False: Aggregate condition before plotting
         """
-
-        group_var = ["code_name", "hidden_units", "p_noise", "learning_rate", "epoch"]
-        pdf = self.df if by_cond else self.df.groupby(group_var).mean().reset_index()
+        
+        if by_cond:
+            pdf = self.df
+            
+        else:
+            group_var = ["code_name", "hidden_units", "p_noise", "learning_rate", "epoch"]
+            pdf = self.df.groupby(group_var).mean().reset_index()
+        
+        
+        development_space_mean = (
+            alt.Chart(pdf)
+            .mark_line()
+            .encode(
+                x="epoch:Q", 
+                y=alt.Y("mean(score):Q", scale=alt.Scale(domain=(0, 1)))
+            )
+        )
 
         development_space_sd = (
             alt.Chart(pdf)
@@ -441,7 +483,7 @@ class SimResults:
 
         if by_cond:
             development_space_sd = development_space_sd.encode(
-                color=alt.Color("cond:N", legend=alt.Legend(orient="none", legendX=300, legendY=180))
+                color=alt.Color("cond:N", legend=alt.Legend(legendX=300, legendY=180), title="Condition")
                 
             )
 
@@ -501,7 +543,7 @@ class SimResults:
         all_plot = (
             self.plot_control_space()
             & (
-                self.plot_mean_dev(show_sd=show_sd, interactive=True, baseline=base_dev)
+                self._interactive_dev(show_sd=show_sd, baseline=base_dev)
                 | self._interactive_wnw(baseline=base_wnw)
             )
         ).properties(title=f"{title} (n = {len(self.df.code_name.unique())})")
