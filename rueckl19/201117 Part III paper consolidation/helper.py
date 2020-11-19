@@ -292,15 +292,6 @@ class SimResults:
         if verbose:
             print(f"Selected {n_post} models from the original {n_pre} models")
 
-    ### Descriptives related functions ###
-    def get_rankpc_desc(self):
-        desc = self.df.groupby("code_name").mean().reset_index().rank_pc.describe()
-        return f"M:{desc['mean']:.3f} SD: {desc['std']:.3f} Min: {desc['min']:.3f} Max: {desc['max']:.3f}"
-
-    def get_acc_desc(self):
-        desc = self.df.groupby("code_name").mean().reset_index().score.describe()
-        return f"M:{desc['mean']:.3f} SD: {desc['std']:.3f} Min: {desc['min']:.3f} Max: {desc['max']:.3f}"
-
     ### Plotting ###
 
     def plot_control_space(self, color="count(code_name)", with_cleanup=False):
@@ -422,8 +413,6 @@ class SimResults:
             .add_selection(alt.selection_single())
         )
 
-        # text = wnw_line.mark_text(align="left", dx=1, size=16).encode(text="epoch")
-
         base_wnw += points
 
         if baseline is not None:
@@ -505,22 +494,8 @@ class SimResults:
 
         return base_wnw
 
-    def stat_header(self):
-
-        n = len(self.df.code_name.unique())
-
-        t = [
-            "Grand mean rank: " + self.get_rankpc_desc(),
-            "Grand mean acc  : " + self.get_acc_desc(),
-        ]
-
-        return [f" (n={n})"] + t
-
     def plot_interactive(self, title=None, show_sd=True, base_dev=None, base_wnw=None):
         """Plot averaged developmental and performance space + interactive control space selection"""
-
-        if title is not None:
-            t = [title] + self.stat_header()
 
         all_plot = (
             self.plot_control_space()
@@ -528,7 +503,7 @@ class SimResults:
                 self.plot_mean_dev(show_sd=show_sd, interactive=True, baseline=base_dev)
                 | self._interactive_wnw(baseline=base_wnw)
             )
-        ).properties(title=t)
+        ).properties(title=f"{title} (n = {len(self.df.code_name.unique())})")
 
         return all_plot
 
