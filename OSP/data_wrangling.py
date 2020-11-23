@@ -1,6 +1,8 @@
+import pickle
+
 import numpy as np
 import pandas as pd
-import pickle
+from IPython.display import clear_output
 
 
 def gen_pkey(p_file="/home/jupyter/tf/common/patterns/mappingv2.txt"):
@@ -13,7 +15,7 @@ def gen_pkey(p_file="/home/jupyter/tf/common/patterns/mappingv2.txt"):
     return m_dict
 
 
-def get_sampling_probability(df_train, implementation, stage=None):
+def get_sampling_probability(df_train, implementation, stage=None, verbose=False):
     """ Return the sampling probability with different implementation
     Keyword arguments:
     df_train -- training set in pandas dataframe format, contain WSJ word frequency (wf) and Zeno frequency (gr*) 
@@ -46,12 +48,78 @@ def get_sampling_probability(df_train, implementation, stage=None):
         wf = df_train['gr' + str(stage)]
         clip = wf.map(lambda x: x if (x > cutoffs[stage-1]) else 0)
 
-        print(f"Removed words with <= {cutoffs[stage-1]} wpm.")
-        print(f"There are {np.sum(clip>0)} words in the training set")
+        if verbose:
+            print(f"Removed words with <= {cutoffs[stage-1]} wpm.")
+            print(f"There are {np.sum(clip>0)} words in the training set")
 
         compressed_wf = np.log(clip + 1)
 
     return np.array(compressed_wf/np.sum(compressed_wf), dtype="float32")
+
+
+class sampling:
+    def __init__(self, cfg, data):
+        self.cfg = cfg
+        self.data = data
+        self.ingested_training_sample = 0
+        self.current_epoch = 0
+        self.current_batch = 0
+        self.current_stage = 0
+        np.random.seed(cfg.rng_seed)
+
+    def simple_sample_generator(self, verbose=False):
+        """Dimension guide: (batch_size, timesteps, p_nodes)"""
+        while True:
+            # Start counting Epoch and Batch
+            if self.current_batch % self.cfg.steps_per_epoch == 0:
+                self.current_epoch += 1
+            self.current_batch += 1
+
+            # Get master sampling index
+            if self.cfg.sample_name == "chang":
+                # Need to minus batch_size, because the sample is
+                self.current_stage = self.get_stage(
+                    self.ingested_training_sample)
+                if verbose:
+                    print(
+                        f"Stage: {self.current_stage}, Epoch: {self.current_epoch}, Sample: {self.ingested_training_sample}")
+                    clear_output(wait=True)
+
+            this_p = get_sampling_probability(
+                df_train=self.data.df_train, implementation=self.cfg.sample_name, stage=self.current_stage
+            )
+
+            idx = np.random.choice(
+                range(len(this_p)), self.cfg.batch_size, p=this_p
+            )
+
+            batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
+
+            # Log ingested training sampling
+            self.ingested_training_sample += self.cfg.batch_size
+
+            yield (self.data.x_train[idx], batch_y)
+
+    def get_stage(self, sample):
+        """ Get stage of training. See Monaghan & Ellis, 2010 """
+        sample_cutoffs = [
+            -1,  # because sample can be 0
+            50_000,
+            100_000,
+            200_000,
+            300_000,
+            400_000,
+            600_000,
+            800_000,
+            1_000_000,
+            1_200_000,
+            1_400_000,
+            1_600_000,
+            2_000_000,
+            2_200_000,
+        ]
+
+        return sum(sample > np.array(sample_cutoffs))
 
 
 # Input for training set
@@ -67,6 +135,8 @@ def sample_generator(cfg, data):
 
     while True:
         batch += 1
+
+        # Get master sampling index
         idx = np.random.choice(
             range(len(data.sample_p)), cfg.batch_size, p=data.sample_p
         )
