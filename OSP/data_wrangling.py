@@ -29,7 +29,7 @@ def get_sampling_probability(df_train, implementation, stage=None, verbose=False
         4. Chang: clip depending on stage, log compression
     """
 
-    assert implementation in ["log", "hs04", "jay", "chang"]
+    assert implementation in ["log", "hs04", "jay", "chang", "experimental"]
 
     if implementation == "log":
         compressed_wf = np.log(1 + df_train.wf)
@@ -53,6 +53,10 @@ def get_sampling_probability(df_train, implementation, stage=None, verbose=False
             print(f"There are {np.sum(clip>0)} words in the training set")
 
         compressed_wf = np.log(clip + 1)
+
+    if implementation == "experimental":
+        """ Continuous 
+        """
 
     return np.array(compressed_wf/np.sum(compressed_wf), dtype="float32")
 
@@ -227,9 +231,7 @@ class my_data():
     Also calculate sampling_p according to cfg.sample_name setting
     """
 
-    def __init__(self, cfg):
-
-        self.sample_name = cfg.sample_name
+    def __init__(self):
 
         input_path = '/home/jupyter/tf/common/input/'
 
