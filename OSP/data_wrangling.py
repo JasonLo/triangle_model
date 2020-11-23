@@ -12,6 +12,47 @@ def gen_pkey(p_file="/home/jupyter/tf/common/patterns/mappingv2.txt"):
     return m_dict
 
 
+def get_sampling_probability(df_train, implementation, stage=None):
+    """ Return the sampling probability with different implementation
+    Keyword arguments:
+    df_train -- training set in pandas dataframe format, contain WSJ word frequency (wf) and Zeno                    frequency (gr*) 
+    implementation -- method of sampling
+    stage (Chang implementation only) -- which stage in Chang sampling (default None)
+
+    implementation details:
+        1. log: simple log compression
+        2. hs04: square root compression with bottom (1500) and top end (30000) clipping
+        3. jay: square root compression with top end clipping (10000)
+        4. Chang: clip depending on stage, log compression
+    """
+
+    assert implementation in ["log", "hs04", "jay", "chang"]
+
+    if implementation == "log":
+        compressed_wf = np.log(1 + df_train.wf)
+
+    if implementation == "hs04":
+        root = np.sqrt(df_train.wf) / np.sqrt(30000)
+        compressed_wf = root.clip(0.05, 1.0)
+
+    if implementation == "jay":
+        compressed_wf = np.sqrt(df_train.wf.clip(0, 10000))
+
+    if implementation == "chang":
+        if not (1 <= stage <= 14):
+            raise ValueError("stage must be between 1-14")
+        cutoffs = [1000, 100, 50, 25, 10, 8, 6, 5, 4 ,3, 2, 1, 1, 0]
+        wf = df_train['gr' + str(stage)] 
+        clip = wf.map(lambda x: x if (x > cutoffs[stage-1]) else 0)
+
+        print(f"Removed words with <= {cutoffs[stage-1]} wpm.")
+        print(f"There are {np.sum(clip>0)} words in the training set")
+
+        compressed_wf = np.log(clip + 1)
+
+    return np.array(compressed_wf/np.sum(compressed_wf), dtype="float32")
+
+
 class wf_manager():
     """ Calculate sampling probability
     Note: the probability must sum to 1 when passing it to np.random.choice()
@@ -214,3 +255,4 @@ class my_data():
             self.sample_p = wf.samp_jay()
         if self.sample_name == 'log':
             self.sample_p = wf.samp_log()
+
