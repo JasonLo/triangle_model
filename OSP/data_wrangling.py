@@ -65,7 +65,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
 
         # Rank percent (Smaller = higher frequnecy)
         pct = clip_wf.rank(pct=True, ascending=False)
-        
+
         # Monitor training progress, 0.03 for fast start (since progress = 0 has no word)
         progress = 0.03 + (ingested_training_sample/max_sample)
 
@@ -95,7 +95,44 @@ class sampling:
         self.current_stage = 0
         np.random.seed(cfg.rng_seed)
 
-    def simple_sample_generator(self, verbose=False):
+    def semantic_formula(self, e, t, f, i, gf, gi, kf, ki, tmax=3.8,
+                         mf=4.4743, sf=2.4578, mi=4.1988, si=1.0078, hf=0, hi=0):
+        # Semantic refresh V1
+
+        numer_f = gf * e * np.log(f+2)
+        denom_f = e * np.log(f+2) + kf
+
+        return (t/tmax)*(numer_f/denom_f)
+
+    def get_semantic_input_from_idx(self, idx):
+        """ return pho x theoretical semantic_input
+        """
+        batch_semantic_input = np.zeros(
+            (self.cfg.batch_size, self.cfg.n_timesteps, self.cfg.output_dim))
+
+        for t in range(self.cfg.n_timesteps):
+            semantic_input_at_tick_t = self.semantic_formula(
+                e=self.current_epoch,
+                t=t * self.cfg.tau,
+                # Semantic equation is using static word frequency now
+                f=self.data.wf[idx],
+                i=self.data.img[idx],
+                gf=self.cfg.sem_param_gf,
+                gi=self.cfg.sem_param_gi,
+                kf=self.cfg.sem_param_kf,
+                ki=self.cfg.sem_param_ki,
+                hf=self.cfg.sem_param_hf,
+                hi=self.cfg.sem_param_hi,
+                tmax=self.cfg.max_unit_time - self.cfg.tau
+            )
+
+            batch_semantic_input[:, t, :] = np.tile(
+                    np.expand_dims(semantic_input_at_tick_t, 1), [1, self.cfg.output_dim]
+                )
+            
+        return batch_semantic_input
+
+    def sample_generator(self, verbose=False):
         """Dimension guide: (batch_size, timesteps, p_nodes)"""
         while True:
             # Start counting Epoch and Batch
@@ -114,7 +151,7 @@ class sampling:
                     clear_output(wait=True)
 
             this_p = get_sampling_probability(
-                df_train=self.data.df_train, 
+                df_train=self.data.df_train,
                 implementation=self.cfg.sample_name,
                 stage=self.current_stage,
                 ingested_training_sample=self.ingested_training_sample,
@@ -130,7 +167,14 @@ class sampling:
             # Log ingested training sampling
             self.ingested_training_sample += self.cfg.batch_size
 
-            yield (self.data.x_train[idx], batch_y)
+            if self.cfg.use_semantic:
+                semantic_input = self.get_semantic_input_from_idx(idx)
+                phonological_input = 2 * self.data.y_train[idx] - 1
+
+                # Training set need to return 3 components (ort, sem, pho)
+                yield ([self.data.x_train[idx], semantic_input, phonological_input], batch_y)
+            else:
+                yield (self.data.x_train[idx], batch_y)
 
     def get_stage(self, sample):
         """ Get stage of training. See Monaghan & Ellis, 2010 """
@@ -200,7 +244,7 @@ def sample_generator(cfg, data):
                 )
 
             yield (
-                [data.x_train[idx], batch_s, 2 * data.y_train[idx] - 1], batch_y
+                [data.x_train[idx], batch_s,  2 * data.y_train[idx] - 1], batch_y
             )
 
             # Counting epoch for ramping up input S
