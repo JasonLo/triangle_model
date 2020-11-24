@@ -70,6 +70,10 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         # Monitor training progress, 0.03 for fast start (since progress = 0 has no word)
         progress = 0.03 + (ingested_training_sample/max_sample)
 
+        # Speed scaling factor (g, how fast the training set grow)
+        g = 1 # For now
+        progress *= g
+
         # Trim continuously
         clip_wf[progress < pct] = 0
 
@@ -86,7 +90,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
     return np.array(compressed_wf/np.sum(compressed_wf), dtype="float32")
 
 
-class Sampling(data):
+class Sampling:
     def __init__(self, cfg, data):
         self.cfg = cfg
         self.data = data
