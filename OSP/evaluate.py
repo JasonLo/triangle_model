@@ -1,15 +1,16 @@
+from data_wrangling import test_set_input
+from IPython.display import clear_output
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
 import altair as alt
-import ast, h5py
+import ast
+import h5py
 
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
-from IPython.display import clear_output
-from data_wrangling import test_set_input
 
 
 def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
@@ -18,6 +19,7 @@ def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
     mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
     m_dict = mapping.set_index(0).T.to_dict('list')
     return m_dict
+
 
 class training_history():
     def __init__(self, pickle_file):
@@ -43,8 +45,8 @@ class training_history():
     def plot_all(self, save_file=None):
         # plot all 3 training history plots
         # Optionally save plot to html file, see altair plot save documentation
-        self.all_plots = self.plot_loss() | self.plot_mse() 
-        
+        self.all_plots = self.plot_loss() | self.plot_mse()
+
         if save_file is not None:
             self.all_plots.save(save_file)
         return self.all_plots
@@ -87,6 +89,7 @@ def get_pronunciation_fast(act, phon_key):
 def get_all_pronunciations_fast(act, phon_key):
     return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
 
+
 def get_accuracy(output, target):
     return 1 * np.array(output == target)
 
@@ -106,10 +109,11 @@ def get_slot_sse(output, target, slot_len=25):
     """
     segments = target.shape[-1] / slot_len
     return np.sum(np.array_split(np.square(output - target), segments, axis=-1), axis=-1)
-    
+
 
 def get_mean_sse(output, target):
     return np.mean(get_sse(output, target))
+
 
 def plot_variables(model, save_file=None):
     """
@@ -135,6 +139,7 @@ def plot_variables(model, save_file=None):
     if save_file is not None:
         plt.savefig(save_file)
 
+
 class testset():
     """
     Testset class for evaluating testset
@@ -142,6 +147,7 @@ class testset():
     2. Evaluate test set in each h5 (including every timesteps)
     3. Stitch to one csv file
     """
+
     def __init__(
         self, cfg, data, model, x_test, x_test_wf, x_test_img, y_test, key_df
     ):
@@ -156,7 +162,7 @@ class testset():
         self.x_test_img = x_test_img
 
         self.y_true_matrix = y_test
-        
+
         if type(self.y_true_matrix) is not dict:
             self.y_true = get_all_pronunciations_fast(
                 self.y_true_matrix, self.phon_key
@@ -171,8 +177,8 @@ class testset():
         item_eval['model'] = h5_name
         item_eval['epoch'] = epoch
         item_eval['timestep'] = timestep
-        
-        # Special case when only have one timestep output                
+
+        # Special case when only have one timestep output
         if self.cfg.output_ticks > 1:
             y_pred_matrix_at_this_time = y_pred_matrix[timestep]
         else:
@@ -185,13 +191,13 @@ class testset():
 
         item_eval['output'] = y_pred
         item_eval['acc'] = get_accuracy(y_pred, self.y_true)
-        
-        # Seems more efficient to use slot based SSE to compute total SSE... 
+
+        # Seems more efficient to use slot based SSE to compute total SSE...
         # item_eval['sse'] = get_sse(y_pred_matrix_at_this_time, self.y_true_matrix)
-        
+
         # Slot based SSE
         slot_sse = get_slot_sse(y_pred_matrix_at_this_time, self.y_true_matrix)
-        
+
         item_eval['sse_slot1'] = slot_sse[0]
         item_eval['sse_slot2'] = slot_sse[1]
         item_eval['sse_slot3'] = slot_sse[2]
@@ -203,11 +209,11 @@ class testset():
         item_eval['sse_slot9'] = slot_sse[8]
         item_eval['sse_slot10'] = slot_sse[9]
         item_eval['sse'] = slot_sse.sum(axis=0)
-        
+
         slot_output = np.array_split(y_pred_matrix_at_this_time, 10, axis=-1)
         item_eval['mean_output_slot4'] = slot_output[3].mean(axis=-1)
         item_eval['mean_output_slot10'] = slot_output[9].mean(axis=-1)
- 
+
         return item_eval
 
     def start_evaluate(self, test_use_semantic, output=None):
@@ -233,18 +239,15 @@ class testset():
             )
 
             y_pred_matrix = self.model.predict(test_input)
-            
 
             for timestep in range(self.cfg.output_ticks):
-                
+
                 item_eval = self.eval_one(
                     epoch, model_h5_name, timestep, y_pred_matrix
                 )
 
                 if self.cfg.use_semantic:
-                    item_eval['input_s'] = test_input[
-                        1][:, timestep,
-                           0]  # Dimension guide: item, timestep, p_unit_id
+                    item_eval['input_s'] = test_input[1][:, timestep, 0]  # Dimension guide: item, timestep, p_unit_id
                 else:
                     item_eval['input_s'] = 0
 
@@ -281,16 +284,17 @@ class testset():
         self.i_hist = pd.read_csv(file)
         print('Done')
 
+
 class strain_eval(testset):
     """
     For evaluating Strain results, inherit from testset class
     """
+
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_strain, data.x_strain_wf,
             data.x_strain_img, data.y_strain, data.df_strain
         )
-
 
     def parse_eval(self):
         super().parse_eval()
@@ -300,9 +304,9 @@ class strain_eval(testset):
         self.i_hist['condition_pf'] = self.i_hist[
             'pho_consistency'] + '_' + self.i_hist['frequency']
         self.i_hist['condition_pfi'
-                   ] = self.i_hist['pho_consistency'] + '_' + self.i_hist[
-                       'frequency'] + '_' + self.i_hist['imageability']
-             
+                    ] = self.i_hist['pho_consistency'] + '_' + self.i_hist[
+            'frequency'] + '_' + self.i_hist['imageability']
+
 
 class grain_eval():
     def __init__(self, cfg, data, model):
@@ -315,12 +319,12 @@ class grain_eval():
         self.x_test_img = data.x_grain_img
 
         self.grain_small = testset(
-            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, 
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img,
             data.y_small_grain, self.key_df
         )
-        
+
         self.grain_large = testset(
-            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img, 
+            cfg, data, model, self.x_test, self.x_test_wf, self.x_test_img,
             data.y_large_grain, self.key_df
         )
 
@@ -347,7 +351,8 @@ class grain_eval():
             }
         )
 
-        self.i_hist['acc_acceptable'] = (self.i_hist.acc_large_grain | self.i_hist.acc_small_grain)
+        self.i_hist['acc_acceptable'] = (
+            self.i_hist.acc_large_grain | self.i_hist.acc_small_grain)
         self.i_hist['sse_acceptable'] = self.i_hist[[
             'sse_large_grain', 'sse_small_grain'
         ]].min(axis=1)
@@ -358,21 +363,25 @@ class grain_eval():
             self.i_hist.to_csv(output, index=False)
             print('Saved file to {}'.format(output))
 
+
 class taraban_eval(testset):
     """
     Evaluate Taraban testset
     """
+
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_taraban, data.x_taraban_wf,
             data.x_taraban_img, data.y_taraban, data.df_taraban
         )
-        
+
+
 class glushko_eval(testset):
     """
     Evaluate Glushko testset
     Need to handle variable y_true
     """
+
     def __init__(self, cfg, data, model):
         super().__init__(
             cfg, data, model, data.x_glushko, data.x_glushko_wf,
@@ -390,13 +399,13 @@ class glushko_eval(testset):
         item_eval['model'] = h5_name
         item_eval['epoch'] = epoch
         item_eval['timestep'] = timestep
-        
-        # Special case when only have one timestep output                
+
+        # Special case when only have one timestep output
         if self.cfg.output_ticks > 1:
             y_pred_matrix_at_this_time = y_pred_matrix[timestep]
         else:
             y_pred_matrix_at_this_time = y_pred_matrix
-        
+
         y_pred = get_all_pronunciations_fast(
             y_pred_matrix_at_this_time, self.phon_key
         )
@@ -423,7 +432,8 @@ class glushko_eval(testset):
         item_eval['sse'] = sse_list
 
         return item_eval
-    
+
+
 def make_df_wnw(df, word_cond, nonword_cond):
     """
     This function make a word vs. nonword data file for plotting
@@ -459,7 +469,7 @@ def make_df_wnw(df, word_cond, nonword_cond):
 
     return plt_df
 
-            
+
 class vis():
     """
     Visualization for a single run
@@ -501,11 +511,12 @@ class vis():
     def training_hist(self):
         self.t_hist = training_history(self.cfg.path_history_pickle)
         return self.t_hist.plot_all()
-    
+
     def load_weight(self, epoch=None):
-        
+
         if epoch is not None:
-            self.weight = weight(self.cfg.path_weights_checkpoint.format(epoch=epoch))            
+            self.weight = weight(
+                self.cfg.path_weights_checkpoint.format(epoch=epoch))
 
     # Condition level parsing
     def parse_strain_cond_df(self, cond):
@@ -597,8 +608,10 @@ class vis():
         )
 
         # Slider unit time filter
-        time_options = np.linspace(self.cfg.tau, self.cfg.max_unit_time, self.cfg.n_timesteps).round(2)
-        radio_time = alt.binding_radio(options=time_options, name = "Unit time: ")
+        time_options = np.linspace(
+            self.cfg.tau, self.cfg.max_unit_time, self.cfg.n_timesteps).round(2)
+        radio_time = alt.binding_radio(
+            options=time_options, name="Unit time: ")
 
         select_time = alt.selection_single(
             name="filter",
@@ -617,7 +630,7 @@ class vis():
         ).add_selection(select_time,
                         select_cond).transform_filter(select_time).properties(
                             title='Development plot'
-                        )
+        )
 
         return plot_dev
 
@@ -659,7 +672,7 @@ class vis():
         ).add_selection(select_epoch,
                         select_cond).transform_filter(select_epoch).properties(
                             title='Interactive time plot',
-                        )
+        )
 
         return plot_time
 
@@ -690,8 +703,8 @@ class vis():
         wnw_plot = diagonal + wnw_line + wnw_point
 
         return wnw_plot
-    
-    
+
+
 def parse_mikenet_weight(file):
     """Weight parser for MikeNet
     file: file path
@@ -770,29 +783,30 @@ class weight:
             """
             self.pd = parse_mikenet_weight(file)
             self.names = [w.name for w in self.pd]
-            
+
         self.df = pd.concat(map(self.series_to_df, self.pd))
         self.df['abs_weight'] = self.df.weight.abs()
-            
+
     def series_to_df(self, series):
         f = pd.DataFrame(series)
         f.columns = ["weight"]
         f["matrix"] = series.name.replace(":0", "")
         return f
-    
+
     def violinplot(self, savefig=None):
-        
+
         plt.figure(figsize=(15, 5), facecolor="w")
         plt.subplot(121)
         sns.violinplot(x="weight", y="matrix", data=self.df, scale="width")
         plt.subplot(122)
-        sns.violinplot(x="abs_weight", y="matrix", data=self.df, scale="width", cut=0)
-        
+        sns.violinplot(x="abs_weight", y="matrix",
+                       data=self.df, scale="width", cut=0)
+
         if savefig is not None:
             plt.savefig(savefig)
-            
+
         plt.show()
-    
+
     def heatmap(self, savefig=None):
 
         plt.figure(figsize=(20, 20), facecolor="w")
@@ -800,7 +814,8 @@ class weight:
         for i, key in enumerate(self.names):
             plt.subplot(3, 3, i + 1)
             plt.title(key)
-            plt.imshow(self.np[i], cmap="jet", interpolation="nearest", aspect="auto")
+            plt.imshow(self.np[i], cmap="jet",
+                       interpolation="nearest", aspect="auto")
             plt.colorbar()
 
         if savefig is not None:
@@ -828,4 +843,3 @@ class weight:
 
     def basic_stat(self):
         return pd.concat([w.describe() for w in self.pd], axis=1)
-    
