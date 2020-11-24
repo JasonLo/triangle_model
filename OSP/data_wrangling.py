@@ -15,18 +15,21 @@ def gen_pkey(p_file="/home/jupyter/tf/common/patterns/mappingv2.txt"):
     return m_dict
 
 
-def get_sampling_probability(df_train, implementation, stage=None, verbose=False):
+def get_sampling_probability(df_train, implementation, stage=None, ingested_training_sample=None, max_sample=None, verbose=False):
     """ Return the sampling probability with different implementation
     Keyword arguments:
     df_train -- training set in pandas dataframe format, contain WSJ word frequency (wf) and Zeno frequency (gr*) 
     implementation -- method of sampling
     stage (Chang implementation only) -- which stage in Chang sampling (default None)
+    ingested_training_sample (experimental implementation only) -- the ingested_training_sample
+    max_sample -- maximum sample (for scaling progress)
 
     implementation details:
         1. log: simple log compression
         2. hs04: square root compression with bottom (1500) and top end (30000) clipping
         3. jay: square root compression with top end clipping (10000)
-        4. Chang: clip depending on stage, log compression
+        4. chang: clip depending on stage, log compression
+        5. experimental: continous shifting sample
     """
 
     assert implementation in ["log", "hs04", "jay", "chang", "experimental"]
@@ -55,8 +58,29 @@ def get_sampling_probability(df_train, implementation, stage=None, verbose=False
         compressed_wf = np.log(clip + 1)
 
     if implementation == "experimental":
-        """ Continuous 
+        """ Continuous sampling set
         """
+        # Top Clipping 30k
+        clip_wf = df_train.wf.clip(0, 30000)
+
+        # Rank percent (Smaller = higher frequnecy)
+        pct = clip_wf.rank(pct=True, ascending=False)
+        
+        # Monitor training progress, 0.03 for fast start (since progress = 0 has no word)
+        progress = 0.03 + (ingested_training_sample/max_sample)
+
+        # Trim continuously
+        clip_wf[progress < pct] = 0
+
+        if verbose:
+            print(f"minimum pct = {pct.min()}, max pct = {pct.max()}")
+            print(f"Current progress: {progress}")
+            print(f"Number of selected item: {sum(clip_wf > 0)}")
+            print(f"Selected words: {df_train.word[clip_wf > 0]}")
+            clear_output(wait=True)
+
+        # Sqrt compression
+        compressed_wf = np.sqrt(clip_wf)
 
     return np.array(compressed_wf/np.sum(compressed_wf), dtype="float32")
 
@@ -90,7 +114,11 @@ class sampling:
                     clear_output(wait=True)
 
             this_p = get_sampling_probability(
-                df_train=self.data.df_train, implementation=self.cfg.sample_name, stage=self.current_stage
+                df_train=self.data.df_train, 
+                implementation=self.cfg.sample_name,
+                stage=self.current_stage,
+                ingested_training_sample=self.ingested_training_sample,
+                max_sample=self.cfg.n_mil_sample * 1_000_000
             )
 
             idx = np.random.choice(
