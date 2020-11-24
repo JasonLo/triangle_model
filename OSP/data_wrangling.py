@@ -2,6 +2,7 @@ import pickle
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from IPython.display import clear_output
 
 
@@ -85,7 +86,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
     return np.array(compressed_wf/np.sum(compressed_wf), dtype="float32")
 
 
-class sampling:
+class Sampling(data):
     def __init__(self, cfg, data):
         self.cfg = cfg
         self.data = data
@@ -127,9 +128,10 @@ class sampling:
             )
 
             batch_semantic_input[:, t, :] = np.tile(
-                    np.expand_dims(semantic_input_at_tick_t, 1), [1, self.cfg.output_dim]
-                )
-            
+                np.expand_dims(semantic_input_at_tick_t, 1), [
+                    1, self.cfg.output_dim]
+            )
+
         return batch_semantic_input
 
     def sample_generator(self, verbose=False):
@@ -140,7 +142,7 @@ class sampling:
                 self.current_epoch += 1
             self.current_batch += 1
 
-            # Get master sampling index
+            # Get master sampling stage if using Chang's implementation
             if self.cfg.sample_name == "chang":
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
@@ -198,63 +200,6 @@ class sampling:
         return sum(sample > np.array(sample_cutoffs))
 
 
-# Input for training set
-def sample_generator(cfg, data):
-    """Generate training set sample
-    Dimension guide: (batch_size, timesteps, nodes)"""
-
-    from modeling import input_s
-
-    np.random.seed(cfg.rng_seed)
-    epoch = 0
-    batch = 0
-
-    while True:
-        batch += 1
-
-        # Get master sampling index
-        idx = np.random.choice(
-            range(len(data.sample_p)), cfg.batch_size, p=data.sample_p
-        )
-
-        # Preallocate
-        batch_s = np.zeros((cfg.batch_size, cfg.n_timesteps, cfg.output_dim))
-
-        # Time invarying output
-        batch_y = [data.y_train[idx]] * cfg.output_ticks
-
-        if cfg.use_semantic == True:
-            for t in range(cfg.n_timesteps):
-                input_s_cell = input_s(
-                    e=epoch,
-                    t=t * cfg.tau,
-                    f=data.wf[idx],
-                    i=data.img[idx],
-                    gf=cfg.sem_param_gf,
-                    gi=cfg.sem_param_gi,
-                    kf=cfg.sem_param_kf,
-                    ki=cfg.sem_param_ki,
-                    hf=cfg.sem_param_hf,
-                    hi=cfg.sem_param_hi,
-                    tmax=cfg.max_unit_time - cfg.tau
-                )
-
-                batch_s[:, t, :] = np.tile(
-                    np.expand_dims(input_s_cell, 1), [1, cfg.output_dim]
-                )
-
-            yield (
-                [data.x_train[idx], batch_s,  2 * data.y_train[idx] - 1], batch_y
-            )
-
-            # Counting epoch for ramping up input S
-            if batch % cfg.steps_per_epoch == 0:
-                epoch += 1
-        else:
-            # Non-semantic input
-            yield (data.x_train[idx], batch_y)
-
-
 def test_set_input(
     x_test, x_test_wf, x_test_img, y_test, epoch, cfg, test_use_semantic
 ):
@@ -297,7 +242,7 @@ def test_set_input(
         return x_test
 
 
-class my_data():
+class MyData():
     """
     This object load all clean data from disk (both training set and testing sets)
     Also calculate sampling_p according to cfg.sample_name setting
