@@ -71,7 +71,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         progress = 0.03 + (ingested_training_sample/max_sample)
 
         # Speed scaling factor (g, how fast the training set grow)
-        g = 1 # For now
+        g = 1  # For now
         progress *= g
 
         # Trim continuously
@@ -99,6 +99,12 @@ class Sampling:
         self.current_batch = 0
         self.current_stage = 0
         np.random.seed(cfg.rng_seed)
+
+        # For debugging only
+        self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
+        self.debug_log_dynamic_wf = pd.DataFrame(index=self.data.df_train.word) # Copy word as index
+        self.debug_log_epoch = []
+        self.debug_log_corpus_size = []
 
     def semantic_formula(self, e, t, f, i, gf, gi, kf, ki, tmax=3.8,
                          mf=4.4743, sf=2.4578, mi=4.1988, si=1.0078, hf=0, hi=0):
@@ -144,6 +150,22 @@ class Sampling:
             # Start counting Epoch and Batch
             if self.current_batch % self.cfg.steps_per_epoch == 0:
                 self.current_epoch += 1
+
+                # Debug logger
+                self.debug_log_epoch.append(self.current_epoch)
+
+                ## Snapshot dynamic corpus
+                tmp_column_name = f"wf_at_epoch_{self.current_epoch}"
+                self.debug_log_dynamic_wf[tmp_column_name] = 0
+
+                tmp_corpus_size = 0
+                for key, value in self.dynamic_corpus.items():
+                    self.debug_log_dynamic_wf.loc[key, tmp_column_name] = value
+                    if value > 0:
+                        tmp_corpus_size += 1
+
+                self.debug_log_corpus_size.append(tmp_corpus_size)
+
             self.current_batch += 1
 
             # Get master sampling stage if using Chang's implementation
@@ -168,6 +190,11 @@ class Sampling:
                 range(len(this_p)), self.cfg.batch_size, p=this_p
             )
 
+            # Debug log
+            for word_id in idx:
+                self.dynamic_corpus[self.data.df_train.word[word_id]] += 1
+
+            # Copy y_train by the number of output ticks
             batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
 
             # Log ingested training sampling
