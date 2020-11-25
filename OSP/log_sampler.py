@@ -95,7 +95,7 @@ plot_corpus_epoch = alt.Chart(df_strain).mark_line().encode(
     row="pho_consistency:N"
 ).interactive().properties(title="Dynamic frequency")
 
-plot_corpus_epoch.save('working/dynamic_frequency/strain.html')
+plot_corpus_epoch.save('working/dynamic_frequency/strain_dynamic_frequency.html')
 
 
 # Relationship between actual corpus frequency and dynamic frequency
@@ -111,4 +111,4 @@ plot_ff = alt.Chart(df_strain).mark_point().encode(
     tooltip=["sample_name", "word", "static_wf", "dynamic_wf"]
 ).add_selection(selection_epoch, selection_sampling).transform_filter(selection_epoch).interactive()
 
-plot_ff.save('working/dynamic_frequency/strain.html')
+plot_ff.save('working/dynamic_frequency/strain_static_dynamic_wf.html')
