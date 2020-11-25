@@ -34,6 +34,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
     """
 
     assert implementation in ["log", "hs04", "jay", "chang", "experimental"]
+    compressed_wf = None
 
     if implementation == "log":
         compressed_wf = np.log(1 + df_train.wf)
@@ -102,7 +103,8 @@ class Sampling:
 
         # For debugging only
         self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
-        self.debug_log_dynamic_wf = pd.DataFrame(index=self.data.df_train.word) # Copy word as index
+        self.debug_log_dynamic_wf = pd.DataFrame(
+            index=self.data.df_train.word)  # Copy word as index
         self.debug_log_epoch = []
         self.debug_log_corpus_size = []
 
@@ -154,7 +156,7 @@ class Sampling:
                 # Debug logger
                 self.debug_log_epoch.append(self.current_epoch)
 
-                ## Snapshot dynamic corpus
+                # Snapshot dynamic corpus
                 tmp_column_name = f"wf_at_epoch_{self.current_epoch}"
                 self.debug_log_dynamic_wf[tmp_column_name] = 0
 
