@@ -1,5 +1,4 @@
 **/all_*.txt
-OSP/.ipynb_checkpoints/
 */batch_log/
 O2S/embeddings
 O2S/from_noam
@@ -16,4 +15,3 @@ __pycache__
 .vscode
 df_1M_200609.csv
 concept/acc_sse/1250_sims.csv
-OSP/working/dynamic_frequency
