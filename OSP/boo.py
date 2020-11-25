@@ -2,11 +2,11 @@
 # Seems test_set_input() not returning the third item in list
 
 
-import pandas as pd
-from IPython.display import clear_output
 import importlib
 
+import pandas as pd
 import tensorflow as tf
+from IPython.display import clear_output
 from tensorflow.keras import Model
 from tensorflow.keras.layers import (Input, Layer, RepeatVector, concatenate,
                                      multiply)
