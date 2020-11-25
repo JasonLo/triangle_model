@@ -16,3 +16,4 @@ __pycache__
 .vscode
 df_1M_200609.csv
 concept/acc_sse/1250_sims.csv
+OSP/working/dynamic_frequency
