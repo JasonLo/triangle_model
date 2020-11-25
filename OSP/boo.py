@@ -1,6 +1,6 @@
 # Fixing frekin Glushko evaluator...
 # Seems test_set_input() not returning the third item in list
-
+#%% Import libraries
 
 import importlib
 
@@ -18,6 +18,8 @@ import meta
 import modeling
 from metrics import OutputOfOneTarget, OutputOfZeroTarget, ZERCount
 
+
+#%% 
 importlib.reload(evaluate)
 
 cfg = meta.model_cfg(json_file='models/booboo/model_config.json')
@@ -115,3 +117,4 @@ y_pred_matrix = glushko.model.predict(test_input)
 glushko.start_evaluate(False, cfg.path_model_folder +
                        "result_glushko_item.csv")
 
+# %%
