@@ -1,0 +1,4 @@
+# Minimal install script for new VM
+altair 
+nb_black
+nbstripout
