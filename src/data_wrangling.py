@@ -6,7 +6,7 @@ import tensorflow as tf
 from IPython.display import clear_output
 
 
-def gen_pkey(p_file="/home/jupyter/tf/common/patterns/mappingv2.txt"):
+def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     """ Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
     """
@@ -179,7 +179,7 @@ class Sampling:
             if self.cfg.sample_name == "chang":
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
-                    self.ingested_training_sample)
+                    self.ingested_training_sample, normalize=True)
                 if verbose:
                     print(
                         f"Stage: {self.current_stage}, Epoch: {self.current_epoch}, Sample: {self.ingested_training_sample}")
@@ -217,7 +217,7 @@ class Sampling:
             else:
                 yield (self.data.x_train[idx], batch_y)
 
-    def get_stage(self, sample):
+    def get_stage(self, sample, normalize=False):
         """ Get stage of training. See Monaghan & Ellis, 2010 """
         sample_cutoffs = [
             -1,  # because sample can be 0
@@ -235,6 +235,8 @@ class Sampling:
             2_000_000,
             2_200_000,
         ]
+
+        if normalize: sample_cutoffs = np.divide(sample_cutoffs, 2.2)
 
         return sum(sample > np.array(sample_cutoffs))
 
@@ -289,7 +291,7 @@ class MyData():
 
     def __init__(self):
 
-        input_path = '/home/jupyter/tf/common/input/'
+        input_path = '/home/jupyter/tf/dataset/'
 
         self.df_train = pd.read_csv(input_path + 'df_train.csv', index_col=0)
         self.x_train = np.load(input_path + 'x_train.npz')['data']
