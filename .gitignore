@@ -1,5 +1,6 @@
 **/all_*.txt
 */batch_log/
+*/tensor_board_log/
 O2S/embeddings
 O2S/from_noam
 O2S
