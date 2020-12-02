@@ -10,9 +10,10 @@ importlib.reload(data_wrangling)
 
 cfg = meta.model_cfg(json_file='models/booboo/model_config.json')
 data = data_wrangling.MyData()
+working_directory = "issues/dynamic_frequency/"
 
 
-def dry_run_sampler(sample_name, cfg, output_folder="issues/dynamic_frequency/"):
+def dry_run_sampler(sample_name, cfg, output_folder=working_directory):
     cfg.sample_name = sample_name
     sampler = data_wrangling.Sampling(cfg, data, debugging=True)
     next(sampler.sample_generator())
@@ -30,50 +31,64 @@ def dry_run_sampler(sample_name, cfg, output_folder="issues/dynamic_frequency/")
     print("All done.")
 
 
-dry_run_sampler('chang', cfg)
+dry_run_sampler('wf_linear_cutoff', cfg)
 
+# %% Show frequency statistics
+
+data.df_train['clip_wf_30000'] = data.df_train.wf.clip(0, 30000)
+
+wf_plot = alt.Chart(data.df_train).mark_bar().encode(
+    y='count(clip_wf_30000):Q',
+    x=alt.X('clip_wf_30000', bin=alt.Bin(maxbins=50)),
+).interactive().properties(title="Histogram of WSJ frequncy with top-end squashing")
+
+wf_plot.save(f"{working_directory}histogram_wf.html")
+
+
+# %% Zoom-in 1000
+df_1000 = data.df_train.loc[data.df_train.wf <= 1000,]
+wf_plot_1000 = alt.Chart(df_1000).mark_bar().encode(
+    y='count(clip_wf_30000):Q',
+    x=alt.X('clip_wf_30000', bin=alt.Bin(maxbins=50)),
+).interactive().properties(title="Histogram of WSJ frequncy with top-end squashing")
+
+
+wf_plot_1000.wf_plot.save(f"{working_directory}histogram_wf_1000.html")
 
 # %% Dry run and log dynamic corpus
 [dry_run_sampler(sample_name, cfg)
- for sample_name in ['experimental', 'chang', 'hs04', 'jay']]
+ for sample_name in ['experimental', 'wf_linear_cutoff']]
 
 
 # %% Visualize corpus size
-df1 = pd.read_csv('issues/dynamic_frequency/chang_corpus_size.csv')
-df1['sample_name'] = 'chang'
-df2 = pd.read_csv('issues/dynamic_frequency/experimental_corpus_size.csv')
-df2['sample_name'] = 'continuous'
-df3 = pd.read_csv('issues/dynamic_frequency/hs04_corpus_size.csv')
-df3['sample_name'] = 'hs04'
-df4 = pd.read_csv('issues/dynamic_frequency/jay_corpus_size.csv')
-df4['sample_name'] = 'jay'
-df = pd.concat([df1, df2, df3, df4], axis=0)
-del df1, df2, df3, df4
-df["epoch"] = df.epoch - 1
+implementations = ["chang", "experimental", "hs04", "jay", "wf_linear_cutoff"]
+
+# Make combined df
+df = pd.DataFrame()
+for i in implementations:
+    tmp_df = pd.read_csv(f"{working_directory}{i}_corpus_size.csv")
+    tmp_df['sample_name'] = i
+    df = pd.concat([df, tmp_df], axis=0)
+
 
 plot_dcs = alt.Chart(df).mark_line().encode(
     x="epoch:Q",
-    y="corpus_size:Q",
+    y=alt.Y("corpus_size:Q", title="Cumulative corpus size"),
     color="sample_name"
-).properties(title="Dynamic corpus size").interactive()
+).properties(title="Cumulative corpus size").interactive()
 
+
+plot_dcs.save(f'{working_directory}corpus_size.html')
 plot_dcs
 
-plot_dcs.save('issues/dynamic_frequency/corpus_size.html')
-
-
 # %% Visualize dynamic corpus
-df1 = pd.read_csv('issues/dynamic_frequency/chang_dynamic_corpus.csv')
-df1['sample_name'] = 'chang'
-df2 = pd.read_csv('issues/dynamic_frequency/experimental_dynamic_corpus.csv')
-df2['sample_name'] = 'continuous'
-df3 = pd.read_csv('issues/dynamic_frequency/hs04_dynamic_corpus.csv')
-df3['sample_name'] = 'hs04'
-df4 = pd.read_csv('issues/dynamic_frequency/jay_dynamic_corpus.csv')
-df4['sample_name'] = 'jay'
 
-df = pd.concat([df1, df2, df3, df4], axis=0)
-del df1, df2, df3, df4
+df = pd.DataFrame()
+for i in implementations:
+    tmp_df = pd.read_csv(f"{working_directory}{i}_dynamic_corpus.csv")
+    tmp_df['sample_name'] = i
+    df = pd.concat([df, tmp_df], axis=0)
+
 
 # Only select Strain items
 sel_df = df.loc[df.word.isin(data.df_strain.word)]
@@ -93,14 +108,16 @@ df_strain.rename(columns={'wf': 'static_wf'}, inplace=True)
 # Dynamic frequncy in Strain by condition
 plot_corpus_epoch = alt.Chart(df_strain).mark_line().encode(
     x="epoch:Q",
-    y="mean(dynamic_wf):Q",
+    y=alt.Y("mean(dynamic_wf):Q", title="Mean cumulative frequency"),
     color="sample_name:N",
     column="frequency:N",
     row="pho_consistency:N"
-).interactive().properties(title="Dynamic frequency")
+).interactive().properties(title="Mean cumulative frequency in each condition in Strain")
 
 plot_corpus_epoch.save(
-    'issues/dynamic_frequency/strain_dynamic_frequency.html')
+    f'{working_directory}strain_cumulative_frequency.html')
+
+plot_corpus_epoch
 
 
 # %% Relationship between actual corpus frequency and dynamic frequency
@@ -110,13 +127,16 @@ selection_epoch = alt.selection_single(
 selection_sampling = alt.selection_multi(fields=['sample_name'], bind='legend')
 
 plot_ff = alt.Chart(df_strain).mark_point().encode(
-    y=alt.Y('dynamic_wf', title="Dynamic frequency"),
+    y=alt.Y('dynamic_wf', title="Cumulative frequency"),
     x=alt.X('static_wf', title="Static corpus frequency"),
     color="sample_name:N",
     opacity=alt.condition(selection_sampling, alt.value(1), alt.value(0.2)),
     tooltip=["sample_name", "word", "static_wf", "dynamic_wf"]
 ).add_selection(selection_epoch, selection_sampling).transform_filter(selection_epoch).interactive()
 
-plot_ff.save('issues/dynamic_frequency/strain_static_dynamic_wf.html')
+plot_ff.save(f'{working_directory}strain_static_dynamic_wf.html')
+plot_ff
+
+
 
 # %%

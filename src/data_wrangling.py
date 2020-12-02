@@ -33,7 +33,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         5. experimental: continous shifting sample
     """
 
-    assert implementation in ["log", "hs04", "jay", "chang", "experimental"]
+    assert implementation in ["log", "hs04", "jay", "chang", "experimental", "wf_linear_cutoff"]
     compressed_wf = None
 
     if implementation == "log":
@@ -72,17 +72,49 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         progress = 0.03 + (ingested_training_sample/max_sample)
 
         # Speed scaling factor (g, how fast the training set grow)
-        g = 1  # For now
+        g = 2  # For now
         progress *= g
 
         # Trim continuously
-        clip_wf[progress < pct] = 0
+        clip_wf[pct > progress] = 0
 
         if verbose:
             print(f"minimum pct = {pct.min()}, max pct = {pct.max()}")
             print(f"Current progress: {progress}")
             print(f"Number of selected item: {sum(clip_wf > 0)}")
             print(f"Selected words: {df_train.word[clip_wf > 0]}")
+            clear_output(wait=True)
+
+        # Sqrt compression
+        compressed_wf = np.sqrt(clip_wf)
+
+
+
+    if implementation == "wf_linear_cutoff":
+        """ Continuous sampling set with raw frequency as cutoff
+        """
+        # Top Clipping 30k
+        clip_wf = df_train.wf.clip(0, 30000)
+
+        # Monitor training progress
+        progress = ingested_training_sample / max_sample
+
+        # Speed scaling factor (g, how fast the training set grow)
+        g = 2 
+        progress *= g
+        progress = np.clip(progress, 0, 1)
+
+        # Scale descending clip-wf (similar to pct)
+        scale_clip_wf = 1. - clip_wf/30000.
+
+        # Trim continuously
+        clip_wf[scale_clip_wf > progress] = 0
+
+        if verbose:
+            print(f"Current progress: {progress}")
+            print(f"min scale_clip_wf = {scale_clip_wf.min()}")
+            print(f"max scale_clip_wf = {scale_clip_wf.max()}")
+            print(f"Number of selected item: {sum(clip_wf > 0)}")
             clear_output(wait=True)
 
         # Sqrt compression
