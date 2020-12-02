@@ -236,7 +236,7 @@ class Sampling:
             2_200_000,
         ]
 
-        if normalize: sample_cutoffs = np.divide(sample_cutoffs, 2.2)
+        if normalize: sample_cutoffs = np.divide(sample_cutoffs, 5.2) # Total training in ME10 = 5.2M
 
         return sum(sample > np.array(sample_cutoffs))
 

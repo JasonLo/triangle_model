@@ -1,8 +1,7 @@
 # %% Environment
 import importlib
 import altair as alt
-import meta
-import data_wrangling
+from src import meta, data_wrangling
 import pandas as pd
 from IPython.display import clear_output
 
@@ -13,7 +12,7 @@ cfg = meta.model_cfg(json_file='models/booboo/model_config.json')
 data = data_wrangling.MyData()
 
 
-def dry_run_sampler(sample_name, cfg):
+def dry_run_sampler(sample_name, cfg, output_folder="issues/dynamic_frequency/"):
     cfg.sample_name = sample_name
     sampler = data_wrangling.Sampling(cfg, data, debugging=True)
     next(sampler.sample_generator())
@@ -25,10 +24,13 @@ def dry_run_sampler(sample_name, cfg):
     df_corpus_size = pd.DataFrame({"epoch": sampler.debug_log_epoch,
                                    "corpus_size": sampler.debug_log_corpus_size})
     df_corpus_size.to_csv(
-        f"dynamic_frequency/{sample_name}_corpus_size.csv")
+        f"{output_folder}{sample_name}_corpus_size.csv")
     sampler.debug_log_dynamic_wf.to_csv(
-        f"dynamic_frequency/{sample_name}_dynamic_corpus.csv")
+        f"{output_folder}{sample_name}_dynamic_corpus.csv")
     print("All done.")
+
+
+dry_run_sampler('chang', cfg)
 
 
 # %% Dry run and log dynamic corpus
@@ -37,13 +39,13 @@ def dry_run_sampler(sample_name, cfg):
 
 
 # %% Visualize corpus size
-df1 = pd.read_csv('dynamic_frequency/chang_corpus_size.csv')
+df1 = pd.read_csv('issues/dynamic_frequency/chang_corpus_size.csv')
 df1['sample_name'] = 'chang'
-df2 = pd.read_csv('dynamic_frequency/experimental_corpus_size.csv')
+df2 = pd.read_csv('issues/dynamic_frequency/experimental_corpus_size.csv')
 df2['sample_name'] = 'continuous'
-df3 = pd.read_csv('dynamic_frequency/hs04_corpus_size.csv')
+df3 = pd.read_csv('issues/dynamic_frequency/hs04_corpus_size.csv')
 df3['sample_name'] = 'hs04'
-df4 = pd.read_csv('dynamic_frequency/jay_corpus_size.csv')
+df4 = pd.read_csv('issues/dynamic_frequency/jay_corpus_size.csv')
 df4['sample_name'] = 'jay'
 df = pd.concat([df1, df2, df3, df4], axis=0)
 del df1, df2, df3, df4
@@ -57,17 +59,17 @@ plot_dcs = alt.Chart(df).mark_line().encode(
 
 plot_dcs
 
-plot_dcs.save('dynamic_frequency/corpus_size.html')
+plot_dcs.save('issues/dynamic_frequency/corpus_size.html')
 
 
 # %% Visualize dynamic corpus
-df1 = pd.read_csv('dynamic_frequency/chang_dynamic_corpus.csv')
+df1 = pd.read_csv('issues/dynamic_frequency/chang_dynamic_corpus.csv')
 df1['sample_name'] = 'chang'
-df2 = pd.read_csv('dynamic_frequency/experimental_dynamic_corpus.csv')
+df2 = pd.read_csv('issues/dynamic_frequency/experimental_dynamic_corpus.csv')
 df2['sample_name'] = 'continuous'
-df3 = pd.read_csv('dynamic_frequency/hs04_dynamic_corpus.csv')
+df3 = pd.read_csv('issues/dynamic_frequency/hs04_dynamic_corpus.csv')
 df3['sample_name'] = 'hs04'
-df4 = pd.read_csv('dynamic_frequency/jay_dynamic_corpus.csv')
+df4 = pd.read_csv('issues/dynamic_frequency/jay_dynamic_corpus.csv')
 df4['sample_name'] = 'jay'
 
 df = pd.concat([df1, df2, df3, df4], axis=0)
@@ -98,7 +100,7 @@ plot_corpus_epoch = alt.Chart(df_strain).mark_line().encode(
 ).interactive().properties(title="Dynamic frequency")
 
 plot_corpus_epoch.save(
-    'dynamic_frequency/strain_dynamic_frequency.html')
+    'issues/dynamic_frequency/strain_dynamic_frequency.html')
 
 
 # %% Relationship between actual corpus frequency and dynamic frequency
@@ -115,4 +117,6 @@ plot_ff = alt.Chart(df_strain).mark_point().encode(
     tooltip=["sample_name", "word", "static_wf", "dynamic_wf"]
 ).add_selection(selection_epoch, selection_sampling).transform_filter(selection_epoch).interactive()
 
-plot_ff.save('dynamic_frequency/strain_static_dynamic_wf.html')
+plot_ff.save('issues/dynamic_frequency/strain_static_dynamic_wf.html')
+
+# %%
