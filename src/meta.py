@@ -408,7 +408,7 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
 
 
 def parse_batch_results(cfgs):
-    from evaluate import vis
+    from src.evaluate import vis
     from tqdm import tqdm
     """
     Parse and Concat all condition level results from item level csvs
