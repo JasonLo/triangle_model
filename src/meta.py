@@ -439,19 +439,16 @@ def parse_batch_results(cfgs):
     return cfgs_df, pd.merge(evals_df, cfgs_df, 'left', 'code_name')
 
 
-
-
-
-class connect_gbq():
+class connect_gbq:
     """
     All things related to GBQ
     """
 
-    def __init__(self, pid='triangle-272405'):
+    def __init__(self, pid='triangle-272405', credential_json="triangle-e1fd21bb86a1.json"):
         from google.oauth2 import service_account
         self.pid = pid
         self.credentials = service_account.Credentials.from_service_account_file(
-            '../common/triangle-e1fd21bb86a1.json'
+            credential_json
         )
 
     def push_all(self, db_name, cfg, strain_i_hist, grain_i_hist, verbose=False):
