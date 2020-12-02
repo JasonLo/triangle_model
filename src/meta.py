@@ -342,14 +342,12 @@ class model_cfg:
                 json.dump(save_cfg, f)
 
 
-def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
+def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_notebook):
     """
     Make batch cfg dictionary list that can feed into papermill
     """
 
     # Check batch json exist
-    batch_output_dir = "batch_eval/{}/".format(batch_name)
-
     batch_json = batch_output_dir + "batch_config.json"
 
     if os.path.isfile(batch_json):
