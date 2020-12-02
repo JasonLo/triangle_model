@@ -280,7 +280,7 @@ def test_set_input(
     If model use semantic, we need to return a list of 3 inputs (x, s[time step varying], y), otherwise (x) is enough
     """
 
-    from modeling import input_s
+    from src.modeling import input_s
 
     if cfg.use_semantic:
         batch_s = np.zeros(

@@ -1,13 +1,15 @@
-from data_wrangling import test_set_input
-from IPython.display import clear_output
+import ast
+
+import altair as alt
+import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-import matplotlib.pyplot as plt
 import seaborn as sns
-import altair as alt
-import ast
-import h5py
+import tensorflow as tf
+from IPython.display import clear_output
+
+from src.data_wrangling import test_set_input
 
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
@@ -170,7 +172,7 @@ class testset():
         self.i_hist = pd.DataFrame()  # item history
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
-        from modeling import input_s
+        from src.modeling import input_s
 
         # Item level statistics
         item_eval = self.key_df
@@ -392,7 +394,7 @@ class glushko_eval(testset):
         self.pho_dict = data.pho_glushko
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
-        from modeling import input_s
+        from src.modeling import input_s
 
         # Item level statistics
         item_eval = self.key_df
@@ -484,9 +486,10 @@ class vis():
     # Which will parse item level data to condition level data
     # Then plot with Altair
     def __init__(self, model_folder):
-        from data_wrangling import MyData
-        from meta import model_cfg
         import altair as alt
+
+        from src.data_wrangling import MyData
+        from src.meta import model_cfg
 
         self.model_folder = model_folder
         self.cfg = model_cfg(
