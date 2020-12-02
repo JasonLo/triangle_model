@@ -141,6 +141,7 @@ class model_cfg:
         'eval_freq',
         'bq_dataset',
         'batch_unique_setting_string',
+        'show_plots_in_notebook',
     ]
 
     tmp_cfgs = ['w_oh_noise_backup',
