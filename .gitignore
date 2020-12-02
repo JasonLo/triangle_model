@@ -1,9 +1,5 @@
 **/all_*.txt
-*/batch_log/
-*tensor_board_log/
-O2S/embeddings
-O2S/from_noam
-O2S
+tensorboard_log/
 **models/
 *.ipynb_checkpoints
 *.zip
@@ -14,5 +10,3 @@ O2S
 **_weights
 __pycache__
 .vscode
-df_1M_200609.csv
-concept/acc_sse/1250_sims.csv
