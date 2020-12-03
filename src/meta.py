@@ -139,8 +139,9 @@ class model_cfg:
         'steps_per_epoch',
         'save_freq_sample',
         'eval_freq',
-        'bq_dataset',
         'batch_unique_setting_string',
+        'show_plots_in_notebook',
+        'batch_name'
     ]
 
     tmp_cfgs = ['w_oh_noise_backup',
@@ -156,7 +157,6 @@ class model_cfg:
                 'path_weights_list',
                 'path_plot_folder',
                 'path_weight_folder',
-                'path_log_folder',
                 'path_history_pickle',
                 'saved_epoch_list',
                 ]
@@ -187,7 +187,7 @@ class model_cfg:
         if not bypass_chk:
             self.chk_cfg()
 
-        if (just_chk == False):
+        if not just_chk:
             self.store_noise()
             self.gen_paths()
 
@@ -275,15 +275,13 @@ class model_cfg:
             self.embed_attractor_h5 = None
 
     def gen_paths(self):
-
+        
         self.path_model_folder = 'models/' + self.code_name + '/'
         self.path_weight_folder = self.path_model_folder + 'weights/'
         self.path_plot_folder = self.path_model_folder + 'plots/'
-        self.path_log_folder = self.path_model_folder + 'logs/'
 
         os.makedirs(self.path_weight_folder, exist_ok=True)
         os.makedirs(self.path_plot_folder, exist_ok=True)
-        os.makedirs(self.path_log_folder, exist_ok=True)
 
         # For model checkpoint
         self.path_weights_checkpoint = self.path_weight_folder + \
@@ -342,14 +340,12 @@ class model_cfg:
                 json.dump(save_cfg, f)
 
 
-def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
+def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_notebook):
     """
     Make batch cfg dictionary list that can feed into papermill
     """
 
     # Check batch json exist
-    batch_output_dir = "batch_eval/{}/".format(batch_name)
-
     batch_json = batch_output_dir + "batch_config.json"
 
     if os.path.isfile(batch_json):
@@ -410,7 +406,7 @@ def make_batch_cfg(batch_name, static_hpar, param_grid, in_notebook):
 
 
 def parse_batch_results(cfgs):
-    from evaluate import vis
+    from src.evaluate import vis
     from tqdm import tqdm
     """
     Parse and Concat all condition level results from item level csvs
@@ -440,19 +436,16 @@ def parse_batch_results(cfgs):
     return cfgs_df, pd.merge(evals_df, cfgs_df, 'left', 'code_name')
 
 
-
-
-
-class connect_gbq():
+class connect_gbq:
     """
     All things related to GBQ
     """
 
-    def __init__(self, pid='triangle-272405'):
+    def __init__(self, pid='triangle-272405', credential_json="triangle-e1fd21bb86a1.json"):
         from google.oauth2 import service_account
         self.pid = pid
         self.credentials = service_account.Credentials.from_service_account_file(
-            '../common/triangle-e1fd21bb86a1.json'
+            credential_json
         )
 
     def push_all(self, db_name, cfg, strain_i_hist, grain_i_hist, verbose=False):
