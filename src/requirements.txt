@@ -1,4 +1,5 @@
 # Minimal install script for new VM
-altair 
+altair
 nb_black
 nbstripout
+jupyter_contrib_nbextensions
