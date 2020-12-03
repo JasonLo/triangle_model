@@ -1,16 +1,19 @@
 # %% Environment
 import importlib
+import os
 import altair as alt
-from src import meta, data_wrangling
 import pandas as pd
 from IPython.display import clear_output
+
+os.chdir("/home/jupyter/tf")
+from src import data_wrangling, meta
 
 alt.data_transformers.disable_max_rows()
 importlib.reload(data_wrangling)
 
-cfg = meta.model_cfg(json_file='models/booboo/model_config.json')
+cfg = meta.model_cfg(json_file='models/test_sampling_speed_hparam/model_config.json')
 data = data_wrangling.MyData()
-working_directory = "issues/dynamic_frequency/"
+working_directory = "issues/developmental_sampler/dynamic_frequency/"
 
 
 def dry_run_sampler(sample_name, cfg, output_folder=working_directory):
@@ -31,7 +34,7 @@ def dry_run_sampler(sample_name, cfg, output_folder=working_directory):
     print("All done.")
 
 
-dry_run_sampler('wf_linear_cutoff', cfg)
+dry_run_sampler('developmental_rank_frequency', cfg)
 
 # %% Show frequency statistics
 
