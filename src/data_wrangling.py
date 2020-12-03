@@ -16,7 +16,7 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     return m_dict
 
 
-def get_sampling_probability(df_train, implementation, stage=None, ingested_training_sample=None, max_sample=None, verbose=False):
+def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingested_training_sample=None, max_sample=None, verbose=False):
     """ Return the sampling probability with different implementation
     Keyword arguments:
     df_train -- training set in pandas dataframe format, contain WSJ word frequency (wf) and Zeno frequency (gr*) 
@@ -30,10 +30,11 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         2. hs04: square root compression with bottom (1500) and top end (30000) clipping
         3. jay: square root compression with top end clipping (10000)
         4. chang: clip depending on stage, log compression
-        5. experimental: continous shifting sample
+        5. developmental_rank_frequency: continous shifting sample by rank of word frequency (Named as experimental prior to 3.0)
+        6. wf_linear_cutoff: continous shifting sample by raw word frequency
     """
 
-    assert implementation in ["log", "hs04", "jay", "chang", "experimental", "wf_linear_cutoff"]
+    assert implementation in ["log", "hs04", "jay", "chang", "developmental_rank_frequency", "wf_linear_cutoff"]
     compressed_wf = None
 
     if implementation == "log":
@@ -59,7 +60,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
 
         compressed_wf = np.log(clip + 1)
 
-    if implementation == "experimental":
+    if implementation == "developmental_rank_frequency":
         """ Continuous sampling set
         """
         # Top Clipping 30k
@@ -72,7 +73,6 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         progress = 0.03 + (ingested_training_sample/max_sample)
 
         # Speed scaling factor (g, how fast the training set grow)
-        g = 2  # For now
         progress *= g
 
         # Trim continuously
@@ -100,7 +100,6 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         progress = ingested_training_sample / max_sample
 
         # Speed scaling factor (g, how fast the training set grow)
-        g = 2 
         progress *= g
         progress = np.clip(progress, 0, 1)
 
@@ -220,6 +219,7 @@ class Sampling:
             this_p = get_sampling_probability(
                 df_train=self.data.df_train,
                 implementation=self.cfg.sample_name,
+                g=self.cfg.sampling_speed,
                 stage=self.current_stage,
                 ingested_training_sample=self.ingested_training_sample,
                 max_sample=self.cfg.n_mil_sample * 1_000_000

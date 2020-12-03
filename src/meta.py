@@ -60,6 +60,7 @@ class model_cfg:
 
     >>>TRAINING RELATED<<<
     sample_name: Sampling probability implementation name, see data_wrangling for details
+    sampling_speed: Only use in "developmental_rank_frequency" sampling, speed of introducing new words. High = earlier
     rng_seed: Random seed for sampling and tf
     w_initializer: Weight initializer
     regularizer_const: L2 regularization constant (in weight and biases)
@@ -117,6 +118,7 @@ class model_cfg:
                     'save_freq']
 
     aux_cfgs = [
+        'sampling_speed',
         'sem_param_gf',
         'sem_param_gi',
         'sem_param_kf',
@@ -192,7 +194,7 @@ class model_cfg:
             self.gen_paths()
 
             if (json_file == None):
-                self.write_cfg()
+                self.write_cfg_to_json()
 
     def init_from_dict(self):
         # Unique identifier
@@ -243,6 +245,9 @@ class model_cfg:
         if not all([x in vars(self) for x in self.minimal_cfgs]):
             raise ValueError(
                 'Some cfg is undefined, double check cfg contains all necessary params')
+
+        if self.sample_name == "developmental_rank_frequency":
+            assert type(self.sampling_speed) == float
 
         if self.use_semantic == True:
             if not (type(self.sem_param_gf) == float):
@@ -322,7 +327,7 @@ class model_cfg:
         self.bias_c_noise = self.bias_c_noise_backup
         self.bias_p_noise = self.bias_p_noise_backup
 
-    def write_cfg(self):
+    def write_cfg_to_json(self):
 
         if os.path.isfile(self.path_model_folder + 'model_config.json'):
             print('='*50)
