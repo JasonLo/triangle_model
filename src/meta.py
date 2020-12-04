@@ -8,7 +8,7 @@ import tensorflow as tf
 from tqdm import tqdm
 
 
-from scr.evaluate import vis
+from src.evaluate import vis
 
 
 def check_gpu():
@@ -45,58 +45,6 @@ def gpu_mem_cap(b=2048):
             pass
     else:
         print("No GPU")
-
-
-class dotdict(dict):
-    """dot.notation access to dictionary attributes"""
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-
-class ModelPath:
-    def __init__(self, tf_root, code_name, save_freq, total_number_of_epoch):
-        # Handle folders
-        self.model_folder = os.path.join(tf_root, "models", code_name)
-        self.weight_folder = os.path.join(self.model_folder, "weights")
-        self.plot_folder = os.path.join(self.model_folder, "plots")
-        self.tensorboard_folder = os.path.join(
-            tf_root, "tensorboard_log", code_name)
-
-        os.makedirs(self.weight_folder, exist_ok=True)
-        os.makedirs(self.plot_folder, exist_ok=True)
-
-        # Generate other path related stuffs
-        self.weights_checkpoint_fstring = os.path.join(
-            self.weight_folder, 'ep{epoch:04d}.h5')
-        self.history_pickle = os.path.join(self.model_folder, 'history.pkl')
-        self.save_epoches = list(
-            range(1, 11)) + list(range(10 + save_freq, total_number_of_epoch + 1, save_freq))
-        self.weights_list = [os.path.join(
-            self.weight_folder, f"ep{epoch:04d}.h5") for epoch in self.save_epoches]
-
-
-def make_path(self, tf_root, code_name, save_freq, total_number_of_epoch):
-
-    keys = ("model_folder", "weight_folder", "plot")
-    # Handle folders
-    self.model_folder = os.path.join(tf_root, "models", code_name)
-    self.weight_folder = os.path.join(self.model_folder, "weights")
-    self.plot_folder = os.path.join(self.model_folder, "plots")
-    self.tensorboard_folder = os.path.join(
-        tf_root, "tensorboard_log", code_name)
-
-    os.makedirs(self.weight_folder, exist_ok=True)
-    os.makedirs(self.plot_folder, exist_ok=True)
-
-    # Generate other path related stuffs
-    self.weights_checkpoint_fstring = os.path.join(
-        self.weight_folder, 'ep{epoch:04d}.h5')
-    self.history_pickle = os.path.join(self.model_folder, 'history.pkl')
-    self.save_epoches = list(
-        range(1, 11)) + list(range(10 + save_freq, total_number_of_epoch + 1, save_freq))
-    self.weights_list = [os.path.join(
-        self.weight_folder, f"ep{epoch:04d}.h5") for epoch in self.save_epoches]
 
 
 CORE_CONFIGS = ('code_name',
@@ -148,7 +96,7 @@ AUX_CONFIGS = ('sampling_speed',
                'eval_freq',
                'batch_unique_setting_string',
                'show_plots_in_notebook',
-               'batch_name',)
+               'batch_name')
 
 
 class ModelConfig:
@@ -210,28 +158,33 @@ class ModelConfig:
 
         if 'uuid' not in kwargs.keys():
             print("init from scratch")
-            self._check_cfg()
-            self._store_noise()
             self._init_from_scratch()
-            self.path = ModelPath(self.tf_root, self.code_name,
-                                  self.save_freq, self.total_number_of_epoch).__dict__
 
     @classmethod
     def from_json(cls, json_file):
         with open(json_file) as f:
             config_dict = json.load(f)
+        print(f"Loading config from {json_file}")
         return cls(**config_dict)
 
-    def save(self, json_file):
+    def save(self, json_file=None):
         self.noise_on()
+
+        if json_file is None:
+            json_file = os.path.join(
+                self.path["model_folder"], "model_config.json")
+
         with open(json_file, 'w') as f:
             json.dump(self.__dict__, f)
 
         print(f"Saved config json to {json_file}")
 
     def _init_from_scratch(self):
-        # Unique identifier
 
+        self._check_cfg()
+        self._store_noise()
+
+        # Unique identifier
         self.uuid = uuid.uuid4().hex
 
         # Additional convienient attributes
@@ -242,6 +195,34 @@ class ModelConfig:
         self.save_freq_sample = self.save_freq * \
             self.batch_size * self.steps_per_epoch  # For TF 2.1
         self.eval_freq = self.save_freq
+
+        self.saved_epoches = list(range(
+            1, 11)) + list(range(10 + self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
+        self.path = self._make_path()
+
+    def _make_path(self):
+        path_dict = {}
+        path_dict["tf_root"] = self.tf_root
+        path_dict["model_folder"] = os.path.join(
+            self.tf_root, "models", self.code_name)
+        path_dict["weight_folder"] = os.path.join(
+            path_dict["model_folder"], "weights")
+        path_dict["plot_folder"] = os.path.join(
+            path_dict["model_folder"], "plots")
+        path_dict["tensorboard_folder"] = os.path.join(
+            self.tf_root, "tensorboard_log", self.code_name)
+
+        path_dict["weights_checkpoint_fstring"] = os.path.join(
+            path_dict["weight_folder"], 'ep{epoch:04d}.h5')
+        path_dict["history_pickle"] = os.path.join(
+            path_dict["model_folder"], 'history.pkl')
+        path_dict["weights_list"] = [os.path.join(
+            path_dict["weight_folder"], f"ep{epoch:04d}.h5") for epoch in self.saved_epoches]
+
+        os.makedirs(path_dict["weight_folder"], exist_ok=True)
+        os.makedirs(path_dict["plot_folder"], exist_ok=True)
+
+        return path_dict
 
     def _store_noise(self):
         # Noise management

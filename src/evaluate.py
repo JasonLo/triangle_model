@@ -1,7 +1,7 @@
-import ast
-
 import altair as alt
 import h5py
+
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -9,7 +9,8 @@ import seaborn as sns
 import tensorflow as tf
 from IPython.display import clear_output
 
-from src.data_wrangling import test_set_input
+from src.data_wrangling import MyData, test_set_input
+from src.meta import ModelConfig
 
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
@@ -145,7 +146,7 @@ def plot_variables(model, save_file=None):
 class testset():
     """
     Testset class for evaluating testset
-    1. Load model h5 by cfg files provided list (cfg.path_weights_list)
+    1. Load model h5 by cfg files provided list (cfg.path["weights_list"])
     2. Evaluate test set in each h5 (including every timesteps)
     3. Stitch to one csv file
     """
@@ -220,12 +221,12 @@ class testset():
 
     def start_evaluate(self, test_use_semantic, output=None):
 
-        for model_idx, model_h5_name in enumerate(self.cfg.path_weights_list):
+        for model_idx, model_h5_name in enumerate(self.cfg.path["weights_list"]):
 
             # Verbose progress
             clear_output(wait=True)
             progress = model_idx + 1
-            totalworks = len(self.cfg.path_weights_list)
+            totalworks = len(self.cfg.path["weights_list"])
             print(
                 "Evaluating test set: {}%".format(
                     np.round(100 * progress / totalworks, 0)
@@ -249,7 +250,8 @@ class testset():
                 )
 
                 if self.cfg.use_semantic:
-                    item_eval['input_s'] = test_input[1][:, timestep, 0]  # Dimension guide: item, timestep, p_unit_id
+                    # Dimension guide: item, timestep, p_unit_id
+                    item_eval['input_s'] = test_input[1][:, timestep, 0]
                 else:
                     item_eval['input_s'] = 0
 
@@ -486,40 +488,29 @@ class vis():
     # Which will parse item level data to condition level data
     # Then plot with Altair
     def __init__(self, model_folder):
-        import altair as alt
-
-        from src.data_wrangling import MyData
-        from src.meta import ModelConfig
-
-        self.model_folder = model_folder
-        self.cfg = ModelConfig(
-            self.model_folder + '/model_config.json', bypass_chk=True
-        )
-        self.strain_i_hist = pd.read_csv(
-            self.model_folder + '/result_strain_item.csv'
-        )
-        self.grain_i_hist = pd.read_csv(
-            self.model_folder + '/result_grain_item.csv'
-        )
-        self.taraban_i_hist = pd.read_csv(
-            self.model_folder + '/result_taraban_item.csv'
-        )
-        self.glushko_i_hist = pd.read_csv(
-            self.model_folder + '/result_glushko_item.csv'
-        )
+        self.cfg = ModelConfig.from_json(
+            os.path.join(model_folder, "model_config.json"))
+        self.strain_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_strain_item.csv'))
+        self.grain_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_grain_item.csv'))
+        self.taraban_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_taraban_item.csv'))
+        self.glushko_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_glushko_item.csv'))
 
         self.parse_cond_df()
-        self.weight = weight(self.cfg.path_weights_list[-1])
+        self.weight = weight(self.cfg.path["weights_list"][-1])
 
     def training_hist(self):
-        self.t_hist = training_history(self.cfg.path_history_pickle)
+        self.t_hist = training_history(self.cfg.path["history_pickle"])
         return self.t_hist.plot_all()
 
     def load_weight(self, epoch=None):
 
         if epoch is not None:
             self.weight = weight(
-                self.cfg.path_weights_checkpoint.format(epoch=epoch))
+                self.cfg.path["weights_checkpoint_fstring"])
 
     # Condition level parsing
     def parse_strain_cond_df(self, cond):
