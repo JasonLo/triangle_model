@@ -61,6 +61,8 @@ class model_cfg:
     >>>TRAINING RELATED<<<
     sample_name: Sampling probability implementation name, see data_wrangling for details
     sampling_speed: Only use in "developmental_rank_frequency" sampling, speed of introducing new words. High = earlier
+                    Already adjusted by the no.of sample in the model (cfg.n_mil_sample)
+                    See data_wrangling.get_sampling_probability() for details
     rng_seed: Random seed for sampling and tf
     w_initializer: Weight initializer
     regularizer_const: L2 regularization constant (in weight and biases)
@@ -95,6 +97,7 @@ class model_cfg:
     p_noise: Gaussian noise in phonolgical system (W_pp, W_pc, W_cp)
     """
     minimal_cfgs = ['code_name',
+                    'path_tf_root',
                     'sample_name',
                     'rng_seed',
                     'use_semantic',
@@ -143,7 +146,7 @@ class model_cfg:
         'eval_freq',
         'batch_unique_setting_string',
         'show_plots_in_notebook',
-        'batch_name'
+        'batch_name',
     ]
 
     tmp_cfgs = ['w_oh_noise_backup',
@@ -154,7 +157,6 @@ class model_cfg:
                 'bias_h_noise_backup',
                 'bias_c_noise_backup',
                 'bias_p_noise_backup',
-                'path_model_folder',
                 'path_weights_checkpoint',
                 'path_weights_list',
                 'path_plot_folder',
@@ -280,19 +282,16 @@ class model_cfg:
             self.embed_attractor_h5 = None
 
     def gen_paths(self):
-        
-        self.path_model_folder = 'models/' + self.code_name + '/'
+        self.path_model_folder = self.path_tf_root + '/models/' + self.code_name + '/'
         self.path_weight_folder = self.path_model_folder + 'weights/'
         self.path_plot_folder = self.path_model_folder + 'plots/'
 
         os.makedirs(self.path_weight_folder, exist_ok=True)
         os.makedirs(self.path_plot_folder, exist_ok=True)
 
-        # For model checkpoint
         self.path_weights_checkpoint = self.path_weight_folder + \
             'ep{epoch:04d}.h5'
         self.path_history_pickle = self.path_model_folder + 'history.pickle'
-
         self.path_weights_list = []
         self.saved_epoch_list = []
 
