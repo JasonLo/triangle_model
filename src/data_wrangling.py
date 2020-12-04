@@ -34,7 +34,8 @@ def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingest
         6. wf_linear_cutoff: continous shifting sample by raw word frequency
     """
 
-    assert implementation in ["log", "hs04", "jay", "chang", "developmental_rank_frequency", "wf_linear_cutoff"]
+    assert implementation in ["log", "hs04", "jay", "chang",
+                              "developmental_rank_frequency", "wf_linear_cutoff"]
     compressed_wf = None
 
     if implementation == "log":
@@ -87,8 +88,6 @@ def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingest
 
         # Sqrt compression
         compressed_wf = np.sqrt(clip_wf)
-
-
 
     if implementation == "wf_linear_cutoff":
         """ Continuous sampling set with raw frequency as cutoff
@@ -151,7 +150,7 @@ class Sampling:
         return (t/tmax)*(numer_f/denom_f)
 
     def get_semantic_input_from_idx(self, idx):
-        """ return pho x theoretical semantic_input
+        """ return theoretical semantic_input
         """
         batch_semantic_input = np.zeros(
             (self.cfg.batch_size, self.cfg.n_timesteps, self.cfg.output_dim))
@@ -198,10 +197,12 @@ class Sampling:
 
                     # dynamic word frequency
                     for key, value in self.dynamic_corpus.items():
-                        self.debug_log_dynamic_wf.loc[key, tmp_column_name] = value
+                        self.debug_log_dynamic_wf.loc[key,
+                                                      tmp_column_name] = value
 
                     # corpus size
-                    tmp_corpus_size = sum(self.debug_log_dynamic_wf[tmp_column_name]>0)
+                    tmp_corpus_size = sum(
+                        self.debug_log_dynamic_wf[tmp_column_name] > 0)
                     self.debug_log_corpus_size.append(tmp_corpus_size)
 
             self.current_batch += 1
@@ -268,7 +269,9 @@ class Sampling:
             2_200_000,
         ]
 
-        if normalize: sample_cutoffs = np.divide(sample_cutoffs, 5.2) # Total training in ME10 = 5.2M
+        if normalize:
+            # Total training in ME10 = 5.2M
+            sample_cutoffs = np.divide(sample_cutoffs, 5.2)
 
         return sum(sample > np.array(sample_cutoffs))
 
