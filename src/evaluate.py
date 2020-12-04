@@ -232,7 +232,7 @@ class testset():
                 )
             )
 
-            epoch = self.cfg.saved_epoch_list[model_idx]
+            epoch = self.cfg.saved_epoches[model_idx]
             self.model.load_weights(model_h5_name)
 
             test_input = test_set_input(
@@ -489,10 +489,10 @@ class vis():
         import altair as alt
 
         from src.data_wrangling import MyData
-        from src.meta import model_cfg
+        from src.meta import ModelConfig
 
         self.model_folder = model_folder
-        self.cfg = model_cfg(
+        self.cfg = ModelConfig(
             self.model_folder + '/model_config.json', bypass_chk=True
         )
         self.strain_i_hist = pd.read_csv(
@@ -655,14 +655,14 @@ class vis():
 
         # Slider epoch filter
         slider_epoch = alt.binding_range(
-            min=self.cfg.save_freq, max=self.cfg.nEpo, step=self.cfg.save_freq
+            min=self.cfg.save_freq, max=self.cfg.total_number_of_epoch, step=self.cfg.save_freq
         )
 
         select_epoch = alt.selection_single(
             name="filter",
             fields=['epoch'],
             bind=slider_epoch,
-            init={'epoch': self.cfg.nEpo}
+            init={'epoch': self.cfg.total_number_of_epoch}
         )
 
         # Plot

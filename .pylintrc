@@ -1,2 +1,2 @@
 [TYPECHECK]
-ignored-classes=model_cfg
+ignored-classes=ModelConfig

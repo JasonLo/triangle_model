@@ -11,7 +11,7 @@ from src import data_wrangling, meta
 alt.data_transformers.disable_max_rows()
 importlib.reload(data_wrangling)
 
-cfg = meta.model_cfg(json_file='models/test_sampling_speed_hparam/model_config.json')
+cfg = meta.ModelConfig(json_file='models/test_sampling_speed_hparam/model_config.json')
 data = data_wrangling.MyData()
 working_directory = "issues/developmental_sampler/dynamic_frequency/"
 
