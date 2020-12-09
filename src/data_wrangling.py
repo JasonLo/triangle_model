@@ -1,9 +1,12 @@
 import pickle
+import sys
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from IPython.display import clear_output
+
+sys.path.append("/home/jupyter/tf/src/")
+import modeling
 
 
 def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
@@ -135,48 +138,55 @@ class Sampling:
         # For debugging only
         if self.debugging:
             self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
-            self.debug_log_dynamic_wf = pd.DataFrame(
+            self.debug_wf = pd.DataFrame(
                 index=self.data.df_train.word)  # Copy word as index
-            self.debug_log_epoch = []
-            self.debug_log_corpus_size = []
+            self.debug_sem = pd.DataFrame(
+                index=self.data.df_train.word)
+            self.debug_epoch = []
+            self.debug_corpus_size = []
 
-    def semantic_formula(self, e, t, f, i, gf, gi, kf, ki, tmax=3.8,
-                         mf=4.4743, sf=2.4578, mi=4.1988, si=1.0078, hf=0, hi=0):
-        # Semantic refresh V1
+    def set_semantic_parameters(self, **kwargs):
+        self.semantic_params = kwargs
 
-        numer_f = gf * e * np.log(f+2)
-        denom_f = e * np.log(f+2) + kf
-
-        return (t/tmax)*(numer_f/denom_f)
-
-    def get_semantic_input_from_idx(self, idx):
-        """ return theoretical semantic_input
+    def semantic_input(self, f):
+        """Semantic equation
+        f: word frequency
         """
-        batch_semantic_input = np.zeros(
-            (self.cfg.batch_size, self.cfg.n_timesteps, self.cfg.output_dim))
+        g = self.semantic_params["g"]
+        k = self.semantic_params["k"]
 
-        for t in range(self.cfg.n_timesteps):
-            semantic_input_at_tick_t = self.semantic_formula(
-                e=self.current_epoch,
-                t=t * self.cfg.tau,
-                # Semantic equation is using static word frequency now
-                f=self.data.wf[idx],
-                i=self.data.img[idx],
-                gf=self.cfg.sem_param_gf,
-                gi=self.cfg.sem_param_gi,
-                kf=self.cfg.sem_param_kf,
-                ki=self.cfg.sem_param_ki,
-                hf=self.cfg.sem_param_hf,
-                hi=self.cfg.sem_param_hi,
-                tmax=self.cfg.max_unit_time - self.cfg.tau
-            )
+        numer = g * np.log(f + 2)
+        denom = np.log(f + 2) + k
+        return numer / denom
 
-            batch_semantic_input[:, t, :] = np.tile(
-                np.expand_dims(semantic_input_at_tick_t, 1), [
-                    1, self.cfg.output_dim]
-            )
+    # def get_semantic_input_from_idx(self, idx):
+    #     """ return theoretical semantic_input
+    #     """
+    #     batch_semantic_input = np.zeros(
+    #         (self.cfg.batch_size, self.cfg.n_timesteps, self.cfg.output_dim))
 
-        return batch_semantic_input
+    #     for t in range(self.cfg.n_timesteps):
+    #         semantic_input_at_tick_t = self.semantic_formula(
+    #             e=self.current_epoch,
+    #             t=t * self.cfg.tau,
+    #             # Semantic equation is using static word frequency now
+    #             f=self.data.wf[idx],
+    #             i=self.data.img[idx],
+    #             gf=self.cfg.sem_param_gf,
+    #             gi=self.cfg.sem_param_gi,
+    #             kf=self.cfg.sem_param_kf,
+    #             ki=self.cfg.sem_param_ki,
+    #             hf=self.cfg.sem_param_hf,
+    #             hi=self.cfg.sem_param_hi,
+    #             tmax=self.cfg.max_unit_time - self.cfg.tau
+    #         )
+
+    #         batch_semantic_input[:, t, :] = np.tile(
+    #             np.expand_dims(semantic_input_at_tick_t, 1), [
+    #                 1, self.cfg.output_dim]
+    #         )
+
+    #     return batch_semantic_input
 
     def sample_generator(self, verbose=False):
         """Dimension guide: (batch_size, timesteps, p_nodes)"""
@@ -189,21 +199,27 @@ class Sampling:
                     # Snapshot dynamic corpus
 
                     # epoch
-                    self.debug_log_epoch.append(self.current_epoch - 1)
+                    self.debug_epoch.append(self.current_epoch - 1)
 
                     # init dynamic word frequency column
-                    tmp_column_name = f"wf_at_epoch_{self.current_epoch}"
-                    self.debug_log_dynamic_wf[tmp_column_name] = 0
+                    wf_col_name = f"wf_at_epoch_{self.current_epoch}"
+                    self.debug_wf[wf_col_name] = 0
 
-                    # dynamic word frequency
+                    # init dynamic semantic input column
+                    sem_col_name = f"sem_at_epoch_{self.current_epoch}"
+                    self.debug_sem[sem_col_name] = 0
+
+                    # snapshot dynamic word frequency & semantic input
                     for key, value in self.dynamic_corpus.items():
-                        self.debug_log_dynamic_wf.loc[key,
-                                                      tmp_column_name] = value
+                        self.debug_wf.loc[key, wf_col_name] = value
+
+                        self.debug_sem.loc[key, sem_col_name] = self.semantic_input(
+                            value)
 
                     # corpus size
                     tmp_corpus_size = sum(
-                        self.debug_log_dynamic_wf[tmp_column_name] > 0)
-                    self.debug_log_corpus_size.append(tmp_corpus_size)
+                        self.debug_wf[wf_col_name] > 0)
+                    self.debug_corpus_size.append(tmp_corpus_size)
 
             self.current_batch += 1
 
@@ -283,8 +299,6 @@ def test_set_input(
     If model use semantic, we need to return a list of 3 inputs (x, s[time step varying], y), otherwise (x) is enough
     """
 
-    from src.modeling import input_s
-
     if cfg.use_semantic:
         batch_s = np.zeros(
             (len(x_test), cfg.n_timesteps, cfg.output_dim)
@@ -293,7 +307,7 @@ def test_set_input(
 
         if test_use_semantic:
             for t in range(cfg.n_timesteps):
-                s_cell = input_s(
+                s_cell = modeling.input_s(
                     e=epoch,
                     t=t * cfg.tau,
                     f=x_test_wf,

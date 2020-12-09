@@ -3,8 +3,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-
-# %%
 class SemanticExperiment:
     """Semantic experiment class for evaluating semantic equation"""
 
@@ -29,6 +27,8 @@ class SemanticExperiment:
         numer = self.g * np.log(f + 2) * T
         denom = np.log(f + 2) * T + self.k
         return numer / denom
+
+
 
     def _make_df(self):
         df = pd.DataFrame()
@@ -94,18 +94,9 @@ class SemanticExperiment:
         for contrast in contrasts:
             ax.plot(self.df.epoch, self.df[f"{contrast}_activation"], label=contrast)
         ax.legend()
-    
-        
 
-# %% This should serve as a baseline (Plaut 96, rescaled to 100 epochs)
-SemanticExperiment(g=5, k=100).plot()
 
 # %%
-import sys
-sys.path.append("/home/jupyter/tf/src")
-import data_wrangling, meta
-
-
-data = MyData()
+SemanticExperiment(g=5, k=100).plot()   
 
 # %%
