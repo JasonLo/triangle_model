@@ -115,4 +115,20 @@ class OutputOfOneTarget(tf.keras.metrics.Metric):
     def reset_states(self):
         self.out.assign(0.0)
 
+class InputOfOneTarget(tf.keras.metrics.Metric):
+
+    def __init__(self, name="mean_input_of_one_target", **kwargs):
+        super(InputOfOneTarget, self).__init__(name=name, **kwargs)
+        self.out = self.add_weight(name="mean_input_of_one_target", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        act_ones = y_pred[y_true == 1]
+        input_ones = -tf.math.log(1./act_ones - 1.)
+        self.out.assign(tf.reduce_mean(input_ones))
+
+    def result(self):
+        return self.out
+
+    def reset_states(self):
+        self.out.assign(0.0)
 

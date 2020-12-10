@@ -1,16 +1,18 @@
+import os
+import pickle
+import sys
+
 import altair as alt
 import h5py
-
-import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import tensorflow as tf
 from IPython.display import clear_output
 
-from src.data_wrangling import MyData, test_set_input
-from src.meta import ModelConfig
+sys.path.append("/home/jupyter/tf/src/")
+import data_wrangling
+import meta
 
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
@@ -26,7 +28,6 @@ def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
 
 class training_history():
     def __init__(self, pickle_file):
-        import pickle
 
         self.pickle_file = pickle_file
         pickle_in = open(self.pickle_file, "rb")
@@ -173,7 +174,6 @@ class testset():
         self.i_hist = pd.DataFrame()  # item history
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
-        from src.modeling import input_s
 
         # Item level statistics
         item_eval = self.key_df
@@ -236,7 +236,7 @@ class testset():
             epoch = self.cfg.saved_epoches[model_idx]
             self.model.load_weights(model_h5_name)
 
-            test_input = test_set_input(
+            test_input = data_wrangling.test_set_input(
                 self.x_test, self.x_test_wf, self.x_test_img,
                 self.y_true_matrix, epoch, self.cfg, test_use_semantic
             )
@@ -284,7 +284,6 @@ class testset():
         self.i_hist['sample_mil'] = self.i_hist['sample'] / 1e6
 
     def read_eval_from_file(self, file):
-        import pandas as pd
         self.i_hist = pd.read_csv(file)
         print('Done')
 
@@ -396,8 +395,6 @@ class glushko_eval(testset):
         self.pho_dict = data.pho_glushko
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
-        from src.modeling import input_s
-
         # Item level statistics
         item_eval = self.key_df
         item_eval['model'] = h5_name
@@ -488,7 +485,7 @@ class vis():
     # Which will parse item level data to condition level data
     # Then plot with Altair
     def __init__(self, model_folder):
-        self.cfg = ModelConfig.from_json(
+        self.cfg = meta.ModelConfig.from_json(
             os.path.join(model_folder, "model_config.json"))
         self.strain_i_hist = pd.read_csv(os.path.join(
             model_folder, 'result_strain_item.csv'))
@@ -706,6 +703,8 @@ def parse_mikenet_weight(file):
     All TAOS and DELAYS are ignored
     """
     raw = dict()
+    vname = None
+    vector = None
     with open(file, "r") as f:
         for i, line in enumerate(f):
             try:

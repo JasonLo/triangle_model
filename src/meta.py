@@ -2,13 +2,14 @@ import itertools
 import json
 import os
 import uuid
+import sys
 
 import pandas as pd
 import tensorflow as tf
 from tqdm import tqdm
 
-
-from src.evaluate import vis
+sys.path.append("/home/jupyter/tf/src/")
+from evaluate import vis
 
 
 def check_gpu():
