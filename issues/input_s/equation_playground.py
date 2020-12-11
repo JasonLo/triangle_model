@@ -166,9 +166,5 @@ class SemanticExperiment:
 
 
 # %%
-proto3 = SemanticExperiment(**{"g":100, "k":100, "d":100})
-proto3.plot_input()
-# %%
-proto3.plot_strain()
-
-
+proto4 = SemanticExperiment(**{"g":100, "k":100, "d":100})
+proto4.plot_strain()
