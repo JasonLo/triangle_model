@@ -153,8 +153,8 @@ class Sampling:
         k = self.semantic_params["k"]
         d = self.semantic_params["d"]
 
-        numer = g * d* np.log(f + 1)
-        denom = d * np.log(f + 1) + k
+        numer = g * d* np.log(f + 10)
+        denom = d * np.log(f + 10) + k
         return numer / denom
 
     # def get_semantic_input_from_idx(self, idx):
