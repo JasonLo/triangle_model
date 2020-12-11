@@ -8,7 +8,6 @@ from IPython.display import clear_output
 sys.path.append("/home/jupyter/tf/src/")
 import modeling
 
-
 def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     """ Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
@@ -138,10 +137,8 @@ class Sampling:
         # For debugging only
         if self.debugging:
             self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
-            self.debug_wf = pd.DataFrame(
-                index=self.data.df_train.word)  # Copy word as index
-            self.debug_sem = pd.DataFrame(
-                index=self.data.df_train.word)
+            self.debug_wf = []
+            self.debug_sem = []
             self.debug_epoch = []
             self.debug_corpus_size = []
 
@@ -155,8 +152,8 @@ class Sampling:
         g = self.semantic_params["g"]
         k = self.semantic_params["k"]
 
-        numer = g * np.log(f + 2)
-        denom = np.log(f + 2) + k
+        numer = g * np.log(f + 1)
+        denom = np.log(f + 1) + k
         return numer / denom
 
     # def get_semantic_input_from_idx(self, idx):
@@ -188,38 +185,27 @@ class Sampling:
 
     #     return batch_semantic_input
 
-    def sample_generator(self, verbose=False):
+    def sample_generator(self, dryrun=False):
         """Dimension guide: (batch_size, timesteps, p_nodes)"""
         while True:
             # Start counting Epoch and Batch
             if self.current_batch % self.cfg.steps_per_epoch == 0:
-                self.current_epoch += 1
 
                 if self.debugging:
                     # Snapshot dynamic corpus
+                    self.debug_epoch.append(self.current_epoch)
 
-                    # epoch
-                    self.debug_epoch.append(self.current_epoch - 1)
+                    tmp_wf = self.dynamic_corpus.copy()
+                    self.debug_wf.append(tmp_wf)
 
-                    # init dynamic word frequency column
-                    wf_col_name = f"wf_at_epoch_{self.current_epoch}"
-                    self.debug_wf[wf_col_name] = 0
-
-                    # init dynamic semantic input column
-                    sem_col_name = f"sem_at_epoch_{self.current_epoch}"
-                    self.debug_sem[sem_col_name] = 0
-
-                    # snapshot dynamic word frequency & semantic input
-                    for key, value in self.dynamic_corpus.items():
-                        self.debug_wf.loc[key, wf_col_name] = value
-
-                        self.debug_sem.loc[key, sem_col_name] = self.semantic_input(
-                            value)
-
-                    # corpus size
-                    tmp_corpus_size = sum(
-                        self.debug_wf[wf_col_name] > 0)
+                    tmp_corpus_size = sum(wf > 0 for wf in tmp_wf.values())
                     self.debug_corpus_size.append(tmp_corpus_size)
+
+                    tmp_semantic_input = {k: self.semantic_input(
+                        v) for k, v in tmp_wf.items()}
+                    self.debug_sem.append(tmp_semantic_input)
+
+                self.current_epoch += 1
 
             self.current_batch += 1
 
@@ -228,10 +214,6 @@ class Sampling:
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
                     self.ingested_training_sample, normalize=True)
-                if verbose:
-                    print(
-                        f"Stage: {self.current_stage}, Epoch: {self.current_epoch}, Sample: {self.ingested_training_sample}")
-                    clear_output(wait=True)
 
             this_p = get_sampling_probability(
                 df_train=self.data.df_train,
@@ -242,29 +224,32 @@ class Sampling:
                 max_sample=self.cfg.n_mil_sample * 1_000_000
             )
 
+            # Sample
             idx = np.random.choice(
                 range(len(this_p)), self.cfg.batch_size, p=this_p
             )
 
-            # Debug log
-            if self.debugging:
-                for word_id in idx:
-                    self.dynamic_corpus[self.data.df_train.word[word_id]] += 1
+            # Update dynamic corpus
+            for key in self.data.df_train.word.loc[idx]:
+                self.dynamic_corpus[key] += 1
 
-            # Copy y_train by the number of output ticks
-            batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
-
-            # Log ingested training sampling
-            self.ingested_training_sample += self.cfg.batch_size
-
-            if self.cfg.use_semantic:
-                semantic_input = self.get_semantic_input_from_idx(idx)
-                phonological_input = 2 * self.data.y_train[idx] - 1
-
-                # Training set need to return 3 components (ort, sem, pho)
-                yield ([self.data.x_train[idx], semantic_input, phonological_input], batch_y)
+            if dryrun:
+                yield (self.current_batch)
             else:
-                yield (self.data.x_train[idx], batch_y)
+                # Copy y_train by the number of output ticks
+                batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
+
+                # Log ingested training sampling
+                self.ingested_training_sample += self.cfg.batch_size
+
+                if self.cfg.use_semantic:
+                    semantic_input = self.get_semantic_input_from_idx(idx)
+                    phonological_input = 2 * self.data.y_train[idx] - 1
+
+                    # Training set need to return 3 components (ort, sem, pho)
+                    yield ([self.data.x_train[idx], semantic_input, phonological_input], batch_y)
+                else:
+                    yield (self.data.x_train[idx], batch_y)
 
     def get_stage(self, sample, normalize=False):
         """ Get stage of training. See Monaghan & Ellis, 2010 """
