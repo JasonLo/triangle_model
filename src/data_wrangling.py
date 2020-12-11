@@ -132,11 +132,11 @@ class Sampling:
         self.current_epoch = 0
         self.current_batch = 0
         self.current_stage = 0
+        self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
         np.random.seed(cfg.rng_seed)
 
         # For debugging only
         if self.debugging:
-            self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
             self.debug_wf = []
             self.debug_sem = []
             self.debug_epoch = []
@@ -194,16 +194,9 @@ class Sampling:
                 if self.debugging:
                     # Snapshot dynamic corpus
                     self.debug_epoch.append(self.current_epoch)
-
-                    tmp_wf = self.dynamic_corpus.copy()
-                    self.debug_wf.append(tmp_wf)
-
-                    tmp_corpus_size = sum(wf > 0 for wf in tmp_wf.values())
-                    self.debug_corpus_size.append(tmp_corpus_size)
-
-                    tmp_semantic_input = {k: self.semantic_input(
-                        v) for k, v in tmp_wf.items()}
-                    self.debug_sem.append(tmp_semantic_input)
+                    self.debug_wf.append(self.dynamic_corpus.copy())
+                    self.debug_corpus_size.append(sum(wf > 0 for wf in self.debug_wf[-1].values()))
+                    self.debug_sem.append({k: self.semantic_input(v) for k, v in self.debug_wf[-1].items()})
 
                 self.current_epoch += 1
 
@@ -226,21 +219,22 @@ class Sampling:
 
             # Sample
             idx = np.random.choice(
-                range(len(this_p)), self.cfg.batch_size, p=this_p
-            )
+                range(len(this_p)), self.cfg.batch_size, p=this_p)
 
             # Update dynamic corpus
             for key in self.data.df_train.word.loc[idx]:
                 self.dynamic_corpus[key] += 1
 
+            # Log ingested training sampling
+            self.ingested_training_sample += self.cfg.batch_size
+
             if dryrun:
                 yield (self.current_batch)
             else:
+                # Real output
+                
                 # Copy y_train by the number of output ticks
                 batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
-
-                # Log ingested training sampling
-                self.ingested_training_sample += self.cfg.batch_size
 
                 if self.cfg.use_semantic:
                     semantic_input = self.get_semantic_input_from_idx(idx)
