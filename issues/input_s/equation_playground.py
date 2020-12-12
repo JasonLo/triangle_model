@@ -1,4 +1,5 @@
 # %% Equation playground
+from os import sched_yield
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
@@ -166,8 +167,106 @@ class SemanticExperiment:
 
 
 # %%
-proto6 = SemanticExperiment(**{"g":5, "k":100, "d":2000})
-proto6.plot_strain()
+proto7 = SemanticExperiment(**{"g":5, "k":100, "d":2000, "h":2})
+proto7.plot_strain()
+
+
+# %%
+
+# HF cumu progression
+epoch = np.arange(100)
+
+# From sampler (somewhat accurate)
+cwf_hf = np.linspace(0, 650, 100)
+cwf_lf = np.concatenate((np.linspace(0, 5, 10),  np.linspace(5, 130, 90)))
+
+g = 5
+d = 1
+k = 100
+h = 100
+w = 2
+
+
+def f(x):
+    numer = g * x * np.log(h * x + w)
+    denom = x * np.log(h * x + w) + k
+    return numer/denom
+
+
+hf = f(cwf_hf)
+lf = f(cwf_lf)
+eff = hf-lf
+
+
+fig, ax = plt.subplots()
+ax.plot(epoch, hf, label="HF")
+ax.plot(epoch, lf, label="LF")
+ax.plot(epoch, eff, label="frequency effect")
+ax.legend()
+plt.show()
+
+
+# %% Brute force it... damn
+import tensorflow as tf
+
+BATCH_SIZE = 128
+
+
+# Create training dataset
+x_train = np.array(data.df_train.wf)
+y_train = np.zeros((len(x_train), 100))
+
+def sem_pmsp(f, g, T, k):
+    numer = g * T * np.log(f+2)
+    denom = T * np.log(f+2) + k
+    return numer/denom 
+
+for i, x in enumerate(x_train):
+    y_train[i] = [sem_pmsp(x, 5, t, 100) for t in range(100)]
+
+train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+train_dataset = train_dataset.shuffle(buffer_size=1000).batch(BATCH_SIZE)
+
+
+
+
+#%%
+def sem_eq(f, g, h, w, k):
+    numer = g * f * np.log(h * f + w)
+    denom = f * np.log(h * f + w) + k
+    return numer/denom
+# %%
+    
+
+class MyModel(tf.keras.Model):
+    def __init__(self):
+        super(MyModel, self).__init__()
+        self.g = tf.Variable(tf.random.uniform((1,), dtype=tf.float32))
+        self.h = tf.Variable(tf.random.uniform((1,), dtype=tf.float32))
+        self.w = tf.Variable(tf.random.uniform((1,), dtype=tf.float32))
+        self.k = tf.Variable(tf.random.uniform((1,), dtype=tf.float32))
+
+    def call(self, x):
+        x = x * 0.08
+        x = tf.multiply(tf.cast(tf.range(100), tf.float32), x)
+        tmp = tf.math.log(tf.add(tf.multiply(self.h, x), self.w))
+        numer = tf.multiply(tf.multiply(self.g, x), tmp)
+        denom = tf.add(self.k, tf.multiply(x, tmp))
+        return tf.math.divide_no_nan(numer, denom)
+
+# Create an instance of the model
+model = MyModel()
+
+
+model(10.).numpy()
+# %%
+
+loss_object = tf.keras.losses.MeanSquaredError()
+optimizer = tf.keras.optimizers.Adam()
+
+def loss_function()
+
+
 
 
 # %%
