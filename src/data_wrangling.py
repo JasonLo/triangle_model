@@ -1,10 +1,12 @@
 import pickle
+import sys
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from IPython.display import clear_output
 
+sys.path.append("/home/jupyter/tf/src/")
+import modeling
 
 def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     """ Read phonological patterns from the mapping file
@@ -16,7 +18,7 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     return m_dict
 
 
-def get_sampling_probability(df_train, implementation, stage=None, ingested_training_sample=None, max_sample=None, verbose=False):
+def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingested_training_sample=None, max_sample=None, verbose=False):
     """ Return the sampling probability with different implementation
     Keyword arguments:
     df_train -- training set in pandas dataframe format, contain WSJ word frequency (wf) and Zeno frequency (gr*) 
@@ -30,10 +32,12 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         2. hs04: square root compression with bottom (1500) and top end (30000) clipping
         3. jay: square root compression with top end clipping (10000)
         4. chang: clip depending on stage, log compression
-        5. experimental: continous shifting sample
+        5. developmental_rank_frequency: continous shifting sample by rank of word frequency (Named as experimental prior to 3.0)
+        6. wf_linear_cutoff: continous shifting sample by raw word frequency
     """
 
-    assert implementation in ["log", "hs04", "jay", "chang", "experimental", "wf_linear_cutoff"]
+    assert implementation in ["log", "hs04", "jay", "chang",
+                              "developmental_rank_frequency", "wf_linear_cutoff"]
     compressed_wf = None
 
     if implementation == "log":
@@ -59,7 +63,7 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
 
         compressed_wf = np.log(clip + 1)
 
-    if implementation == "experimental":
+    if implementation == "developmental_rank_frequency":
         """ Continuous sampling set
         """
         # Top Clipping 30k
@@ -72,7 +76,6 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         progress = 0.03 + (ingested_training_sample/max_sample)
 
         # Speed scaling factor (g, how fast the training set grow)
-        g = 2  # For now
         progress *= g
 
         # Trim continuously
@@ -88,8 +91,6 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         # Sqrt compression
         compressed_wf = np.sqrt(clip_wf)
 
-
-
     if implementation == "wf_linear_cutoff":
         """ Continuous sampling set with raw frequency as cutoff
         """
@@ -100,7 +101,6 @@ def get_sampling_probability(df_train, implementation, stage=None, ingested_trai
         progress = ingested_training_sample / max_sample
 
         # Speed scaling factor (g, how fast the training set grow)
-        g = 2 
         progress *= g
         progress = np.clip(progress, 0, 1)
 
@@ -132,78 +132,75 @@ class Sampling:
         self.current_epoch = 0
         self.current_batch = 0
         self.current_stage = 0
+        self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
         np.random.seed(cfg.rng_seed)
 
         # For debugging only
         if self.debugging:
-            self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
-            self.debug_log_dynamic_wf = pd.DataFrame(
-                index=self.data.df_train.word)  # Copy word as index
-            self.debug_log_epoch = []
-            self.debug_log_corpus_size = []
+            self.debug_wf = []
+            self.debug_sem = []
+            self.debug_epoch = []
+            self.debug_corpus_size = []
 
-    def semantic_formula(self, e, t, f, i, gf, gi, kf, ki, tmax=3.8,
-                         mf=4.4743, sf=2.4578, mi=4.1988, si=1.0078, hf=0, hi=0):
-        # Semantic refresh V1
+    def set_semantic_parameters(self, **kwargs):
+        self.semantic_params = kwargs
 
-        numer_f = gf * e * np.log(f+2)
-        denom_f = e * np.log(f+2) + kf
-
-        return (t/tmax)*(numer_f/denom_f)
-
-    def get_semantic_input_from_idx(self, idx):
-        """ return pho x theoretical semantic_input
+    def semantic_input(self, f):
+        """Semantic equation
+        f: word frequency
         """
-        batch_semantic_input = np.zeros(
-            (self.cfg.batch_size, self.cfg.n_timesteps, self.cfg.output_dim))
+        g = self.semantic_params["g"]
+        k = self.semantic_params["k"]
+        h = self.semantic_params["h"]
+        w = self.semantic_params["w"]
 
-        for t in range(self.cfg.n_timesteps):
-            semantic_input_at_tick_t = self.semantic_formula(
-                e=self.current_epoch,
-                t=t * self.cfg.tau,
-                # Semantic equation is using static word frequency now
-                f=self.data.wf[idx],
-                i=self.data.img[idx],
-                gf=self.cfg.sem_param_gf,
-                gi=self.cfg.sem_param_gi,
-                kf=self.cfg.sem_param_kf,
-                ki=self.cfg.sem_param_ki,
-                hf=self.cfg.sem_param_hf,
-                hi=self.cfg.sem_param_hi,
-                tmax=self.cfg.max_unit_time - self.cfg.tau
-            )
+        numer = g * np.log(10**w * f + h)
+        denom = np.log(10**w * f + h) + k
+        return numer / denom
 
-            batch_semantic_input[:, t, :] = np.tile(
-                np.expand_dims(semantic_input_at_tick_t, 1), [
-                    1, self.cfg.output_dim]
-            )
+    # def get_semantic_input_from_idx(self, idx):
+    #     """ return theoretical semantic_input
+    #     """
+    #     batch_semantic_input = np.zeros(
+    #         (self.cfg.batch_size, self.cfg.n_timesteps, self.cfg.output_dim))
 
-        return batch_semantic_input
+    #     for t in range(self.cfg.n_timesteps):
+    #         semantic_input_at_tick_t = self.semantic_formula(
+    #             e=self.current_epoch,
+    #             t=t * self.cfg.tau,
+    #             # Semantic equation is using static word frequency now
+    #             f=self.data.wf[idx],
+    #             i=self.data.img[idx],
+    #             gf=self.cfg.sem_param_gf,
+    #             gi=self.cfg.sem_param_gi,
+    #             kf=self.cfg.sem_param_kf,
+    #             ki=self.cfg.sem_param_ki,
+    #             hf=self.cfg.sem_param_hf,
+    #             hi=self.cfg.sem_param_hi,
+    #             tmax=self.cfg.max_unit_time - self.cfg.tau
+    #         )
 
-    def sample_generator(self, verbose=False):
+    #         batch_semantic_input[:, t, :] = np.tile(
+    #             np.expand_dims(semantic_input_at_tick_t, 1), [
+    #                 1, self.cfg.output_dim]
+    #         )
+
+    #     return batch_semantic_input
+
+    def sample_generator(self, dryrun=False):
         """Dimension guide: (batch_size, timesteps, p_nodes)"""
         while True:
             # Start counting Epoch and Batch
             if self.current_batch % self.cfg.steps_per_epoch == 0:
-                self.current_epoch += 1
 
                 if self.debugging:
                     # Snapshot dynamic corpus
+                    self.debug_epoch.append(self.current_epoch)
+                    self.debug_wf.append(self.dynamic_corpus.copy())
+                    self.debug_corpus_size.append(sum(wf > 0 for wf in self.debug_wf[-1].values()))
+                    self.debug_sem.append({k: self.semantic_input(v) for k, v in self.debug_wf[-1].items()})
 
-                    # epoch
-                    self.debug_log_epoch.append(self.current_epoch - 1)
-
-                    # init dynamic word frequency column
-                    tmp_column_name = f"wf_at_epoch_{self.current_epoch}"
-                    self.debug_log_dynamic_wf[tmp_column_name] = 0
-
-                    # dynamic word frequency
-                    for key, value in self.dynamic_corpus.items():
-                        self.debug_log_dynamic_wf.loc[key, tmp_column_name] = value
-
-                    # corpus size
-                    tmp_corpus_size = sum(self.debug_log_dynamic_wf[tmp_column_name]>0)
-                    self.debug_log_corpus_size.append(tmp_corpus_size)
+                self.current_epoch += 1
 
             self.current_batch += 1
 
@@ -212,42 +209,43 @@ class Sampling:
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
                     self.ingested_training_sample, normalize=True)
-                if verbose:
-                    print(
-                        f"Stage: {self.current_stage}, Epoch: {self.current_epoch}, Sample: {self.ingested_training_sample}")
-                    clear_output(wait=True)
 
             this_p = get_sampling_probability(
                 df_train=self.data.df_train,
                 implementation=self.cfg.sample_name,
+                g=self.cfg.sampling_speed,
                 stage=self.current_stage,
                 ingested_training_sample=self.ingested_training_sample,
                 max_sample=self.cfg.n_mil_sample * 1_000_000
             )
 
+            # Sample
             idx = np.random.choice(
-                range(len(this_p)), self.cfg.batch_size, p=this_p
-            )
+                range(len(this_p)), self.cfg.batch_size, p=this_p)
 
-            # Debug log
-            if self.debugging:
-                for word_id in idx:
-                    self.dynamic_corpus[self.data.df_train.word[word_id]] += 1
-
-            # Copy y_train by the number of output ticks
-            batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
+            # Update dynamic corpus
+            for key in self.data.df_train.word.loc[idx]:
+                self.dynamic_corpus[key] += 1
 
             # Log ingested training sampling
             self.ingested_training_sample += self.cfg.batch_size
 
-            if self.cfg.use_semantic:
-                semantic_input = self.get_semantic_input_from_idx(idx)
-                phonological_input = 2 * self.data.y_train[idx] - 1
-
-                # Training set need to return 3 components (ort, sem, pho)
-                yield ([self.data.x_train[idx], semantic_input, phonological_input], batch_y)
+            if dryrun:
+                yield (self.current_batch)
             else:
-                yield (self.data.x_train[idx], batch_y)
+                # Real output
+                
+                # Copy y_train by the number of output ticks
+                batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
+
+                if self.cfg.use_semantic:
+                    semantic_input = self.get_semantic_input_from_idx(idx)
+                    phonological_input = 2 * self.data.y_train[idx] - 1
+
+                    # Training set need to return 3 components (ort, sem, pho)
+                    yield ([self.data.x_train[idx], semantic_input, phonological_input], batch_y)
+                else:
+                    yield (self.data.x_train[idx], batch_y)
 
     def get_stage(self, sample, normalize=False):
         """ Get stage of training. See Monaghan & Ellis, 2010 """
@@ -268,7 +266,9 @@ class Sampling:
             2_200_000,
         ]
 
-        if normalize: sample_cutoffs = np.divide(sample_cutoffs, 5.2) # Total training in ME10 = 5.2M
+        if normalize:
+            # Total training in ME10 = 5.2M
+            sample_cutoffs = np.divide(sample_cutoffs, 5.2)
 
         return sum(sample > np.array(sample_cutoffs))
 
@@ -280,8 +280,6 @@ def test_set_input(
     If model use semantic, we need to return a list of 3 inputs (x, s[time step varying], y), otherwise (x) is enough
     """
 
-    from src.modeling import input_s
-
     if cfg.use_semantic:
         batch_s = np.zeros(
             (len(x_test), cfg.n_timesteps, cfg.output_dim)
@@ -290,7 +288,7 @@ def test_set_input(
 
         if test_use_semantic:
             for t in range(cfg.n_timesteps):
-                s_cell = input_s(
+                s_cell = modeling.input_s(
                     e=epoch,
                     t=t * cfg.tau,
                     f=x_test_wf,

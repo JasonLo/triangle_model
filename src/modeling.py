@@ -8,52 +8,36 @@ from tensorflow.keras.callbacks import Callback
 from IPython.display import clear_output
 
 
-### Zero-error-radius related:
+# Zero-error-radius related:
 
 from tensorflow.python.framework import ops, constant_op
 from tensorflow.python.ops import variables as variables_module
 from tensorflow.python.ops import nn, clip_ops, math_ops, array_ops
 from tensorflow.keras.backend import epsilon
 
+
 def _constant_to_tensor(x, dtype):
     return constant_op.constant(x, dtype=dtype)
+
 
 def _backtrack_identity(tensor):
     while tensor.op.type == "Identity":
         tensor = tensor.op.inputs[0]
     return tensor
 
+
 def zer_replace(target, output, zero_error_radius):
     """Replace output by target if value within zero-error-radius
     """
-    within_zer = tf.math.less_equal(tf.math.abs(output - target), tf.constant(zero_error_radius))
+    within_zer = tf.math.less_equal(tf.math.abs(
+        output - target), tf.constant(zero_error_radius))
     return tf.where(within_zer, target, output)
-
-# def zer_replace(target, output, zero_error_radius):
-#     """Replace output by target if value within zero-error-radius
-#     Version 4 implementation
-#     1. Clip first: clip all output outside ZER
-#     2. Replace all output at ZER boundary to target
-#     Obsolete, due to unexpectedly high impact to behaviral results and lacks of 
-#     documentation in major literactures
-#     """
-
-#     # Output clipping
-#     clip_out = tf.clip_by_value(
-#         output, tf.constant(zero_error_radius), tf.constant(1 - zero_error_radius)
-#     )
-
-#     # Replace output by target if at boundary
-#     zer_mask = tf.math.less_equal(
-#         tf.math.abs(output - target), tf.constant(zero_error_radius)
-#     )
-
-#     return tf.where(zer_mask, target, clip_out)
 
 
 class CustomBCE(keras.losses.Loss):
     """ Binarycross entropy loss with variable zero-error-radius
     """
+
     def __init__(self, radius=0.1, name="bce_with_ZER"):
         super().__init__(name=name)
         self.radius = radius
@@ -64,18 +48,16 @@ class CustomBCE(keras.losses.Loss):
 
         # Replace output by target if value within zero error radius
         zer_output = zer_replace(y_true, y_pred, self.radius)
-        
+
         # Clip with a tiny constant to avoid zero division
         epsilon_ = _constant_to_tensor(epsilon(), y_pred.dtype.base_dtype)
-        zer_output = clip_ops.clip_by_value(zer_output, epsilon_, 1.0 - epsilon_)
+        zer_output = clip_ops.clip_by_value(
+            zer_output, epsilon_, 1.0 - epsilon_)
 
         # Compute cross entropy from probabilities.
         bce = y_true * math_ops.log(zer_output + epsilon())
         bce += (1 - y_true) * math_ops.log(1 - zer_output + epsilon())
         return -bce
-
-
-
 
 
 ###
@@ -162,6 +144,7 @@ class rnn(Layer):
     Semantic equation can be change in modeling.input_s()
     """
     # Use keras rnn layer seems more efficient, maybe upgrade later...
+
     def __init__(self, cfg, input_p_dignostic=False, name='rnn', **kwargs):
 
         super(rnn, self).__init__(**kwargs)
@@ -170,16 +153,16 @@ class rnn(Layer):
         self.input_p_dignostic = input_p_dignostic
 
         self.rnn_activation = activations.get(self.cfg.rnn_activation)
-        
-        
+
         if self.cfg.regularizer_const == None:
             self.weight_regularizer = None
         else:
             self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
-            
+
         # self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
-        self.w_initializer = tf.random_uniform_initializer(minval=-self.cfg.w_initializer, maxval=self.cfg.w_initializer, seed=self.cfg.rng_seed)
-        
+        self.w_initializer = tf.random_uniform_initializer(
+            minval=-self.cfg.w_initializer, maxval=self.cfg.w_initializer, seed=self.cfg.rng_seed)
+
         self.w_oh = self.add_weight(
             name='w_oh',
             shape=(self.cfg.input_dim, self.cfg.hidden_units),
@@ -308,23 +291,21 @@ class rnn(Layer):
                 w_cp = self.inject_noise(self.w_cp, self.cfg.w_cp_noise)
             else:
                 w_cp = self.w_cp
-                
+
             if self.cfg.bias_h_noise != 0:
                 bias_h = self.inject_noise(self.bias_h, self.cfg.bias_h_noise)
             else:
                 bias_h = self.bias_h
-                
+
             if self.cfg.bias_c_noise != 0:
                 bias_c = self.inject_noise(self.bias_c, self.cfg.bias_c_noise)
             else:
                 bias_c = self.bias_c
-                
+
             if self.cfg.bias_p_noise != 0:
                 bias_p = self.inject_noise(self.bias_p, self.cfg.bias_p_noise)
             else:
                 bias_p = self.bias_p
-                
-                
 
             ##### Hidden layer #####
             oh = tf.matmul(o_input[:, t - 1, :], w_oh)
@@ -337,17 +318,18 @@ class rnn(Layer):
             ##### Phonology layer #####
             hp = tf.matmul(self.act_h_list[t - 1], w_hp)
             pp = tf.matmul(self.act_p_list[t - 1], w_pp)
-            
+
 #             # Zero diagonal lock
 #             pp = tf.matmul(
 #                 self.act_p_list[t - 1],
 #                 tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
-#             )  
+#             )
             cp = tf.matmul(self.act_c_list[t - 1], w_cp)
 
             mem_p = self.input_p_list[t - 1]
 
-            if self.cfg.use_semantic == True:  # Inject semantic input
+            # Inject semantic input
+            if self.cfg.use_semantic:  
                 sp = s_input[:, t - 1, :]
             else:
                 sp = 0
@@ -389,25 +371,27 @@ class rnn(Layer):
 class attractor_rnn(Layer):
     """
     Recurrent Attractor Layer
-    
+
     From HS04:
     The phonological form of the target word was clamped on the phonological units for 2.66 units of time. 
     Then a target signal was provided for the next 1.33 units of time, in which the network was required 
     to retain the phonological pattern in the absence of external clamping.
-    
+
     We have tau = 0.2 instead of 0.33 --> 2.66 units of time ~= 14 steps (2.8 units)
     In the last 6 steps, we provide training signal for backprob
-    
+
     Noise can also be added in each weight matrix by using cfg.w_xx_noise
     Which will add a Gaussian noise (SD = noise level) at each time step
     """
+
     def __init__(self, cfg, clamp_steps=14, **kwargs):
         super(attractor_rnn, self).__init__(**kwargs)
         self._name = 'rnn'
         self.cfg = cfg
         self.clamp_steps = clamp_steps
         self.rnn_activation = activations.get(self.cfg.rnn_activation)
-        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
+        self.w_initializer = tf.random_normal_initializer(
+            mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
 
     def build(self, input_shape, **kwargs):
 
@@ -468,7 +452,7 @@ class attractor_rnn(Layer):
         self.act_c_list.append(self.input_c_list[0] + 0.5)
 
         for t in range(1, self.cfg.n_timesteps + 1):
-            
+
             if self.cfg.w_pp_noise != 0:
                 w_pp = self.inject_noise(self.w_pp, self.cfg.w_pp_noise)
             else:
@@ -483,16 +467,15 @@ class attractor_rnn(Layer):
                 w_cp = self.inject_noise(self.w_cp, self.cfg.w_cp_noise)
             else:
                 w_cp = self.w_cp
-            
 
             # ##### Phonology layer #####
             pp = tf.matmul(self.act_p_list[t - 1], w_pp)
-            
-#             # Zero diagonal lock     
+
+#             # Zero diagonal lock
 #             pp = tf.matmul(
 #                 self.act_p_list[t - 1],
 #                 tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
-#             )  
+#             )
             cp = tf.matmul(self.act_c_list[t - 1], w_cp)
 
             mem_p = self.input_p_list[t - 1]
@@ -518,12 +501,12 @@ class attractor_rnn(Layer):
             self.act_c_list.append(self.rnn_activation(c))
 
         return self.act_p_list[self.clamp_steps + 1:
-                              ]  # Can get forgetting curve?
-    
+                               ]  # Can get forgetting curve?
+
     def inject_noise(self, x, noise_sd):
         noise = K.random_normal(shape=K.shape(x), mean=0., stddev=noise_sd)
         return x + noise
-    
+
     def compute_output_shape(self):
         n = self.cfg.n_timesteps - self.clamp_steps
         return tensor_shape.as_shape([1, self.cfg.output_dim] + n)
@@ -612,7 +595,8 @@ class rnn_no_cleanup(Layer):
 
         self.rnn_activation = activations.get(cfg.rnn_activation)
         self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
-        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
+        self.w_initializer = tf.random_normal_initializer(
+            mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
 
         self.w_oh = self.add_weight(
             name='w_oh',
@@ -712,12 +696,12 @@ class rnn_no_cleanup(Layer):
             ##### Phonology layer #####
             hp = tf.matmul(self.act_h_list[t - 1], w_hp)
             pp = tf.matmul(self.act_p_list[t - 1], w_pp)
-            
+
 #             # Zero diagonal lock
 #             pp = tf.matmul(
 #                 self.act_p_list[t - 1],
 #                 tf.linalg.set_diag(w_pp, tf.zeros(self.cfg.output_dim))
-#             )  
+#             )
 
             mem_p = self.input_p_list[t - 1]
 
@@ -737,7 +721,7 @@ class rnn_no_cleanup(Layer):
         return x + noise
 
     def compute_output_shape(self):
-        return tensor_shape.as_shape([1, cfg.output_dim] + cfg.n_timesteps)
+        return tensor_shape.as_shape([1, self.cfg.output_dim] + self.cfg.n_timesteps)
 
     def get_config(self):
         config = {'custom_cfg': self.cfg, 'name': 'rnn'}
@@ -755,7 +739,8 @@ class rnn_no_cleanup_no_pp(Layer):
 
         self.rnn_activation = activations.get(cfg.rnn_activation)
         self.weight_regularizer = regularizers.l2(cfg.regularizer_const)
-        self.w_initializer = tf.random_normal_initializer(mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
+        self.w_initializer = tf.random_normal_initializer(
+            mean=0.0, stddev=self.cfg.w_initializer, seed=self.cfg.rng_seed)
 
         self.w_oh = self.add_weight(
             name='w_oh',
@@ -878,12 +863,14 @@ class rnn_no_cleanup_no_pp(Layer):
         config = {'custom_cfg': self.cfg, 'name': 'rnn'}
         base_config = super(rnn_pho_task, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-    
+
+
 class ModelCheckpoint_custom(Callback):
     """
     Modified from original ModelCheckpoint
     Always save first 10 epochs regardless save period
     """
+
     def __init__(self, filepath, save_weights_only=False, period=1):
         super(ModelCheckpoint_custom, self).__init__()
         self.filepath = filepath
@@ -900,5 +887,3 @@ class ModelCheckpoint_custom(Callback):
                 self.model.save_weights(filepath, overwrite=True)
             else:
                 self.model.save(filepath, overwrite=True)
-                
-                

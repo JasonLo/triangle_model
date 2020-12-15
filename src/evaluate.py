@@ -1,4 +1,6 @@
-import ast
+import os
+import pickle
+import sys
 
 import altair as alt
 import h5py
@@ -6,10 +8,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import tensorflow as tf
 from IPython.display import clear_output
 
-from src.data_wrangling import test_set_input
+sys.path.append("/home/jupyter/tf/src/")
+import data_wrangling
+import meta
 
 alt.data_transformers.enable("default")
 alt.data_transformers.disable_max_rows()
@@ -25,7 +28,6 @@ def gen_pkey(p_file="../common/patterns/mappingv2.txt"):
 
 class training_history():
     def __init__(self, pickle_file):
-        import pickle
 
         self.pickle_file = pickle_file
         pickle_in = open(self.pickle_file, "rb")
@@ -145,7 +147,7 @@ def plot_variables(model, save_file=None):
 class testset():
     """
     Testset class for evaluating testset
-    1. Load model h5 by cfg files provided list (cfg.path_weights_list)
+    1. Load model h5 by cfg files provided list (cfg.path["weights_list"])
     2. Evaluate test set in each h5 (including every timesteps)
     3. Stitch to one csv file
     """
@@ -172,7 +174,6 @@ class testset():
         self.i_hist = pd.DataFrame()  # item history
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
-        from src.modeling import input_s
 
         # Item level statistics
         item_eval = self.key_df
@@ -220,22 +221,22 @@ class testset():
 
     def start_evaluate(self, test_use_semantic, output=None):
 
-        for model_idx, model_h5_name in enumerate(self.cfg.path_weights_list):
+        for model_idx, model_h5_name in enumerate(self.cfg.path["weights_list"]):
 
             # Verbose progress
             clear_output(wait=True)
             progress = model_idx + 1
-            totalworks = len(self.cfg.path_weights_list)
+            totalworks = len(self.cfg.path["weights_list"])
             print(
                 "Evaluating test set: {}%".format(
                     np.round(100 * progress / totalworks, 0)
                 )
             )
 
-            epoch = self.cfg.saved_epoch_list[model_idx]
+            epoch = self.cfg.saved_epoches[model_idx]
             self.model.load_weights(model_h5_name)
 
-            test_input = test_set_input(
+            test_input = data_wrangling.test_set_input(
                 self.x_test, self.x_test_wf, self.x_test_img,
                 self.y_true_matrix, epoch, self.cfg, test_use_semantic
             )
@@ -249,7 +250,8 @@ class testset():
                 )
 
                 if self.cfg.use_semantic:
-                    item_eval['input_s'] = test_input[1][:, timestep, 0]  # Dimension guide: item, timestep, p_unit_id
+                    # Dimension guide: item, timestep, p_unit_id
+                    item_eval['input_s'] = test_input[1][:, timestep, 0]
                 else:
                     item_eval['input_s'] = 0
 
@@ -282,7 +284,6 @@ class testset():
         self.i_hist['sample_mil'] = self.i_hist['sample'] / 1e6
 
     def read_eval_from_file(self, file):
-        import pandas as pd
         self.i_hist = pd.read_csv(file)
         print('Done')
 
@@ -394,8 +395,6 @@ class glushko_eval(testset):
         self.pho_dict = data.pho_glushko
 
     def eval_one(self, epoch, h5_name, timestep, y_pred_matrix):
-        from src.modeling import input_s
-
         # Item level statistics
         item_eval = self.key_df
         item_eval['model'] = h5_name
@@ -486,40 +485,29 @@ class vis():
     # Which will parse item level data to condition level data
     # Then plot with Altair
     def __init__(self, model_folder):
-        import altair as alt
-
-        from src.data_wrangling import MyData
-        from src.meta import model_cfg
-
-        self.model_folder = model_folder
-        self.cfg = model_cfg(
-            self.model_folder + '/model_config.json', bypass_chk=True
-        )
-        self.strain_i_hist = pd.read_csv(
-            self.model_folder + '/result_strain_item.csv'
-        )
-        self.grain_i_hist = pd.read_csv(
-            self.model_folder + '/result_grain_item.csv'
-        )
-        self.taraban_i_hist = pd.read_csv(
-            self.model_folder + '/result_taraban_item.csv'
-        )
-        self.glushko_i_hist = pd.read_csv(
-            self.model_folder + '/result_glushko_item.csv'
-        )
+        self.cfg = meta.ModelConfig.from_json(
+            os.path.join(model_folder, "model_config.json"))
+        self.strain_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_strain_item.csv'))
+        self.grain_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_grain_item.csv'))
+        self.taraban_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_taraban_item.csv'))
+        self.glushko_i_hist = pd.read_csv(os.path.join(
+            model_folder, 'result_glushko_item.csv'))
 
         self.parse_cond_df()
-        self.weight = weight(self.cfg.path_weights_list[-1])
+        self.weight = weight(self.cfg.path["weights_list"][-1])
 
     def training_hist(self):
-        self.t_hist = training_history(self.cfg.path_history_pickle)
+        self.t_hist = training_history(self.cfg.path["history_pickle"])
         return self.t_hist.plot_all()
 
     def load_weight(self, epoch=None):
 
         if epoch is not None:
             self.weight = weight(
-                self.cfg.path_weights_checkpoint.format(epoch=epoch))
+                self.cfg.path["weights_checkpoint_fstring"])
 
     # Condition level parsing
     def parse_strain_cond_df(self, cond):
@@ -655,14 +643,14 @@ class vis():
 
         # Slider epoch filter
         slider_epoch = alt.binding_range(
-            min=self.cfg.save_freq, max=self.cfg.nEpo, step=self.cfg.save_freq
+            min=self.cfg.save_freq, max=self.cfg.total_number_of_epoch, step=self.cfg.save_freq
         )
 
         select_epoch = alt.selection_single(
             name="filter",
             fields=['epoch'],
             bind=slider_epoch,
-            init={'epoch': self.cfg.nEpo}
+            init={'epoch': self.cfg.total_number_of_epoch}
         )
 
         # Plot
@@ -715,6 +703,8 @@ def parse_mikenet_weight(file):
     All TAOS and DELAYS are ignored
     """
     raw = dict()
+    vname = None
+    vector = None
     with open(file, "r") as f:
         for i, line in enumerate(f):
             try:
