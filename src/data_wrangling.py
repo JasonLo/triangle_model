@@ -1,5 +1,5 @@
 import pickle
-import sys
+import sys, os
 
 import numpy as np
 import pandas as pd
@@ -257,41 +257,47 @@ class MyData():
 
         input_path = '/home/jupyter/tf/dataset/'
 
-        self.df_train = pd.read_csv(input_path + 'df_train.csv', index_col=0)
-        self.x_train = np.load(input_path + 'x_train.npz')['data']
-        self.y_train = np.load(input_path + 'y_train.npz')['data']
+        self.df_train = pd.read_csv(os.path.join(input_path, 'df_train.csv'), index_col=0)
+        self.x_train = np.load(os.path.join(input_path, 'x_train.npz'))['data']
+        self.y_train = np.load(os.path.join(input_path, 'y_train.npz'))['data']
+        self.sem_train = np.load(os.path.join(input_path, 'sem_train.npz'))['data']
 
-        self.df_strain = pd.read_csv(input_path + 'df_strain.csv', index_col=0)
-        self.x_strain = np.load(input_path + 'x_strain.npz')['data']
+        self.df_strain = pd.read_csv(os.path.join(input_path, 'df_strain.csv'), index_col=0)
+        self.x_strain = np.load(os.path.join(input_path, 'x_strain.npz'))['data']
         self.x_strain_wf = np.array(self.df_strain['wf'])
         self.x_strain_img = np.array(self.df_strain['img'])
-        self.y_strain = np.load(input_path + 'y_strain.npz')['data']
+        self.y_strain = np.load(os.path.join(input_path, 'y_strain.npz'))['data']
+        self.sem_strain = np.load(os.path.join(input_path, 'sem_strain.npz'))['data']
 
-        self.df_grain = pd.read_csv(input_path + 'df_grain.csv', index_col=0)
-        self.x_grain = np.load(input_path + 'x_grain.npz')['data']
+        self.df_grain = pd.read_csv(os.path.join(input_path, 'df_grain.csv'), index_col=0)
+        self.x_grain = np.load(os.path.join(input_path, 'x_grain.npz'))['data']
         self.x_grain_wf = np.array(self.df_grain['wf'])
         self.x_grain_img = np.array(self.df_grain['img'])
-        self.y_large_grain = np.load(input_path + 'y_large_grain.npz')['data']
-        self.y_small_grain = np.load(input_path + 'y_small_grain.npz')['data']
+        self.y_large_grain = np.load(os.path.join(input_path, 'y_large_grain.npz'))['data']
+        self.y_small_grain = np.load(os.path.join(input_path, 'y_small_grain.npz'))['data']
 
         self.df_taraban = pd.read_csv(
-            input_path + 'df_taraban.csv', index_col=0)
-        self.x_taraban = np.load(input_path + 'x_taraban.npz')['data']
+            os.path.join(input_path, 'df_taraban.csv'), index_col=0)
+        self.x_taraban = np.load(os.path.join(input_path, 'x_taraban.npz'))['data']
         self.x_taraban_wf = np.array(self.df_taraban['wf'])
         self.x_taraban_img = np.array(self.df_taraban['img'])
-        self.y_taraban = np.load(input_path + 'y_taraban.npz')['data']
+        self.y_taraban = np.load(os.path.join(input_path, 'y_taraban.npz'))['data']
 
         self.df_glushko = pd.read_csv(
-            input_path + 'df_glushko.csv', index_col=0)
-        self.x_glushko = np.load(input_path + 'x_glushko.npz')['data']
+            os.path.join(input_path, 'df_glushko.csv'), index_col=0)
+        self.x_glushko = np.load(os.path.join(input_path, 'x_glushko.npz'))['data']
         self.x_glushko_wf = np.array(self.df_glushko['wf'])
         self.x_glushko_img = np.array(self.df_glushko['img'])
-        f = open(input_path + 'y_glushko.pkl', "rb")
-        self.y_glushko = pickle.load(f)
-        f.close()
-        f = open(input_path + 'pho_glushko.pkl', "rb")
-        self.pho_glushko = pickle.load(f)
-        f.close()
+
+        with open(os.path.join(input_path, 'y_glushko.pkl'), "rb") as f:
+            self.y_glushko = pickle.load(f)
+
+        with open(os.path.join(input_path, 'pho_glushko.pkl'), "rb") as f:
+            self.pho_glushko = pickle.load(f)
+
+        # with open(os.path.join(input_path, 'representation_dictionary.pkl'), "rb") as f:
+        #     self.representation_dictionary = pickle.load(f)
+
 
         self.phon_key = gen_pkey()
 
@@ -315,3 +321,7 @@ class MyData():
         print('y_taraban shape:', self.y_taraban.shape)
         print('y_glushko shape: ({}, {})'.format(
             len(self.y_glushko.items()), len(self.y_glushko['beed'][0])))
+
+        print('\n==========Semantic representation==========')  
+        print('sem_train shape:', self.sem_train.shape)
+        print('sem_strain shape:', self.sem_strain.shape)
