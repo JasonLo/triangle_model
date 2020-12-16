@@ -41,7 +41,7 @@ class training_history():
     def plot_acc(self):
         """ Maybe not very useful
         """
-        return self.plot(col_contains='Accuracy', plot_title='Binary accuracy')
+        return self.plot(col_contains='_accuracy', plot_title='Binary accuracy')
 
     def plot_mse(self):
         return self.plot(col_contains='_mse', plot_title='MSE')
