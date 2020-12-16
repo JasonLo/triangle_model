@@ -18,7 +18,7 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     return m_dict
 
 
-def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingested_training_sample=None, max_sample=None, verbose=False):
+def get_sampling_probability(df_train, implementation, sampling_speed=2., stage=None, ingested_training_sample=None, max_sample=None, verbose=False, **kwargs):
     """ Return the sampling probability with different implementation
     Keyword arguments:
     df_train -- training set in pandas dataframe format, contain WSJ word frequency (wf) and Zeno frequency (gr*) 
@@ -37,7 +37,7 @@ def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingest
     """
 
     assert implementation in ["log", "hs04", "jay", "chang",
-                              "developmental_rank_frequency", "wf_linear_cutoff"]
+                              "developmental_rank_frequency"]
     compressed_wf = None
 
     if implementation == "log":
@@ -75,8 +75,8 @@ def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingest
         # Monitor training progress, 0.03 for fast start (since progress = 0 has no word)
         progress = 0.03 + (ingested_training_sample/max_sample)
 
-        # Speed scaling factor (g, how fast the training set grow)
-        progress *= g
+        # Speed scaling factor (how fast the training set grow)
+        progress *= sampling_speed
 
         # Trim continuously
         clip_wf[pct > progress] = 0
@@ -91,34 +91,6 @@ def get_sampling_probability(df_train, implementation, g=2.0, stage=None, ingest
         # Sqrt compression
         compressed_wf = np.sqrt(clip_wf)
 
-    if implementation == "wf_linear_cutoff":
-        """ Continuous sampling set with raw frequency as cutoff
-        """
-        # Top Clipping 30k
-        clip_wf = df_train.wf.clip(0, 30000)
-
-        # Monitor training progress
-        progress = ingested_training_sample / max_sample
-
-        # Speed scaling factor (g, how fast the training set grow)
-        progress *= g
-        progress = np.clip(progress, 0, 1)
-
-        # Scale descending clip-wf (similar to pct)
-        scale_clip_wf = 1. - clip_wf/30000.
-
-        # Trim continuously
-        clip_wf[scale_clip_wf > progress] = 0
-
-        if verbose:
-            print(f"Current progress: {progress}")
-            print(f"min scale_clip_wf = {scale_clip_wf.min()}")
-            print(f"max scale_clip_wf = {scale_clip_wf.max()}")
-            print(f"Number of selected item: {sum(clip_wf > 0)}")
-            clear_output(wait=True)
-
-        # Sqrt compression
-        compressed_wf = np.sqrt(clip_wf)
 
     return np.array(compressed_wf/np.sum(compressed_wf), dtype="float32")
 
@@ -142,50 +114,6 @@ class Sampling:
             self.debug_epoch = []
             self.debug_corpus_size = []
 
-    def set_semantic_parameters(self, **kwargs):
-        self.semantic_params = kwargs
-
-    def semantic_input(self, f):
-        """Semantic equation
-        f: word frequency
-        """
-        g = self.semantic_params["g"]
-        k = self.semantic_params["k"]
-        h = self.semantic_params["h"]
-        w = self.semantic_params["w"]
-
-        numer = g * np.log(10**w * f + h)
-        denom = np.log(10**w * f + h) + k
-        return numer / denom
-
-    # def get_semantic_input_from_idx(self, idx):
-    #     """ return theoretical semantic_input
-    #     """
-    #     batch_semantic_input = np.zeros(
-    #         (self.cfg.batch_size, self.cfg.n_timesteps, self.cfg.output_dim))
-
-    #     for t in range(self.cfg.n_timesteps):
-    #         semantic_input_at_tick_t = self.semantic_formula(
-    #             e=self.current_epoch,
-    #             t=t * self.cfg.tau,
-    #             # Semantic equation is using static word frequency now
-    #             f=self.data.wf[idx],
-    #             i=self.data.img[idx],
-    #             gf=self.cfg.sem_param_gf,
-    #             gi=self.cfg.sem_param_gi,
-    #             kf=self.cfg.sem_param_kf,
-    #             ki=self.cfg.sem_param_ki,
-    #             hf=self.cfg.sem_param_hf,
-    #             hi=self.cfg.sem_param_hi,
-    #             tmax=self.cfg.max_unit_time - self.cfg.tau
-    #         )
-
-    #         batch_semantic_input[:, t, :] = np.tile(
-    #             np.expand_dims(semantic_input_at_tick_t, 1), [
-    #                 1, self.cfg.output_dim]
-    #         )
-
-    #     return batch_semantic_input
 
     def sample_generator(self, dryrun=False):
         """Dimension guide: (batch_size, timesteps, p_nodes)"""
@@ -209,16 +137,30 @@ class Sampling:
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
                     self.ingested_training_sample, normalize=True)
-
-            this_p = get_sampling_probability(
-                df_train=self.data.df_train,
-                implementation=self.cfg.sample_name,
-                g=self.cfg.sampling_speed,
-                stage=self.current_stage,
-                ingested_training_sample=self.ingested_training_sample,
-                max_sample=self.cfg.n_mil_sample * 1_000_000
-            )
-
+                
+                this_p = get_sampling_probability(
+                    df_train=self.data.df_train,
+                    implementation=self.cfg.sample_name,
+                    stage=self.current_stage,
+                    ingested_training_sample=self.ingested_training_sample,
+                    max_sample=self.cfg.n_mil_sample * 1_000_000
+                )
+            
+            elif self.cfg.sample_name == "developmental_rank_frequency":
+                this_p = get_sampling_probability(
+                    df_train=self.data.df_train,
+                    implementation=self.cfg.sample_name,
+                    sampling_speed=self.cfg.sampling_speed,
+                    ingested_training_sample=self.ingested_training_sample,
+                    max_sample=self.cfg.n_mil_sample * 1_000_000
+                )
+                
+            else:
+                this_p = get_sampling_probability(
+                    df_train=self.data.df_train,
+                    implementation=self.cfg.sample_name
+                )
+                
             # Sample
             idx = np.random.choice(
                 range(len(this_p)), self.cfg.batch_size, p=this_p)
@@ -237,15 +179,7 @@ class Sampling:
                 
                 # Copy y_train by the number of output ticks
                 batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
-
-                if self.cfg.use_semantic:
-                    semantic_input = self.get_semantic_input_from_idx(idx)
-                    phonological_input = 2 * self.data.y_train[idx] - 1
-
-                    # Training set need to return 3 components (ort, sem, pho)
-                    yield ([self.data.x_train[idx], semantic_input, phonological_input], batch_y)
-                else:
-                    yield (self.data.x_train[idx], batch_y)
+                yield (self.data.x_train[idx], batch_y)
 
     def get_stage(self, sample, normalize=False):
         """ Get stage of training. See Monaghan & Ellis, 2010 """

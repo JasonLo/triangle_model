@@ -19,7 +19,7 @@ def check_gpu():
         print("GPU is NOT AVAILABLE \n")
 
 
-def gpu_mem_cap(b=2048):
+def set_gpu_mem_cap(b=2048):
     """
     Set GPU memory cap per python kernal for parallel run
     Smaller models usually do not need 100% GPU throughput
@@ -52,105 +52,31 @@ CORE_CONFIGS = ('code_name',
                 'tf_root',
                 'sample_name',
                 'rng_seed',
-                'use_semantic',
-                'input_dim',
-                'hidden_units',
-                'output_dim',
-                'cleanup_units',
-                'pretrain_attractor',
+                'ort_units',
+                'pho_units',
+                'pho_hidden_units',
+                'pho_cleanup_units',
+                'pho_noise_level',
+                'activation',
                 'tau',
                 'max_unit_time',
-                'output_ticks',
-                'rnn_activation',
-                'w_initializer',
-                'regularizer_const',
-                'p_noise',
-                'optimizer',
-                'zero_error_radius',
+                'output_ticks',                
                 'n_mil_sample',
                 'batch_size',
                 'learning_rate',
                 'save_freq')
 
-AUX_CONFIGS = ('sampling_speed',
-               'sem_param_gf',
-               'sem_param_gi',
-               'sem_param_kf',
-               'sem_param_ki',
-               'sem_param_hf',
-               'sem_param_hi',
-               'embed_attractor_cfg',
-               'embed_attractor_h5',
-               'w_oh_noise',
-               'w_hp_noise',
-               'w_pp_noise',
-               'w_pc_noise',
-               'w_cp_noise',
-               'bias_h_noise',
-               'bias_c_noise',
-               'bias_p_noise',
-               'uuid',
-               'nEpo',
-               'n_timesteps',
-               'steps_per_epoch',
-               'save_freq_sample',
-               'eval_freq',
-               'batch_unique_setting_string',
-               'show_plots_in_notebook',
-               'batch_name')
-
+OPTIONAL_CONFIGS = ('sampling_speed',
+                    'batch_name',
+                    'batch_unique_setting_string',
+                    'show_plots_in_notebook')
 
 class ModelConfig:
-    """
-    This function keeps all global model configurations
+    """ This function keeps all global model configurations
     It will be use in almost every object downsteam, from modelling, evaluation, and visualization
-
     There are two ways to construct this object
     1) Using a json file path, which contains a cfg dictionary by ModelConfig(json_file)
     2) Using a dictionary by ModelConfig(**dict) 
-
-    Arguements details:
-    ------------------------------------------------------------------------------------------------
-    >>>META DATA<<<
-    code_name: Cfg meta-label, it wont' be use in the model, but it will be recorded in the cfg.json
-
-    >>>TRAINING RELATED<<<
-    sample_name: Sampling probability implementation name, see data_wrangling for details
-    sampling_speed: Only use in "developmental_rank_frequency" sampling, speed of introducing new words. High = earlier
-                    Already adjusted by the no.of sample in the model (cfg.n_mil_sample)
-                    See data_wrangling.get_sampling_probability() for details
-    rng_seed: Random seed for sampling and tf
-    w_initializer: Weight initializer
-    regularizer_const: L2 regularization constant (in weight and biases)
-    optimizer: Optimizer ('adam' or 'sgd' only)
-    learning_rate: Learning rate in optimizer
-    n_mil_sample: Stop training after n million sample
-    batch_size: Batch size
-    save_freq: How often (1 = 10k sample) to save weight after 100k samples. 
-               *Model automatically save in every 10k samples in the first 100k sample.
-
-    >>>MODEL ARCHITECHTURE<<<
-    use_semantic: To use semantic dummy input or not
-        if TRUE, must provide the fomula parameters in the following arguments:
-            sem_param_gf, 
-            sem_param_gi,
-            sem_param_kf,
-            sem_param_ki,
-            sem_param_hf,
-            sem_param_hi
-    input_dim: Input dimension
-    hidden_units: Number of hidden units in hidden layer
-    cleanup_units: Number of cleanup units in attractor network
-    pretrain_attractor: A flag to indicate use pretrained attractor or not
-        if TRUE: Must provide the pretrianed attractor cfg and weight in the following arguments:
-            embed_attractor_cfg',
-            embed_attractor_h5',
-    output_dim: Output dimension (in one time step)
-    rnn_activation: Activation unit use in the recurrent part in the model
-    tau: Time averaged input (TAI) parameter tau
-    max_unit_time: TAI max unit of time
-    output_ticks: How many output ticks should be exported and BPTT from
-    p_noise: Gaussian noise in phonolgical system (W_pp, W_pc, W_cp)
     """
 
     def __init__(self, **kwargs):
@@ -160,6 +86,7 @@ class ModelConfig:
         if 'uuid' not in kwargs.keys():
             print("init from scratch")
             self._init_from_scratch()
+            
 
     @classmethod
     def from_json(cls, json_file):
@@ -167,6 +94,11 @@ class ModelConfig:
             config_dict = json.load(f)
         print(f"Loading config from {json_file}")
         return cls(**config_dict)
+    
+    
+    def __call__(self):
+        return(self.__dict__)
+            
 
     def save(self, json_file=None):
         self.noise_on()
@@ -182,8 +114,7 @@ class ModelConfig:
 
     def _init_from_scratch(self):
 
-        self._check_cfg()
-        self._store_noise()
+        self._pho_noise_level_backup = self.pho_noise_level
 
         # Unique identifier
         self.uuid = uuid.uuid4().hex
@@ -225,59 +156,14 @@ class ModelConfig:
 
         return path_dict
 
-    def _store_noise(self):
-        # Noise management
-        self.w_pp_noise = self.p_noise
-        self.w_pc_noise = self.p_noise
-        self.w_cp_noise = self.p_noise
-        self.w_oh_noise = 0.
-        self.w_hp_noise = 0.
-        self.bias_h_noise = 0.
-        self.bias_c_noise = self.p_noise
-        self.bias_p_noise = self.p_noise
-
-        self.w_oh_noise_backup = self.w_oh_noise
-        self.w_hp_noise_backup = self.w_hp_noise
-        self.w_pp_noise_backup = self.w_pp_noise
-        self.w_pc_noise_backup = self.w_pc_noise
-        self.w_cp_noise_backup = self.w_cp_noise
-        self.bias_h_noise_backup = self.bias_h_noise
-        self.bias_c_noise_backup = self.bias_c_noise
-        self.bias_p_noise_backup = self.bias_p_noise
-
-    def _check_cfg(self):
-        # Check all ingested_keys fufill minimal cfg requirement
-        if not all([x in vars(self) for x in CORE_CONFIGS]):
-            raise ValueError(
-                'Some cfg is undefined, double check cfg contains all necessary params')
-
-        if self.sample_name == "developmental_rank_frequency":
-            assert type(self.sampling_speed) == float
-
-        if self.pretrain_attractor:
-            assert type(self.embed_attractor_cfg) == str
-            assert type(self.embed_attractor_h5) == str
 
     def noise_on(self):
         # Noise is on by default
-        self.w_oh_noise = self.w_oh_noise_backup
-        self.w_hp_noise = self.w_hp_noise_backup
-        self.w_pp_noise = self.w_pp_noise_backup
-        self.w_pc_noise = self.w_pc_noise_backup
-        self.w_cp_noise = self.w_cp_noise_backup
-        self.bias_h_noise = self.bias_h_noise_backup
-        self.bias_c_noise = self.bias_c_noise_backup
-        self.bias_p_noise = self.bias_p_noise_backup
+        self.pho_noise_level = self._pho_noise_level_backup
+
 
     def noise_off(self):
-        self.w_oh_noise = 0.
-        self.w_hp_noise = 0.
-        self.w_pp_noise = 0.
-        self.w_pc_noise = 0.
-        self.w_cp_noise = 0.
-        self.bias_h_noise = 0.
-        self.bias_c_noise = 0.
-        self.bias_p_noise = 0.
+        self.pho_noise_level = 0.
 
 
 def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_notebook):

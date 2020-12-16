@@ -236,24 +236,14 @@ class testset():
             epoch = self.cfg.saved_epoches[model_idx]
             self.model.load_weights(model_h5_name)
 
-            test_input = data_wrangling.test_set_input(
-                self.x_test, self.x_test_wf, self.x_test_img,
-                self.y_true_matrix, epoch, self.cfg, test_use_semantic
-            )
 
-            y_pred_matrix = self.model.predict(test_input)
+            y_pred_matrix = self.model.predict(self.x_test)
 
             for timestep in range(self.cfg.output_ticks):
 
                 item_eval = self.eval_one(
                     epoch, model_h5_name, timestep, y_pred_matrix
                 )
-
-                if self.cfg.use_semantic:
-                    # Dimension guide: item, timestep, p_unit_id
-                    item_eval['input_s'] = test_input[1][:, timestep, 0]
-                else:
-                    item_eval['input_s'] = 0
 
                 # Stack epoch results to global dataframe
                 self.i_hist = pd.concat(
