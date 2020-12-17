@@ -114,6 +114,21 @@ class Sampling:
             self.debug_epoch = []
             self.debug_corpus_size = []
 
+    def set_semantic_parameters(self, **kwargs):
+        self.semantic_params = kwargs
+
+    def semantic_input(self, f):
+        """Semantic equation"""
+        g = self.semantic_params["g"]
+        k = self.semantic_params["k"]
+        # h = self.semantic_params["h"]
+        w = self.semantic_params["w"]
+
+        # numer = g * np.log(10**w * f + h)
+        # denom = np.log(10**w * f + h) + k
+        numer = g * (f * w)
+        denom = (w * f) + k
+        return numer / denom
 
     def sample_generator(self, dryrun=False):
         """Dimension guide: (batch_size, timesteps, p_nodes)"""
@@ -298,7 +313,7 @@ class MyData():
         # with open(os.path.join(input_path, 'representation_dictionary.pkl'), "rb") as f:
         #     self.representation_dictionary = pickle.load(f)
 
-        with gzip.open('dataset/representation_dictionary.pkl.gz', 'rb') as f:
+        with gzip.open(os.path.join(input_path, 'representation_dictionary.pkl.gz'), 'rb') as f:
             representation = pickle.load(f)
 
 
