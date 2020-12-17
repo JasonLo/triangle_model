@@ -1,4 +1,4 @@
-import pickle
+import pickle, gzip
 import sys, os
 
 import numpy as np
@@ -297,6 +297,9 @@ class MyData():
 
         # with open(os.path.join(input_path, 'representation_dictionary.pkl'), "rb") as f:
         #     self.representation_dictionary = pickle.load(f)
+
+        with gzip.open('dataset/representation_dictionary.pkl.gz', 'rb') as f:
+            representation = pickle.load(f)
 
 
         self.phon_key = gen_pkey()
