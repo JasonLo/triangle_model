@@ -1,19 +1,26 @@
-import numpy as np
 import tensorflow as tf
-import tensorflow.keras as keras
-from tensorflow.keras import activations, initializers, regularizers, Model
-from tensorflow.keras.layers import Layer, Input
 import tensorflow.keras.backend as K
-from tensorflow.keras.callbacks import Callback
 from IPython.display import clear_output
 
+class HS04(tf.keras.Model):
+    def __init__(self, cfg):
+        super().__init__()
+        self.input_o_t = tf.keras.layers.RepeatVector(cfg.n_timesteps, name="Input_Ot")
+        self.rnn = RNN(
+            activation=cfg.activation,
+            pho_units=cfg.pho_units,
+            pho_hidden_units=cfg.pho_hidden_units,
+            pho_cleanup_units=cfg.pho_cleanup_units,
+            pho_noise_level=cfg.pho_noise_level,
+            n_timesteps=cfg.n_timesteps,
+            tau=cfg.tau,
+            output_ticks=cfg.output_ticks,
+        )
 
-# Zero-error-radius related:
-
-from tensorflow.python.framework import ops, constant_op
-from tensorflow.python.ops import variables as variables_module
-from tensorflow.python.ops import nn, clip_ops, math_ops, array_ops
-from tensorflow.keras.backend import epsilon
+    def call(self, inputs):
+        x = self.input_o_t(inputs)
+        x = self.rnn(x)
+        return(x)
 
 
 class RNN(tf.keras.layers.Layer):
@@ -41,8 +48,6 @@ class RNN(tf.keras.layers.Layer):
         self.pho_cleanup_units = pho_cleanup_units
         self.pho_noise_level = pho_noise_level
 
-
-
         self.tau = tau
         self.n_timesteps = n_timesteps
         self.output_ticks = output_ticks
@@ -50,7 +55,8 @@ class RNN(tf.keras.layers.Layer):
 
     def build(self, input_shape):
 
-        weight_initializer = tf.random_uniform_initializer(minval=-0.1, maxval=0.1)
+        weight_initializer = tf.random_uniform_initializer(
+            minval=-0.1, maxval=0.1)
 
         """Build weights and biases"""
         self.w_oh = self.add_weight(
@@ -123,9 +129,11 @@ class RNN(tf.keras.layers.Layer):
         act_h_list, act_p_list, act_c_list = [], [], []
 
         # Set inputs to 0
-        input_h_list.append(tf.zeros((1, self.pho_hidden_units), dtype=tf.float32))
+        input_h_list.append(
+            tf.zeros((1, self.pho_hidden_units), dtype=tf.float32))
         input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
-        input_c_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
+        input_c_list.append(
+            tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
 
         # Set activations to 0.5
         act_h_list.append(input_h_list[0] + 0.5)
@@ -152,7 +160,8 @@ class RNN(tf.keras.layers.Layer):
 
             ##### Hidden layer #####
             oh = tf.matmul(inputs[:, t, :], self.w_oh)
-            h = self.tau * (oh + self.bias_h) + (1 - self.tau) * input_h_list[t]
+            h = self.tau * (oh + self.bias_h) + \
+                (1 - self.tau) * input_h_list[t]
 
             ##### Phonology layer #####
             hp = tf.matmul(act_h_list[t], self.w_hp)
@@ -175,12 +184,13 @@ class RNN(tf.keras.layers.Layer):
             act_p_list.append(self.activation(p))
             act_c_list.append(self.activation(c))
 
-        return act_p_list[-self.output_ticks :]
+        return act_p_list[-self.output_ticks:]
 
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""
         if noise_sd > 0:
-            noise = K.random_normal(shape=K.shape(x), mean=0.0, stddev=noise_sd)
+            noise = K.random_normal(
+                shape=K.shape(x), mean=0.0, stddev=noise_sd)
 
             return x + noise
         else:
@@ -204,7 +214,7 @@ class RNN(tf.keras.layers.Layer):
 
 
 def _constant_to_tensor(x, dtype):
-    return constant_op.constant(x, dtype=dtype)
+    return tf.python.framework.constant_op.constant(x, dtype=dtype)
 
 
 def _backtrack_identity(tensor):
@@ -221,7 +231,7 @@ def zer_replace(target, output, zero_error_radius):
     return tf.where(within_zer, target, output)
 
 
-class CustomBCE(keras.losses.Loss):
+class CustomBCE(tf.keras.losses.Loss):
     """ Binarycross entropy loss with variable zero-error-radius
     """
 
@@ -230,26 +240,24 @@ class CustomBCE(keras.losses.Loss):
         self.radius = radius
 
     def call(self, y_true, y_pred):
-        if not isinstance(y_pred, (ops.EagerTensor, variables_module.Variable)):
+        if not isinstance(y_pred, (tf.python.framework.ops.EagerTensor, tf.python.ops.variables.Variable)):
             y_pred = _backtrack_identity(y_pred)
 
         # Replace output by target if value within zero error radius
         zer_output = zer_replace(y_true, y_pred, self.radius)
 
         # Clip with a tiny constant to avoid zero division
-        epsilon_ = _constant_to_tensor(epsilon(), y_pred.dtype.base_dtype)
-        zer_output = clip_ops.clip_by_value(
+        epsilon_ = _constant_to_tensor(K.epsilon(), y_pred.dtype.base_dtype)
+        zer_output = tf.python.ops.clip_ops.clip_by_value(
             zer_output, epsilon_, 1.0 - epsilon_)
 
         # Compute cross entropy from probabilities.
-        bce = y_true * math_ops.log(zer_output + epsilon())
-        bce += (1 - y_true) * math_ops.log(1 - zer_output + epsilon())
+        bce = y_true * tf.python.ops.log(zer_output + K.epsilon())
+        bce += (1 - y_true) * tf.python.ops.log(1 - zer_output + K.epsilon())
         return -bce
 
 
-
-
-class ModelCheckpoint_custom(Callback):
+class ModelCheckpoint_custom(tf.keras.callbacks.Callback):
     """
     Modified from original ModelCheckpoint
     Always save first 10 epochs regardless save period
@@ -271,4 +279,3 @@ class ModelCheckpoint_custom(Callback):
                 self.model.save_weights(filepath, overwrite=True)
             else:
                 self.model.save(filepath, overwrite=True)
-
