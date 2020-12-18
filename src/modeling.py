@@ -20,7 +20,7 @@ class HS04(tf.keras.Model):
     def call(self, inputs):
         x = self.input_o_t(inputs)
         x = self.rnn(x)
-        return(x)
+        return x
 
 
 class RNN(tf.keras.layers.Layer):

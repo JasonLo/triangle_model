@@ -12,20 +12,26 @@ from evaluate import vis
 CORE_CONFIGS = (
     "code_name",
     "tf_root",
-    "sample_name",
-    "rng_seed",
     "ort_units",
     "pho_units",
-    "pho_hidden_units",
+    "sem_units",
+    "hidden_os_units",
+    "hidden_op_units",
+    "hidden_ps_units",
+    "hidden_sp_units",
     "pho_cleanup_units",
+    "sem_cleanup_units",
     "pho_noise_level",
+    "sem_noise_level",
     "activation",
     "tau",
     "max_unit_time",
     "output_ticks",
+    "sample_name",
+    "rng_seed",
+    "learning_rate",
     "n_mil_sample",
     "batch_size",
-    "learning_rate",
     "save_freq",
 )
 
@@ -33,7 +39,6 @@ OPTIONAL_CONFIGS = (
     "sampling_speed",
     "batch_name",
     "batch_unique_setting_string",
-    "show_plots_in_notebook",
 )
 
 

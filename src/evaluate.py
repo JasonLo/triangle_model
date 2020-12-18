@@ -49,7 +49,7 @@ class training_history():
     def plot_all(self, save_file=None):
         # plot all 3 training history plots
         # Optionally save plot to html file, see altair plot save documentation
-        self.all_plots = self.plot_loss() | self.plot_mse()
+        self.all_plots = self.plot_loss() | self.plot_mse() | self.plot_acc()
 
         if save_file is not None:
             self.all_plots.save(save_file)
@@ -219,10 +219,10 @@ class testset():
 
         return item_eval
 
-    def start_evaluate(self, test_use_semantic, output=None):
+    def start_evaluate(self, output=None):
 
         for model_idx, model_h5_name in enumerate(self.cfg.path["weights_list"]):
-
+            
             # Verbose progress
             clear_output(wait=True)
             progress = model_idx + 1
@@ -244,6 +244,9 @@ class testset():
                 item_eval = self.eval_one(
                     epoch, model_h5_name, timestep, y_pred_matrix
                 )
+
+                # Disable input S, since this is already a full triangle model
+                item_eval['input_s'] = 0
 
                 # Stack epoch results to global dataframe
                 self.i_hist = pd.concat(
@@ -325,8 +328,8 @@ class grain_eval():
         """
         Always zero "semantic input"
         """
-        self.grain_small.start_evaluate(test_use_semantic=False)
-        self.grain_large.start_evaluate(test_use_semantic=False)
+        self.grain_small.start_evaluate()
+        self.grain_large.start_evaluate()
 
         self.i_hist = self.grain_large.i_hist.rename(
             columns={
@@ -487,17 +490,10 @@ class vis():
             model_folder, 'result_glushko_item.csv'))
 
         self.parse_cond_df()
-        self.weight = weight(self.cfg.path["weights_list"][-1])
 
     def training_hist(self):
         self.t_hist = training_history(self.cfg.path["history_pickle"])
         return self.t_hist.plot_all()
-
-    def load_weight(self, epoch=None):
-
-        if epoch is not None:
-            self.weight = weight(
-                self.cfg.path["weights_checkpoint_fstring"])
 
     # Condition level parsing
     def parse_strain_cond_df(self, cond):
@@ -826,3 +822,42 @@ class weight:
 
     def basic_stat(self):
         return pd.concat([w.describe() for w in self.pd], axis=1)
+
+def test_set_input(
+    x_test, x_test_wf, x_test_img, y_test, epoch, cfg, test_use_semantic
+):
+    """ Automatically restructure testset input vectors and calculate hypothetical semantic (if exist in the model)
+    If model use semantic, we need to return a list of 3 inputs (x, s[time step varying], y), otherwise (x) is enough
+    """
+
+    if cfg.use_semantic:
+        batch_s = np.zeros(
+            (len(x_test), cfg.n_timesteps, cfg.output_dim)
+        )  # Fill batch_s with Plaut S formula
+        batch_y = np.zeros_like(y_test)
+
+        if test_use_semantic:
+            for t in range(cfg.n_timesteps):
+                s_cell = modeling.input_s(
+                    e=epoch,
+                    t=t * cfg.tau,
+                    f=x_test_wf,
+                    i=x_test_img,
+                    gf=cfg.sem_param_gf,
+                    gi=cfg.sem_param_gi,
+                    kf=cfg.sem_param_kf,
+                    ki=cfg.sem_param_ki,
+                    hf=cfg.sem_param_hf,
+                    hi=cfg.sem_param_hi,
+                    tmax=cfg.max_unit_time - cfg.tau  # zero-indexing
+                )
+                batch_s[:, t, :] = np.tile(
+                    np.expand_dims(s_cell, 1), [1, cfg.output_dim]
+                )
+
+            batch_y = 2 * y_test - 1  # With negative teaching signal
+
+        return [x_test, batch_s, batch_y]  # With negative teaching signal
+
+    else:
+        return x_test
