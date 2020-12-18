@@ -29,7 +29,7 @@ def run_model():
         "tau": 1 / 3,
         "max_unit_time": 4.0,
         "output_ticks": 4,
-        "n_mil_sample": 1.,
+        "n_mil_sample": 0.1,
         "batch_size": 100,
         "learning_rate": 0.005,
         "save_freq": 10,
@@ -77,7 +77,7 @@ def run_model():
     with open(cfg.path["history_pickle"], "wb") as f:
         pickle.dump(history.history, f)
 
-    model.save("model.h5")
+    model.save(cfg.path['save_model_folder'])
 
 
 # %% Run from terminal call
@@ -85,4 +85,4 @@ if __name__ == "__main__":
     from time import time
     start = time()
     run_model()
-    print(time()-start)
+    print(f"Total run time: {time()-start} seconds")

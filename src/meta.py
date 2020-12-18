@@ -71,6 +71,7 @@ OPTIONAL_CONFIGS = ('sampling_speed',
                     'batch_unique_setting_string',
                     'show_plots_in_notebook')
 
+
 class ModelConfig:
     """ This function keeps all global model configurations
     It will be use in almost every object downsteam, from modelling, evaluation, and visualization
@@ -87,7 +88,6 @@ class ModelConfig:
             print("init from scratch")
             self._init_from_scratch()
             
-
     @classmethod
     def from_json(cls, json_file):
         with open(json_file) as f:
@@ -95,11 +95,9 @@ class ModelConfig:
         print(f"Loading config from {json_file}")
         return cls(**config_dict)
     
-    
     def __call__(self):
         return(self.__dict__)
             
-
     def save(self, json_file=None):
         self.noise_on()
 
@@ -139,6 +137,8 @@ class ModelConfig:
             self.tf_root, "models", self.code_name)
         path_dict["weight_folder"] = os.path.join(
             path_dict["model_folder"], "weights")
+        path_dict["save_model_folder"] = os.path.join(
+            path_dict["model_folder"], "saved_model")
         path_dict["plot_folder"] = os.path.join(
             path_dict["model_folder"], "plots")
         path_dict["tensorboard_folder"] = os.path.join(
@@ -156,11 +156,9 @@ class ModelConfig:
 
         return path_dict
 
-
     def noise_on(self):
         # Noise is on by default
         self.pho_noise_level = self._pho_noise_level_backup
-
 
     def noise_off(self):
         self.pho_noise_level = 0.
