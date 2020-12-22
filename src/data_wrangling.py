@@ -13,6 +13,7 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     return m_dict
 
 
+
 class Sampling:
     def __init__(self, cfg, data, debugging=False):
         self.cfg = cfg
@@ -48,8 +49,13 @@ class Sampling:
         denom = (w * f) + k
         return numer / denom
 
-    def sample_generator(self, dryrun=False):
-        """Dimension guide: (batch_size, timesteps, p_nodes)"""
+    def sample_generator(self, x, y, dryrun=False):
+        """Generator for training data
+        x: input str ("ort" / "pho" / "sem")
+        y: output str ("ort" / "pho" / "sem")
+        dryrun: only sample the words without outputing representations
+        representation dimension guide: (batch_size, timesteps, output_nodes)
+        """
         while True:
             # Start counting Epoch and Batch
             if self.current_batch % self.cfg.steps_per_epoch == 0:
@@ -103,10 +109,11 @@ class Sampling:
 
             # Sample
             idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
+            words = self.data.df_train.word.loc[idx]
 
             # Update dynamic corpus
-            for key in self.data.df_train.word.loc[idx]:
-                self.dynamic_corpus[key] += 1
+            for word in words:
+                self.dynamic_corpus[word] += 1
 
             # Log ingested training sampling
             self.ingested_training_sample += self.cfg.batch_size
@@ -115,10 +122,10 @@ class Sampling:
                 yield (self.current_batch)
             else:
                 # Real output
+                batch_x = self.data.np_representations[x][idx]
+                batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
+                yield (batch_x, batch_y)
 
-                # Copy y_train by the number of output ticks
-                batch_y = [self.data.y_train[idx]] * self.cfg.output_ticks
-                yield (self.data.x_train[idx], batch_y)
 
     def get_stage(self, sample, normalize=False):
         """ Get stage of training. See Monaghan & Ellis, 2010 """
@@ -234,6 +241,68 @@ class Sampling:
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
 
 
+class FastSampling:
+    """ Performance oriented sample generator
+    A simplified version of Sampling()
+    """
+    def __init__(self, cfg, data):
+        self.cfg = cfg
+        self.data = data
+        np.random.seed(cfg.rng_seed)
+
+        # Static probability sample_name
+        if self.cfg.sample_name in ("log", "hs04", "jay"):
+            self.static_p = Sampling.get_sampling_probability(
+                    df_train=self.data.df_train, implementation=self.cfg.sample_name
+                )
+        else:
+            self.static_p = None
+
+    def sample_generator(self, x, y):
+        """Generator for training data
+        x: input str ("ort" / "pho" / "sem")
+        y: output str ("ort" / "pho" / "sem")
+        representation dimension guide: (batch_size, timesteps, output_nodes)
+        """
+
+        while True:
+
+            # Get master sampling stage if using Chang's implementation
+            if self.cfg.sample_name == "chang":
+                # Need to minus batch_size, because the sample is
+                self.current_stage = self.get_stage(
+                    self.ingested_training_sample, normalize=True
+                )
+
+                this_p = Sampling.get_sampling_probability(
+                    df_train=self.data.df_train,
+                    implementation=self.cfg.sample_name,
+                    stage=self.current_stage,
+                    ingested_training_sample=self.ingested_training_sample,
+                    max_sample=self.cfg.n_mil_sample * 1_000_000,
+                )
+
+            elif self.cfg.sample_name == "developmental_rank_frequency":
+                this_p = Sampling.get_sampling_probability(
+                    df_train=self.data.df_train,
+                    implementation=self.cfg.sample_name,
+                    sampling_speed=self.cfg.sampling_speed,
+                    ingested_training_sample=self.ingested_training_sample,
+                    max_sample=self.cfg.n_mil_sample * 1_000_000,
+                )
+
+            else:
+                this_p=self.static_p
+
+
+            # Sample
+            idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
+            batch_x = self.data.np_representations[x][idx]
+            batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
+            yield (batch_x, batch_y)
+
+
+
 class MyData:
     """
     This object load all clean data from disk (both training set and testing sets)
@@ -247,60 +316,61 @@ class MyData:
         self.df_train = pd.read_csv(
             os.path.join(input_path, "df_train.csv"), index_col=0
         )
-        self.x_train = np.load(os.path.join(input_path, "x_train.npz"))["data"]
-        self.y_train = np.load(os.path.join(input_path, "y_train.npz"))["data"]
+        self.ort_train = np.load(os.path.join(input_path, "ort_train.npz"))["data"]
+        self.pho_train = np.load(os.path.join(input_path, "pho_train.npz"))["data"]
         self.sem_train = np.load(os.path.join(input_path, "sem_train.npz"))["data"]
+
+        self.np_representations = {"ort": self.ort_train,
+                "pho": self.pho_train,
+                "sem": self.sem_train}
 
         self.df_strain = pd.read_csv(
             os.path.join(input_path, "df_strain.csv"), index_col=0
         )
-        self.x_strain = np.load(os.path.join(input_path, "x_strain.npz"))["data"]
-        self.x_strain_wf = np.array(self.df_strain["wf"])
-        self.x_strain_img = np.array(self.df_strain["img"])
-        self.y_strain = np.load(os.path.join(input_path, "y_strain.npz"))["data"]
+        self.ort_strain = np.load(os.path.join(input_path, "ort_strain.npz"))["data"]
+        self.ort_strain_wf = np.array(self.df_strain["wf"])
+        self.ort_strain_img = np.array(self.df_strain["img"])
+        self.pho_strain = np.load(os.path.join(input_path, "pho_strain.npz"))["data"]
         self.sem_strain = np.load(os.path.join(input_path, "sem_strain.npz"))["data"]
 
         self.df_grain = pd.read_csv(
             os.path.join(input_path, "df_grain.csv"), index_col=0
         )
-        self.x_grain = np.load(os.path.join(input_path, "x_grain.npz"))["data"]
-        self.x_grain_wf = np.array(self.df_grain["wf"])
-        self.x_grain_img = np.array(self.df_grain["img"])
-        self.y_large_grain = np.load(os.path.join(input_path, "y_large_grain.npz"))[
+        self.ort_grain = np.load(os.path.join(input_path, "ort_grain.npz"))["data"]
+        self.ort_grain_wf = np.array(self.df_grain["wf"])
+        self.ort_grain_img = np.array(self.df_grain["img"])
+        self.pho_large_grain = np.load(os.path.join(input_path, "pho_large_grain.npz"))[
             "data"
         ]
-        self.y_small_grain = np.load(os.path.join(input_path, "y_small_grain.npz"))[
+        self.pho_small_grain = np.load(os.path.join(input_path, "pho_small_grain.npz"))[
             "data"
         ]
 
         self.df_taraban = pd.read_csv(
             os.path.join(input_path, "df_taraban.csv"), index_col=0
         )
-        self.x_taraban = np.load(os.path.join(input_path, "x_taraban.npz"))["data"]
-        self.x_taraban_wf = np.array(self.df_taraban["wf"])
-        self.x_taraban_img = np.array(self.df_taraban["img"])
-        self.y_taraban = np.load(os.path.join(input_path, "y_taraban.npz"))["data"]
+        self.ort_taraban = np.load(os.path.join(input_path, "ort_taraban.npz"))["data"]
+        self.ort_taraban_wf = np.array(self.df_taraban["wf"])
+        self.ort_taraban_img = np.array(self.df_taraban["img"])
+        self.pho_taraban = np.load(os.path.join(input_path, "pho_taraban.npz"))["data"]
 
         self.df_glushko = pd.read_csv(
             os.path.join(input_path, "df_glushko.csv"), index_col=0
         )
-        self.x_glushko = np.load(os.path.join(input_path, "x_glushko.npz"))["data"]
-        self.x_glushko_wf = np.array(self.df_glushko["wf"])
-        self.x_glushko_img = np.array(self.df_glushko["img"])
-
-        with open(os.path.join(input_path, "y_glushko.pkl"), "rb") as f:
-            self.y_glushko = pickle.load(f)
+        self.ort_glushko = np.load(os.path.join(input_path, "ort_glushko.npz"))["data"]
+        self.ort_glushko_wf = np.array(self.df_glushko["wf"])
+        self.ort_glushko_img = np.array(self.df_glushko["img"])
 
         with open(os.path.join(input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
 
-        # with open(os.path.join(input_path, 'representation_dictionary.pkl'), "rb") as f:
-        #     self.representation_dictionary = pickle.load(f)
+        with open(os.path.join(input_path, "pho_glushko.pkl"), "rb") as f:
+            self.pho_glushko = pickle.load(f)
 
         with gzip.open(
             os.path.join(input_path, "representation_dictionary.pkl.gz"), "rb"
         ) as f:
-            representation = pickle.load(f)
+            self.representation = pickle.load(f)
 
         self.phon_key = gen_pkey()
 
@@ -309,22 +379,22 @@ class MyData:
         self.img = np.array(self.df_train["img"], dtype="float32")
 
         print("==========Orthographic representation==========")
-        print("x_train shape:", self.x_train.shape)
-        print("x_strain shape:", self.x_strain.shape)
-        print("x_grain shape:", self.x_grain.shape)
-        print("x_taraban shape:", self.x_taraban.shape)
-        print("x_glushko shape:", self.x_glushko.shape)
+        print("ort_train shape:", self.ort_train.shape)
+        print("ort_strain shape:", self.ort_strain.shape)
+        print("ort_grain shape:", self.ort_grain.shape)
+        print("ort_taraban shape:", self.ort_taraban.shape)
+        print("ort_glushko shape:", self.ort_glushko.shape)
 
         print("\n==========Phonological representation==========")
         print(len(self.phon_key), " phonemes: ", self.phon_key.keys())
-        print("y_train shape:", self.y_train.shape)
-        print("y_strain shape:", self.y_strain.shape)
-        print("y_large_grain shape:", self.y_large_grain.shape)
-        print("y_small_grain shape:", self.y_small_grain.shape)
-        print("y_taraban shape:", self.y_taraban.shape)
+        print("pho_train shape:", self.pho_train.shape)
+        print("pho_strain shape:", self.pho_strain.shape)
+        print("pho_large_grain shape:", self.pho_large_grain.shape)
+        print("pho_small_grain shape:", self.pho_small_grain.shape)
+        print("pho_taraban shape:", self.pho_taraban.shape)
         print(
-            "y_glushko shape: ({}, {})".format(
-                len(self.y_glushko.items()), len(self.y_glushko["beed"][0])
+            "pho_glushko shape: ({}, {})".format(
+                len(self.pho_glushko.items()), len(self.pho_glushko["beed"][0])
             )
         )
 
