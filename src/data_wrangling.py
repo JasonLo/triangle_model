@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from IPython.display import clear_output
 
+
 def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     """Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
@@ -11,7 +12,6 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
     m_dict = mapping.set_index(0).T.to_dict("list")
     return m_dict
-
 
 
 class Sampling:
@@ -125,7 +125,6 @@ class Sampling:
                 batch_x = self.data.np_representations[x][idx]
                 batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
                 yield (batch_x, batch_y)
-
 
     def get_stage(self, sample, normalize=False):
         """ Get stage of training. See Monaghan & Ellis, 2010 """
@@ -242,9 +241,10 @@ class Sampling:
 
 
 class FastSampling:
-    """ Performance oriented sample generator
+    """Performance oriented sample generator
     A simplified version of Sampling()
     """
+
     def __init__(self, cfg, data):
         self.cfg = cfg
         self.data = data
@@ -253,8 +253,8 @@ class FastSampling:
         # Static probability sample_name
         if self.cfg.sample_name in ("log", "hs04", "jay"):
             self.static_p = Sampling.get_sampling_probability(
-                    df_train=self.data.df_train, implementation=self.cfg.sample_name
-                )
+                df_train=self.data.df_train, implementation=self.cfg.sample_name
+            )
         else:
             self.static_p = None
 
@@ -292,15 +292,13 @@ class FastSampling:
                 )
 
             else:
-                this_p=self.static_p
-
+                this_p = self.static_p
 
             # Sample
             idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
             batch_x = self.data.np_representations[x][idx]
             batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
             yield (batch_x, batch_y)
-
 
 
 class MyData:
@@ -320,9 +318,11 @@ class MyData:
         self.pho_train = np.load(os.path.join(input_path, "pho_train.npz"))["data"]
         self.sem_train = np.load(os.path.join(input_path, "sem_train.npz"))["data"]
 
-        self.np_representations = {"ort": self.ort_train,
-                "pho": self.pho_train,
-                "sem": self.sem_train}
+        self.np_representations = {
+            "ort": self.ort_train,
+            "pho": self.pho_train,
+            "sem": self.sem_train,
+        }
 
         self.df_strain = pd.read_csv(
             os.path.join(input_path, "df_strain.csv"), index_col=0
