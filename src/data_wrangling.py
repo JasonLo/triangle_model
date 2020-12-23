@@ -296,7 +296,7 @@ class FastSampling:
 
             # Sample
             idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
-            batch_x = self.data.np_representations[x][idx]
+            batch_x = [self.data.np_representations[x][idx]] * self.cfg.n_timesteps
             batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
             yield (batch_x, batch_y)
 

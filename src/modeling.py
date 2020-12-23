@@ -1,25 +1,40 @@
-from evaluate import weight
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from IPython.display import clear_output
 
+# Create dictionary for weight & biases related to each task
+## Since there are 4 sets of hidden layers and 2 sets of cleanup units,
+## when refering to hidden, we need to state the exact layer in this format: h{from}{to} in weights
+## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
+WEIGHTS_AND_BIASES = {}
+WEIGHTS_AND_BIASES["pho_sem"] = (
+    "w_hps_ph",
+    "w_hps_hs",
+    "w_ss",
+    "w_sc",
+    "w_cs",
+    "bias_hps",
+    "bias_s",
+    "bias_css",
+)
+WEIGHTS_AND_BIASES["sem_pho"] = (
+    "w_hsp_sh",
+    "w_hsp_hp",
+    "w_pp",
+    "w_pc",
+    "w_cp",
+    "bias_hsp",
+    "bias_p",
+    "bias_cpp",
+)
+WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
+WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 
-class HS04PS(tf.keras.layers.Layer):
-    """
-    HS04 implementation
-    Phase 1 PS
-    """
-    # Name all weights and biases that in use in each submodel
-    # Since there are 4 sets of hidden layer,
-    # when refering to hidden units, we need to state the exact layer in this format: h{from}{to}
-    # similarly in cleanup units biases: bias_c{from}{to}
-    WEIGHTS_AND_BIASES = {}
-    WEIGHTS_AND_BIASES["ps"] = ("w_hps_ph", "w_hps_hs", "w_ss", "w_sc", "w_cs", "bias_hps", "bias_s", "bias_css")
-    WEIGHTS_AND_BIASES["sp"] = ("w_hsp_sh", "w_hsp_hp", "w_pp", "w_pc", "w_cp", "bias_hsp", "bias_p", "bias_cpp")
-    WEIGHTS_AND_BIASES["pp"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
-    WEIGHTS_AND_BIASES["ss"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 
-    def __init__(self, cfg, name="HS04PS", **kwargs):
+class HS04P1(tf.keras.Model):
+    """HS04 Phase 1: Oral stage (P/S) pretraining"""
+
+    def __init__(self, cfg, name="oral", **kwargs):
         super().__init__(**kwargs)
 
         for key, value in cfg.__dict__.items():
@@ -27,9 +42,17 @@ class HS04PS(tf.keras.layers.Layer):
 
         self.activation = tf.keras.activations.get(self.activation)
 
-    def build(self, input_shape):
-        """Build entire Phase 1 model with frozen weights and biases
-        turn trainable on later in call() method
+        self.tasks = {
+            "pho_sem": self.task_pho_sem,
+            # 'sem_pho': self.task_sem_sem,
+            # 'pho_pho': self.task_pho_pho,
+            # 'sem_sem': self.task_sem_sem,
+        }
+
+    def build(self, input_shape=None):
+        """Build entire Phase 1 model's weights and biases
+        Manually control gradient decent in custom training loop
+        # CAUTION: indexing is used in
         """
 
         weight_initializer = tf.random_uniform_initializer(minval=-0.1, maxval=0.1)
@@ -37,143 +60,134 @@ class HS04PS(tf.keras.layers.Layer):
         # For SP (incl. PP, since PP is nested within SP)
         self.w_hsp_sh = self.add_weight(
             name="w_hsp_sh",
-            shape=(input_shape[-1], self.hidden_sp_units),
+            shape=(self.sem_units, self.hidden_sp_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
+
         self.w_hsp_hp = self.add_weight(
             name="w_hsp_hp",
             shape=(self.hidden_sp_units, self.pho_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.w_pp = self.add_weight(
             name="w_pp",
             shape=(self.pho_units, self.pho_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.w_pc = self.add_weight(
             name="w_pc",
             shape=(self.pho_units, self.pho_cleanup_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.w_cp = self.add_weight(
             name="w_cp",
             shape=(self.pho_cleanup_units, self.pho_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.bias_hsp = self.add_weight(
             shape=(self.hidden_sp_units,),
             name="bias_hsp",
             initializer="zeros",
-            trainable=False,
+            trainable=True,
         )
 
         self.bias_p = self.add_weight(
             shape=(self.pho_units,),
             name="bias_p",
             initializer="zeros",
-            trainable=False,
+            trainable=True,
         )
 
         self.bias_cpp = self.add_weight(
             shape=(self.pho_cleanup_units,),
             name="bias_cpp",
             initializer="zeros",
-            trainable=False,
+            trainable=True,
         )
 
         # For PS (incl. SS, since SS is nested within PS)
         self.w_hps_ph = self.add_weight(
             name="w_hps_ph",
-            shape=(input_shape[-1], self.hidden_ps_units),
+            shape=(self.pho_units, self.hidden_ps_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.w_hps_hs = self.add_weight(
             name="w_hps_hs",
             shape=(self.hidden_ps_units, self.sem_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.w_ss = self.add_weight(
             name="w_ss",
             shape=(self.sem_units, self.sem_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.w_sc = self.add_weight(
             name="w_sc",
             shape=(self.sem_units, self.sem_cleanup_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.w_cs = self.add_weight(
             name="w_cs",
             shape=(self.sem_cleanup_units, self.sem_units),
             initializer=weight_initializer,
-            trainable=False,
+            trainable=True,
         )
 
         self.bias_hps = self.add_weight(
             shape=(self.hidden_ps_units,),
             name="bias_hps",
             initializer="zeros",
-            trainable=False,
+            trainable=True,
         )
 
         self.bias_s = self.add_weight(
             shape=(self.sem_units,),
             name="bias_s",
             initializer="zeros",
-            trainable=False,
+            trainable=True,
         )
 
         self.bias_css = self.add_weight(
             shape=(self.sem_cleanup_units,),
             name="bias_css",
             initializer="zeros",
-            trainable=False,
+            trainable=True,
         )
 
         self.built = True
 
-    def call(self, inputs, submodel, training=None):
+    def set_active_task(self, task):
+        # print(f"Activate task: {task}")
+        self.active_task = task
+        # Turn on trainable
+        # Cannot turn on individual weight, handle it in custom training loop
+
+    def call(self, inputs, training=None):
         """
-        call submodel when running model()
+        call active task when running model()
+        inputs: model input
+        return: prediction
         """
+        return self.tasks[self.active_task](inputs, training)
 
-        if submodel == "ps":
-            # Turn on trainable
-            for x in self.WEIGHTS_AND_BIASES[submodel]:
-                we
-            self.submodel_ps(inputs, training)
-
-        elif submodel == "sp":
-            self.submodel_sp(inputs, training)
-
-        elif submodel == "pp":
-            self.submodel_pp(inputs, training)
-
-        elif submodel == "ss":
-            self.submodel_ss(inputs, training)
-
-        else:
-            raise KeyError(f"{submodel}: No such submodel.")
-
-
-    def submodel_ps(self, inputs, training=None):
+    def task_pho_sem(self, inputs, training=None):
         """
         Dimension note: (batch, timestep, input_dim)
         Hack for complying keras.layers.concatenate() format
@@ -223,10 +237,10 @@ class HS04PS(tf.keras.layers.Layer):
             )
 
             ##### Hidden layer #####
-            ph = tf.matmul(inputs[:, t, :], self.w_hps_ph)
+            ph = tf.matmul(inputs[t], self.w_hps_ph)
             h = self.tau * (ph + self.bias_hps) + (1 - self.tau) * input_h_list[t]
 
-            ##### Phonology layer #####
+            ##### Semantic layer #####
             hs = tf.matmul(act_h_list[t], self.w_hps_hs)
             ss = tf.matmul(act_s_list[t], w_ss)
             cs = tf.matmul(act_c_list[t], w_cs)
@@ -249,8 +263,6 @@ class HS04PS(tf.keras.layers.Layer):
 
         return act_s_list[-self.output_ticks :]
 
-
-
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""
         if noise_sd > 0:
@@ -259,7 +271,6 @@ class HS04PS(tf.keras.layers.Layer):
             return x + noise
         else:
             return x
-
 
     def get_config(self):
         cfg = super().get_config().copy()
@@ -282,18 +293,6 @@ class HS04PS(tf.keras.layers.Layer):
             }
         )
         return cfg
-
-
-class HS04Phase1PS(tf.keras.Model):
-    def __init__(self, cfg):
-        super(HS04Phase1PS, self).__init__()
-        self.input_xt = tf.keras.layers.RepeatVector(cfg.n_timesteps, name="Input_xt")
-        self.hs04ps = HS04PS(cfg)
-
-    def call(self, inputs):
-        x = self.input_xt(inputs)
-        x = self.hs04ps(x)
-        return x
 
 
 class CustomBCE(tf.keras.losses.Loss):
