@@ -274,8 +274,8 @@ class HS04P1(tf.keras.Model):
         """
 
         # init
-        input_s_list, input_c_list = [], [], []
-        act_s_list, act_c_list = [], [], []
+        input_s_list, input_c_list = [], []
+        act_s_list, act_c_list = [], []
 
         # Set inputs to 0
         input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
