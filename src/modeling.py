@@ -45,8 +45,8 @@ class HS04P1(tf.keras.Model):
         self.tasks = {
             "pho_sem": self.task_pho_sem,
             "sem_pho": self.task_sem_pho,
-            #"pho_pho": self.task_pho_pho,
-            #"sem_sem": self.task_sem_sem,
+            "pho_pho": self.task_pho_pho,
+            "sem_sem": self.task_sem_sem,
         }
 
     def build(self, input_shape=None):
@@ -265,6 +265,76 @@ class HS04P1(tf.keras.Model):
 
         return act_s_list[-self.output_ticks :]
 
+
+    def task_sem_sem(self, inputs, training=None):
+        """
+        Dimension note: (batch, timestep, input_dim)
+        Hack for complying keras.layers.concatenate() format
+        Spliting input_dim below (index = 2)
+        """
+
+        # init
+        input_s_list, input_c_list = [], [], []
+        act_s_list, act_c_list = [], [], []
+
+        # Set inputs to 0
+        input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
+        input_c_list.append(tf.zeros((1, self.sem_cleanup_units), dtype=tf.float32))
+
+        # Set activations to 0.5
+        act_s_list.append(input_s_list[0] + 0.5)
+        act_c_list.append(input_c_list[0] + 0.5)
+
+        for t in range(self.n_timesteps):
+            # Inject fresh white noise to weights and biases within pho system in each time step while training
+            w_ss = K.in_train_phase(
+                self._inject_noise(self.w_ss, self.sem_noise_level),
+                self.w_ss,
+                training=training,
+            )
+            w_sc = K.in_train_phase(
+                self._inject_noise(self.w_sc, self.sem_noise_level),
+                self.w_sc,
+                training=training,
+            )
+            w_cs = K.in_train_phase(
+                self._inject_noise(self.w_cs, self.sem_noise_level),
+                self.w_cs,
+                training=training,
+            )
+            bias_css = K.in_train_phase(
+                self._inject_noise(self.bias_css, self.sem_noise_level),
+                self.bias_css,
+                training=training,
+            )
+            bias_s = K.in_train_phase(
+                self._inject_noise(self.bias_s, self.sem_noise_level),
+                self.bias_s,
+                training=training,
+            )
+
+
+            ##### S Cleanup layer #####
+            sc = tf.matmul(inputs[t], w_sc)
+            c = self.tau * (sc + bias_css) 
+            c += (1 - self.tau) * input_c_list[t]
+
+            ##### Semantic layer #####
+            ss = tf.matmul(act_s_list[t], w_ss)
+            cs = tf.matmul(act_c_list[t], w_cs)
+
+            s = self.tau * (ss + cs + bias_s)
+            s += (1 - self.tau) * input_s_list[t]
+
+            # Record this timestep to list
+            input_s_list.append(s)
+            input_c_list.append(c)
+
+            act_s_list.append(self.activation(s))
+            act_c_list.append(self.activation(c))
+
+        return act_s_list[-self.output_ticks :]
+
     def task_sem_pho(self, inputs, training=None):
         """
         Dimension note: (batch, timestep, input_dim)
@@ -337,6 +407,74 @@ class HS04P1(tf.keras.Model):
             input_c_list.append(c)
 
             act_h_list.append(self.activation(h))
+            act_p_list.append(self.activation(p))
+            act_c_list.append(self.activation(c))
+
+        return act_p_list[-self.output_ticks :]
+
+
+    def task_pho_pho(self, inputs, training=None):
+        """
+        Dimension note: (batch, timestep, input_dim)
+        Hack for complying keras.layers.concatenate() format
+        Spliting input_dim below (index = 2)
+        """
+
+        # init
+        input_p_list, input_c_list = [], []
+        act_p_list, act_c_list = [], []
+
+        # Set inputs to 0
+        input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
+        input_c_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
+
+        # Set activations to 0.5
+        act_p_list.append(input_p_list[0] + 0.5)
+        act_c_list.append(input_c_list[0] + 0.5)
+
+        for t in range(self.n_timesteps):
+            # Inject fresh white noise to weights and biases within pho system in each time step while training
+            w_pp = K.in_train_phase(
+                self._inject_noise(self.w_pp, self.pho_noise_level),
+                self.w_pp,
+                training=training,
+            )
+            w_pc = K.in_train_phase(
+                self._inject_noise(self.w_pc, self.pho_noise_level),
+                self.w_pc,
+                training=training,
+            )
+            w_cp = K.in_train_phase(
+                self._inject_noise(self.w_cp, self.pho_noise_level),
+                self.w_cp,
+                training=training,
+            )
+            bias_cpp = K.in_train_phase(
+                self._inject_noise(self.bias_cpp, self.pho_noise_level),
+                self.bias_cpp,
+                training=training,
+            )
+            bias_p = K.in_train_phase(
+                self._inject_noise(self.bias_p, self.pho_noise_level),
+                self.bias_p,
+                training=training,
+            )
+
+            ##### P Cleanup layer #####
+            pc = tf.matmul(inputs[t], w_pc)
+            c = self.tau * (pc + bias_cpp) + (1 - self.tau) * input_c_list[t]
+
+            ##### Phonology output layer #####
+            pp = tf.matmul(act_p_list[t], w_pp)
+            cp = tf.matmul(act_c_list[t], w_cp)
+
+            p = self.tau * (pp + cp + bias_p)
+            p += (1 - self.tau) * input_p_list[t]
+
+            # Record this timestep to list
+            input_p_list.append(p)
+            input_c_list.append(c)
+
             act_p_list.append(self.activation(p))
             act_c_list.append(self.activation(c))
 
