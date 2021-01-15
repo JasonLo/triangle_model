@@ -44,9 +44,9 @@ class HS04P1(tf.keras.Model):
 
         self.tasks = {
             "pho_sem": self.task_pho_sem,
-            'sem_pho': self.task_sem_sem,
-            'pho_pho': self.task_pho_pho,
-            'sem_sem': self.task_sem_sem,
+            "sem_pho": self.task_sem_pho,
+            #"pho_pho": self.task_pho_pho,
+            #"sem_sem": self.task_sem_sem,
         }
 
     def build(self, input_shape=None):
