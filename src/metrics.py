@@ -1,6 +1,39 @@
 import tensorflow as tf
 """ Custom metrics for diagnostic or experimental purpose"""
 
+class RightSideAccuracy(tf.keras.metrics.Metric):
+    """Export last slot average output in a batch
+    """
+
+    def __init__(self, name="right_side_accuracy", **kwargs):
+        super(RightSideAccuracy, self).__init__(name=name, **kwargs)
+        self.out = self.add_weight(name="right_side_accuracy", initializer="zeros")
+
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        self.out.assign(
+            tf.reduce_mean(
+                tf.cast(
+                    tf.math.less(
+                        tf.reduce_max(
+                            tf.math.abs(y_pred - y_true),
+                            axis=-1
+                        ),
+                        0.5
+                    ),
+                    tf.float32,
+                ),
+                axis=0
+            )
+        )
+
+    def result(self):
+        return self.out
+
+    def reset_states(self):
+        self.out.assign(0.0)
+
+
 
 class NodeCounter(tf.keras.metrics.Metric):
     """Export last slot average output in a batch
