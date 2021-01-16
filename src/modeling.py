@@ -251,7 +251,7 @@ class HS04P1(tf.keras.Model):
 
             ##### S Cleanup layer #####
             sc = tf.matmul(act_s_list[t], w_sc)
-            c = self.tau * (sc + bias_css) 
+            c = self.tau * (sc + bias_css)
             c += (1 - self.tau) * input_c_list[t]
 
             # Record this timestep to list
@@ -263,8 +263,7 @@ class HS04P1(tf.keras.Model):
             act_s_list.append(self.activation(s))
             act_c_list.append(self.activation(c))
 
-        return act_s_list[-self.output_ticks :]
-
+        return act_s_list[-self.output_ticks:]
 
     def task_sem_sem(self, inputs, training=None):
         """
@@ -313,10 +312,9 @@ class HS04P1(tf.keras.Model):
                 training=training,
             )
 
-
             ##### S Cleanup layer #####
             sc = tf.matmul(inputs[t], w_sc)
-            c = self.tau * (sc + bias_css) 
+            c = self.tau * (sc + bias_css)
             c += (1 - self.tau) * input_c_list[t]
 
             ##### Semantic layer #####
@@ -412,7 +410,6 @@ class HS04P1(tf.keras.Model):
 
         return act_p_list[-self.output_ticks :]
 
-
     def task_pho_pho(self, inputs, training=None):
         """
         Dimension note: (batch, timestep, input_dim)
@@ -479,8 +476,6 @@ class HS04P1(tf.keras.Model):
             act_c_list.append(self.activation(c))
 
         return act_p_list[-self.output_ticks :]
-
-
 
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""
