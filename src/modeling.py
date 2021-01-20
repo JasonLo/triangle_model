@@ -3,9 +3,12 @@ import tensorflow.keras.backend as K
 from IPython.display import clear_output
 
 # Create dictionary for weight & biases related to each task
+## Important: Since trainable flag need recompiling,
 ## Since there are 4 sets of hidden layers and 2 sets of cleanup units,
 ## when refering to hidden, we need to state the exact layer in this format: h{from}{to} in weights
 ## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
+
+
 WEIGHTS_AND_BIASES = {}
 WEIGHTS_AND_BIASES["pho_sem"] = (
     "w_hps_ph",
@@ -30,7 +33,7 @@ WEIGHTS_AND_BIASES["sem_pho"] = (
 WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 
-WEIGHTS_AND_BIASES["ort"] = (
+WEIGHTS_AND_BIASES["triangle"] = (
     "w_os",
     "w_hos_oh",
     "w_hos_hs",
@@ -41,7 +44,8 @@ WEIGHTS_AND_BIASES["ort"] = (
     "bias_hop",
 )
 
-class HS04P1(tf.keras.Model):
+
+class HS04Model(tf.keras.Model):
     """HS04 Phase 1: Oral stage (P/S) pretraining"""
 
     def __init__(self, cfg, name="oral", **kwargs):
@@ -51,13 +55,13 @@ class HS04P1(tf.keras.Model):
             setattr(self, key, value)
 
         self.activation = tf.keras.activations.get(self.activation)
-        
+
         self.tasks = {
             "pho_sem": self.task_pho_sem,
             "sem_pho": self.task_sem_pho,
             "pho_pho": self.task_pho_pho,
             "sem_sem": self.task_sem_sem,
-            "orh_pho_sem": self.task_ort_pho_sem,
+            "triangle": self.task_triangle,
         }
 
     def build(self, input_shape=None):
@@ -189,21 +193,21 @@ class HS04P1(tf.keras.Model):
             shape=(self.ort_units, self.sem_units),
             name="w_os",
             initializer=weight_initializer,
-            trainable=True
+            trainable=True,
         )
 
         self.w_hos_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_os_units),
             name="w_hos_oh",
             initializer=weight_initializer,
-            trainable=True
+            trainable=True,
         )
 
         self.w_hos_hs = self.add_weight(
             shape=(self.hidden_os_units, self.sem_units),
             name="w_hos_hs",
             initializer=weight_initializer,
-            trainable=True
+            trainable=True,
         )
 
         self.bias_hos = self.add_weight(
@@ -218,21 +222,21 @@ class HS04P1(tf.keras.Model):
             shape=(self.ort_units, self.pho_units),
             name="w_op",
             initializer=weight_initializer,
-            trainable=True
+            trainable=True,
         )
 
         self.w_hop_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_op_units),
             name="w_hop_oh",
             initializer=weight_initializer,
-            trainable=True
+            trainable=True,
         )
 
         self.w_hop_hp = self.add_weight(
             shape=(self.hidden_op_units, self.pho_units),
             name="w_hop_hp",
             initializer=weight_initializer,
-            trainable=True
+            trainable=True,
         )
 
         self.bias_hop = self.add_weight(
@@ -241,7 +245,6 @@ class HS04P1(tf.keras.Model):
             initializer="zeros",
             trainable=True,
         )
-
 
         self.built = True
 
@@ -335,7 +338,7 @@ class HS04P1(tf.keras.Model):
             act_s_list.append(self.activation(s))
             act_css_list.append(self.activation(css))
 
-        return act_s_list[-self.output_ticks:]
+        return act_s_list[-self.output_ticks :]
 
     def task_sem_sem(self, inputs, training=None):
         """
@@ -413,16 +416,16 @@ class HS04P1(tf.keras.Model):
         """
 
         # init
-        input_hps_list, input_p_list, input_cpp_list = [], [], []
-        act_hps_list, act_p_list, act_cpp_list = [], [], []
+        input_hsp_list, input_p_list, input_cpp_list = [], [], []
+        act_hsp_list, act_p_list, act_cpp_list = [], [], []
 
         # Set inputs to 0
-        input_hps_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
+        input_hsp_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
         input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
         input_cpp_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
 
         # Set activations to 0.5
-        act_hps_list.append(input_hps_list[0] + 0.5)
+        act_hsp_list.append(input_hsp_list[0] + 0.5)
         act_p_list.append(input_p_list[0] + 0.5)
         act_cpp_list.append(input_cpp_list[0] + 0.5)
 
@@ -457,10 +460,10 @@ class HS04P1(tf.keras.Model):
             ##### Hidden layer #####
             sh = tf.matmul(inputs[t], self.w_hsp_sh)
             hsp = self.tau * (sh + self.bias_hsp)
-            hsp += (1 - self.tau) * input_hps_list[t]
+            hsp += (1 - self.tau) * input_hsp_list[t]
 
             ##### Phonology layer #####
-            hsp_hp = tf.matmul(act_hps_list[t], self.w_hsp_hp)
+            hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
             pp = tf.matmul(act_p_list[t], w_pp)
             cp = tf.matmul(act_cpp_list[t], w_cp)
 
@@ -472,11 +475,11 @@ class HS04P1(tf.keras.Model):
             cpp = self.tau * (pc + bias_cpp) + (1 - self.tau) * input_cpp_list[t]
 
             # Record this timestep to list
-            input_hps_list.append(hsp)
+            input_hsp_list.append(hsp)
             input_p_list.append(p)
             input_cpp_list.append(cpp)
 
-            act_hps_list.append(self.activation(hsp))
+            act_hsp_list.append(self.activation(hsp))
             act_p_list.append(self.activation(p))
             act_cpp_list.append(self.activation(cpp))
 
@@ -549,12 +552,168 @@ class HS04P1(tf.keras.Model):
 
         return act_p_list[-self.output_ticks :]
 
-    def task_ort_pho_sem(self, inputs, training=None):
+    def task_triangle(self, inputs, training=None):
 
-        # Rename Phase 1 tasks first.
-        pass
+        # init
+        # Ort related
+        input_hos_list, input_hop_list = [], []
+        act_hos_list, act_hop_list = [], []
 
+        # P-to-S related
+        input_hps_list, input_s_list, input_css_list = [], [], []
+        act_hps_list, act_s_list, act_css_list = [], [], []
 
+        # S-to-P related
+        input_hsp_list, input_p_list, input_cpp_list = [], [], []
+        act_hsp_list, act_p_list, act_cpp_list = [], [], []
+
+        # Set inputs to 0
+        input_hps_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
+        input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
+        input_css_list.append(tf.zeros((1, self.sem_cleanup_units), dtype=tf.float32))
+
+        input_hsp_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
+        input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
+        input_cpp_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
+
+        input_hos_list.append(tf.zeros((1, self.hidden_os_units), dtype=tf.float32))
+        input_hop_list.append(tf.zeros((1, self.hidden_op_units), dtype=tf.float32))
+
+        # Set activations to 0.5
+        act_hps_list.append(input_hps_list[0] + 0.5)
+        act_s_list.append(input_s_list[0] + 0.5)
+        act_css_list.append(input_css_list[0] + 0.5)
+
+        act_hsp_list.append(input_hsp_list[0] + 0.5)
+        act_p_list.append(input_p_list[0] + 0.5)
+        act_cpp_list.append(input_cpp_list[0] + 0.5)
+
+        act_hos_list.append(input_hos_list[0] + 0.5)
+        act_hop_list.append(input_hop_list[0] + 0.5)
+
+        # Recurrent structure over time ticks (Time averaged input)
+        for t in range(self.n_timesteps):
+
+            # Inject fresh white noise to weights and biases within pho system in each time step while training
+            w_ss = K.in_train_phase(
+                self._inject_noise(self.w_ss, self.sem_noise_level),
+                self.w_ss,
+                training=training,
+            )
+            w_sc = K.in_train_phase(
+                self._inject_noise(self.w_sc, self.sem_noise_level),
+                self.w_sc,
+                training=training,
+            )
+            w_cs = K.in_train_phase(
+                self._inject_noise(self.w_cs, self.sem_noise_level),
+                self.w_cs,
+                training=training,
+            )
+            bias_css = K.in_train_phase(
+                self._inject_noise(self.bias_css, self.sem_noise_level),
+                self.bias_css,
+                training=training,
+            )
+            bias_s = K.in_train_phase(
+                self._inject_noise(self.bias_s, self.sem_noise_level),
+                self.bias_s,
+                training=training,
+            )
+            w_pp = K.in_train_phase(
+                self._inject_noise(self.w_pp, self.pho_noise_level),
+                self.w_pp,
+                training=training,
+            )
+            w_pc = K.in_train_phase(
+                self._inject_noise(self.w_pc, self.pho_noise_level),
+                self.w_pc,
+                training=training,
+            )
+            w_cp = K.in_train_phase(
+                self._inject_noise(self.w_cp, self.pho_noise_level),
+                self.w_cp,
+                training=training,
+            )
+            bias_cpp = K.in_train_phase(
+                self._inject_noise(self.bias_cpp, self.pho_noise_level),
+                self.bias_cpp,
+                training=training,
+            )
+            bias_p = K.in_train_phase(
+                self._inject_noise(self.bias_p, self.pho_noise_level),
+                self.bias_p,
+                training=training,
+            )
+
+            ##### Hidden layer (OS) #####
+            hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+            hos += (1 - self.tau) * input_hos_list[t]
+
+            ##### Hidden layer (OP) #####
+            hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
+            hop += (1 - self.tau) * input_hop_list[t]
+
+            ##### Semantic layer #####
+            hps_hs = tf.matmul(act_hps_list[t], self.w_hps_hs)
+            sem_ss = tf.matmul(act_s_list[t], w_ss)
+            css_cs = tf.matmul(act_css_list[t], w_cs)
+            hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
+            ort_os = tf.matmul(inputs[t], self.w_os)
+
+            s = self.tau * (hps_hs + sem_ss + css_cs + hos_hs + ort_os + bias_s)
+            s += (1 - self.tau) * input_s_list[t]
+
+            ##### Phonology layer #####
+            hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
+            pho_pp = tf.matmul(act_p_list[t], w_pp)
+            cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
+            hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp)
+            ort_op = tf.matmul(inputs[t], self.w_op)
+
+            p = self.tau * (hsp_hp + pho_pp + cpp_cp + hop_hp + ort_op + bias_p)
+            p += (1 - self.tau) * input_p_list[t]
+
+            ##### Hidden layer (PS) #####
+            hps = self.tau * (tf.matmul(act_p_list[t], self.w_hps_ph) + self.bias_hps)
+            hps += (1 - self.tau) * input_hps_list[t]
+
+            ##### Hidden layer (SP) #####
+            hsp = self.tau * (tf.matmul(act_s_list[t], self.w_hsp_sh) + self.bias_hsp)
+            hsp += (1 - self.tau) * input_hsp_list[t]
+
+            ##### Semantic Cleanup layer #####
+            css = self.tau * (tf.matmul(act_s_list[t], w_sc) + bias_css)
+            css += (1 - self.tau) * input_css_list[t]
+
+            ##### Phonology Cleanup layer #####
+            cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
+            cpp += (1 - self.tau) * input_cpp_list[t]
+
+            # Record this timestep to list
+            input_hps_list.append(hps)
+            input_s_list.append(s)
+            input_css_list.append(css)
+
+            input_hsp_list.append(hsp)
+            input_p_list.append(p)
+            input_cpp_list.append(cpp)
+
+            input_hos_list.append(hos)
+            input_hop_list.append(hop)
+
+            act_hps_list.append(self.activation(hps))
+            act_s_list.append(self.activation(s))
+            act_css_list.append(self.activation(css))
+
+            act_hsp_list.append(self.activation(hsp))
+            act_p_list.append(self.activation(p))
+            act_cpp_list.append(self.activation(cpp))
+
+            act_hos_list.append(self.activation(hos))
+            act_hop_list.append(self.activation(hop))
+
+        return act_p_list[-self.output_ticks :], act_s_list[-self.output_ticks :]
 
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""
