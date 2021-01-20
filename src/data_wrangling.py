@@ -52,7 +52,7 @@ class Sampling:
     def sample_generator(self, x, y, dryrun=False):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
-        y: output str ("ort" / "pho" / "sem")
+        y: output str ("ort" / "pho" / "sem"), can be a list
         dryrun: only sample the words without outputing representations
         representation dimension guide: (batch_size, timesteps, output_nodes)
         """
@@ -123,7 +123,11 @@ class Sampling:
             else:
                 # Real output
                 batch_x = self.data.np_representations[x][idx]
-                batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
+
+                if type(y) is list:
+                    batch_y = [[self.data.np_representations[yi][idx]] * self.cfg.output_ticks for yi in y]
+                else:
+                    batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
                 yield (batch_x, batch_y)
 
     def get_stage(self, sample, normalize=False):
@@ -261,7 +265,7 @@ class FastSampling:
     def sample_generator(self, x, y):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
-        y: output str ("ort" / "pho" / "sem")
+        y: output str ("ort" / "pho" / "sem") can be a list
         representation dimension guide: (batch_size, timesteps, output_nodes)
         """
 
@@ -297,8 +301,14 @@ class FastSampling:
             # Sample
             idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
             batch_x = [self.data.np_representations[x][idx]] * self.cfg.n_timesteps
-            batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
+
+            if type(y) is list:
+                batch_y = [[self.data.np_representations[yi][idx]] * self.cfg.output_ticks for yi in y]
+            else:
+                batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
+
             yield (batch_x, batch_y)
+
 
 
 class MyData:
