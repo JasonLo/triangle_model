@@ -1,3 +1,5 @@
+# This script contain a set of custom functions for managing representations 
+
 import pickle, gzip, os
 import numpy as np
 import pandas as pd
@@ -15,6 +17,9 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
 
 
 class Sampling:
+    """ Full function sampling class, can be quite slow, but contain a dynamic logging function, 
+    mainly for model v3.x (using equation to manage semantic input)
+    """
     def __init__(self, cfg, data, debugging=False):
         self.cfg = cfg
         self.data = data
@@ -246,7 +251,7 @@ class Sampling:
 
 class FastSampling:
     """Performance oriented sample generator
-    A simplified version of Sampling()
+    A simplified version of Sampling() for hs04 model
     """
 
     def __init__(self, cfg, data):
@@ -303,8 +308,10 @@ class FastSampling:
             batch_x = [self.data.np_representations[x][idx]] * self.cfg.n_timesteps
 
             if type(y) is list:
+                # Multi output as a list
                 batch_y = [[self.data.np_representations[yi][idx]] * self.cfg.output_ticks for yi in y]
             else:
+                # Single output
                 batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
 
             yield (batch_x, batch_y)
