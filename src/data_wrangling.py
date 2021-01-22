@@ -326,7 +326,7 @@ class MyData:
 
     def __init__(self):
 
-        input_path = "/home/jupyter/tf/dataset/"
+        self.input_path = "/home/jupyter/tf/dataset/"
 
         # init an empty testset dict for new testset format
         # first level: testset name
@@ -335,11 +335,11 @@ class MyData:
         self.load_testsets()
 
         self.df_train = pd.read_csv(
-            os.path.join(input_path, "df_train.csv"), index_col=0
+            os.path.join(self.input_path, "df_train.csv"), index_col=0
         )
-        self.ort_train = np.load(os.path.join(input_path, "ort_train.npz"))["data"]
-        self.pho_train = np.load(os.path.join(input_path, "pho_train.npz"))["data"]
-        self.sem_train = np.load(os.path.join(input_path, "sem_train.npz"))["data"]
+        self.ort_train = np.load(os.path.join(self.input_path, "ort_train.npz"))["data"]
+        self.pho_train = np.load(os.path.join(self.input_path, "pho_train.npz"))["data"]
+        self.sem_train = np.load(os.path.join(self.input_path, "sem_train.npz"))["data"]
 
         self.np_representations = {
             "ort": self.ort_train,
@@ -348,50 +348,50 @@ class MyData:
         }
 
         self.df_strain = pd.read_csv(
-            os.path.join(input_path, "df_strain.csv"), index_col=0
+            os.path.join(self.input_path, "df_strain.csv"), index_col=0
         )
-        self.ort_strain = np.load(os.path.join(input_path, "ort_strain.npz"))["data"]
+        self.ort_strain = np.load(os.path.join(self.input_path, "ort_strain.npz"))["data"]
         self.ort_strain_wf = np.array(self.df_strain["wf"])
         self.ort_strain_img = np.array(self.df_strain["img"])
-        self.pho_strain = np.load(os.path.join(input_path, "pho_strain.npz"))["data"]
-        self.sem_strain = np.load(os.path.join(input_path, "sem_strain.npz"))["data"]
+        self.pho_strain = np.load(os.path.join(self.input_path, "pho_strain.npz"))["data"]
+        self.sem_strain = np.load(os.path.join(self.input_path, "sem_strain.npz"))["data"]
 
         self.df_grain = pd.read_csv(
-            os.path.join(input_path, "df_grain.csv"), index_col=0
+            os.path.join(self.input_path, "df_grain.csv"), index_col=0
         )
-        self.ort_grain = np.load(os.path.join(input_path, "ort_grain.npz"))["data"]
+        self.ort_grain = np.load(os.path.join(self.input_path, "ort_grain.npz"))["data"]
         self.ort_grain_wf = np.array(self.df_grain["wf"])
         self.ort_grain_img = np.array(self.df_grain["img"])
-        self.pho_large_grain = np.load(os.path.join(input_path, "pho_large_grain.npz"))[
+        self.pho_large_grain = np.load(os.path.join(self.input_path, "pho_large_grain.npz"))[
             "data"
         ]
-        self.pho_small_grain = np.load(os.path.join(input_path, "pho_small_grain.npz"))[
+        self.pho_small_grain = np.load(os.path.join(self.input_path, "pho_small_grain.npz"))[
             "data"
         ]
 
         self.df_taraban = pd.read_csv(
-            os.path.join(input_path, "df_taraban.csv"), index_col=0
+            os.path.join(self.input_path, "df_taraban.csv"), index_col=0
         )
-        self.ort_taraban = np.load(os.path.join(input_path, "ort_taraban.npz"))["data"]
+        self.ort_taraban = np.load(os.path.join(self.input_path, "ort_taraban.npz"))["data"]
         self.ort_taraban_wf = np.array(self.df_taraban["wf"])
         self.ort_taraban_img = np.array(self.df_taraban["img"])
-        self.pho_taraban = np.load(os.path.join(input_path, "pho_taraban.npz"))["data"]
+        self.pho_taraban = np.load(os.path.join(self.input_path, "pho_taraban.npz"))["data"]
 
         self.df_glushko = pd.read_csv(
-            os.path.join(input_path, "df_glushko.csv"), index_col=0
+            os.path.join(self.input_path, "df_glushko.csv"), index_col=0
         )
-        self.ort_glushko = np.load(os.path.join(input_path, "ort_glushko.npz"))["data"]
+        self.ort_glushko = np.load(os.path.join(self.input_path, "ort_glushko.npz"))["data"]
         self.ort_glushko_wf = np.array(self.df_glushko["wf"])
         self.ort_glushko_img = np.array(self.df_glushko["img"])
 
-        with open(os.path.join(input_path, "pho_glushko.pkl"), "rb") as f:
+        with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
 
-        with open(os.path.join(input_path, "pho_glushko.pkl"), "rb") as f:
+        with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
 
         with gzip.open(
-            os.path.join(input_path, "representation_dictionary.pkl.gz"), "rb"
+            os.path.join(self.input_path, "representation_dictionary.pkl.gz"), "rb"
         ) as f:
             self.representation = pickle.load(f)
 
@@ -436,9 +436,9 @@ class MyData:
 
     def load_testsets(self):
 
-        with gzip.open("dataset/testsets/homophone.pkl.gz", "rb") as f:
+        with gzip.open(os.path.join(self.input_path, "testsets", "homophone.pkl.gz"), "rb") as f:
             self.testsets["homophone"] = pickle.load(f)
 
-        with gzip.open("dataset/testsets/non_homophone.pkl.gz", "rb") as f:
+        with gzip.open(os.path.join(self.input_path, "testsets", "non_homophone.pkl.gz"), "rb") as f:
             self.testsets["non_homophone"] = pickle.load(f)
 
