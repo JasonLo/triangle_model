@@ -39,6 +39,7 @@ OPTIONAL_CONFIGS = (
     "sampling_speed",
     "batch_name",
     "batch_unique_setting_string",
+    "oral_vocab_size"
 )
 
 

@@ -84,7 +84,7 @@ class Sampling:
             self.current_batch += 1
 
             # Get master sampling stage if using Chang's implementation
-            if self.cfg.sample_name == "chang":
+            if self.cfg.sample_name == "chang_jml":
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
                     self.ingested_training_sample, normalize=True
@@ -168,6 +168,7 @@ class Sampling:
         stage=None,
         ingested_training_sample=None,
         max_sample=None,
+        vocab_size=None,
         verbose=False,
     ):
         """Return the sampling probability with different implementation
@@ -182,7 +183,7 @@ class Sampling:
             1. log: simple log compression
             2. hs04: square root compression with bottom (1500) and top end (30000) clipping
             3. jay: square root compression with top end clipping (10000)
-            4. chang: clip depending on stage, log compression
+            4. chang_jml: clip depending on stage, log compression
             5. developmental_rank_frequency: continous shifting sample by rank of word frequency (Named as experimental prior to 3.0)
             6. wf_linear_cutoff: continous shifting sample by raw word frequency
         """
@@ -191,7 +192,8 @@ class Sampling:
             "log",
             "hs04",
             "jay",
-            "chang",
+            "chang_jml",
+            "chang_ssr",
             "developmental_rank_frequency",
         ]
         compressed_wf = None
@@ -206,7 +208,7 @@ class Sampling:
         if implementation == "jay":
             compressed_wf = np.sqrt(df_train.wf.clip(0, 10000))
 
-        if implementation == "chang":
+        if implementation == "chang_jml":
             if not (1 <= stage <= 14):
                 raise ValueError("stage must be between 1-14")
             cutoffs = [1000, 100, 50, 25, 10, 8, 6, 5, 4, 3, 2, 1, 1, 0]
@@ -218,6 +220,15 @@ class Sampling:
                 print(f"There are {np.sum(clip>0)} words in the training set")
 
             compressed_wf = np.log(clip + 1)
+            
+        if implementation == "chang_ssr":
+            wf = df_train.wf.copy()
+            root = np.sqrt(wf) / np.sqrt(30000)
+            compressed_wf = root.clip(0.0, 1.0)
+
+            sel = df_train.wf.rank(ascending=False) <= vocab_size
+            compressed_wf[~sel] = 0
+            
 
         if implementation == "developmental_rank_frequency":
             """Continuous sampling set"""
@@ -249,6 +260,8 @@ class Sampling:
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
 
 
+    
+    
 class FastSampling:
     """Performance oriented sample generator
     A simplified version of Sampling() for hs04 model
@@ -264,9 +277,17 @@ class FastSampling:
             self.static_p = Sampling.get_sampling_probability(
                 df_train=self.data.df_train, implementation=self.cfg.sample_name
             )
+            
+        elif self.cfg.sample_name == "chang_ssr":
+            self.static_p = Sampling.get_sampling_probability(
+                df_train=self.data.df_train, implementation=self.cfg.sample_name, vocab_size=self.cfg.oral_vocab_size
+            )       
+                
+            
         else:
             self.static_p = None
 
+            
     def sample_generator(self, x, y, x_ticks=None, y_ticks=None):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
@@ -281,9 +302,9 @@ class FastSampling:
             y_ticks = self.cfg.output_ticks
 
         while True:
-
+            
             # Get master sampling stage if using Chang's implementation
-            if self.cfg.sample_name == "chang":
+            if self.cfg.sample_name == "chang_jml":
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
                     self.ingested_training_sample, normalize=True
