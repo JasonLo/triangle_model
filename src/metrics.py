@@ -23,7 +23,7 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
                     ),
                     tf.float32,
                 ),
-                axis=0
+                axis=-1
             )
         )
 
