@@ -388,7 +388,12 @@ class HS04Model(tf.keras.Model):
             )
 
             ##### S Cleanup layer #####
-            sc = tf.matmul(inputs[t], w_sc)
+            if t >= 8:
+                input_at_this_tick = inputs[t] * 0
+            else:
+                input_at_this_tick = inputs[t]
+
+            sc = tf.matmul(input_at_this_tick, w_sc)
             css = self.tau * (sc + bias_css)
             css += (1 - self.tau) * input_css_list[t]
 
@@ -533,7 +538,11 @@ class HS04Model(tf.keras.Model):
             )
 
             ##### P Cleanup layer #####
-            pc = tf.matmul(inputs[t], w_pc)
+            if t >= 8:
+                input_at_this_tick = inputs[t] * 0
+            else:
+                input_at_this_tick = inputs[t]
+            pc = tf.matmul(input_at_this_tick, w_pc)
             cpp = self.tau * (pc + bias_cpp) + (1 - self.tau) * input_cpp_list[t]
 
             ##### Phonology output layer #####
