@@ -267,12 +267,18 @@ class FastSampling:
         else:
             self.static_p = None
 
-    def sample_generator(self, x, y):
+    def sample_generator(self, x, y, x_ticks=None, y_ticks=None):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
         y: output str ("ort" / "pho" / "sem") can be a list
         representation dimension guide: (batch_size, timesteps, output_nodes)
         """
+
+        if x_ticks is None:
+            x_ticks = self.cfg.n_timesteps
+
+        if y_ticks is None:
+            y_ticks = self.cfg.output_ticks
 
         while True:
 
@@ -305,14 +311,14 @@ class FastSampling:
 
             # Sample
             idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
-            batch_x = [self.data.np_representations[x][idx]] * self.cfg.n_timesteps
+            batch_x = [self.data.np_representations[x][idx]] * x_ticks
 
             if type(y) is list:
                 # Multi output as a list
-                batch_y = [[self.data.np_representations[yi][idx]] * self.cfg.output_ticks for yi in y]
+                batch_y = [[self.data.np_representations[yi][idx]] * y_ticks for yi in y]
             else:
                 # Single output
-                batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
+                batch_y = [self.data.np_representations[y][idx]] * y_ticks
 
             yield (batch_x, batch_y)
 
