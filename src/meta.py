@@ -101,10 +101,10 @@ class ModelConfig:
         path_dict["save_model_folder"] = os.path.join(path_dict["model_folder"], "saved_model")
         path_dict["plot_folder"] = os.path.join(path_dict["model_folder"], "plots")
         path_dict["tensorboard_folder"] = os.path.join(self.tf_root, "tensorboard_log", self.code_name)
-        path_dict["weights_checkpoint_fstring"] = os.path.join(path_dict["weight_folder"], "ep{epoch:04d}.h5")
+        path_dict["weights_checkpoint_fstring"] = os.path.join(path_dict["weight_folder"], "ep{epoch:04d}")
         path_dict["history_pickle"] = os.path.join(path_dict["model_folder"], "history.pkl")
         path_dict["weights_list"] = [
-            os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}.h5")
+            os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
             for epoch in self.saved_epoches
         ]
 
