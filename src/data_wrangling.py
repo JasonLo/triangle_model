@@ -328,6 +328,12 @@ class MyData:
 
         input_path = "/home/jupyter/tf/dataset/"
 
+        # init an empty testset dict for new testset format
+        # first level: testset name
+        # second level (in each testset): word, ort, pho, sem
+        self.testsets = {}
+        self.load_testsets()
+
         self.df_train = pd.read_csv(
             os.path.join(input_path, "df_train.csv"), index_col=0
         )
@@ -395,6 +401,7 @@ class MyData:
         self.wf = np.array(self.df_train["wf"], dtype="float32")
         self.img = np.array(self.df_train["img"], dtype="float32")
 
+
         print("==========Orthographic representation==========")
         print("ort_train shape:", self.ort_train.shape)
         print("ort_strain shape:", self.ort_strain.shape)
@@ -418,3 +425,20 @@ class MyData:
         print("\n==========Semantic representation==========")
         print("sem_train shape:", self.sem_train.shape)
         print("sem_strain shape:", self.sem_strain.shape)
+
+    def create_testset_from_train_idx(self, idx):
+        """Return a test set representation dictionary with word, ort, pho, sem"""
+        word = self.df_train.loc[idx, "word"].to_list()
+        ort = self.ort_train[idx,]
+        pho = self.pho_train[idx,]
+        sem = self.sem_train[idx,]
+        return {"word":word, "ort": ort, "pho":pho, "sem":sem}
+
+    def load_testsets(self):
+
+        with gzip.open("dataset/testsets/homophone.pkl.gz", "rb") as f:
+            self.testsets["homophone"] = pickle.load(f)
+
+        with gzip.open("dataset/testsets/non_homophone.pkl.gz", "rb") as f:
+            self.testsets["non_homophone"] = pickle.load(f)
+
