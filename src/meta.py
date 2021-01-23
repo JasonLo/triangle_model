@@ -257,6 +257,7 @@ def set_gpu_mem_cap(b=2048):
             print(f"{len(gpus)} Physical GPUs, {len(logical_gpus)} Logical GPUs")
 
         except:
+            print("failed")
             pass
     else:
         print("No GPU")
