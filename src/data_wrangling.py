@@ -455,11 +455,11 @@ class MyData:
 
     def create_testset_from_train_idx(self, idx):
         """Return a test set representation dictionary with word, ort, pho, sem"""
-        word = self.df_train.loc[idx, "word"].to_list()
+        item = self.df_train.loc[idx, "word"].to_list()
         ort = self.ort_train[idx,]
         pho = self.pho_train[idx,]
         sem = self.sem_train[idx,]
-        return {"word":word, "ort": ort, "pho":pho, "sem":sem}
+        return {"item":item, "ort": ort, "pho":pho, "sem":sem}
 
     def load_testsets(self):
 
