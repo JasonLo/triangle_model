@@ -1,11 +1,12 @@
 #%% Environment
 import gzip
 import pickle
-
+import os
 import numpy as np
 
 import data_wrangling
 
+os.chdir("/home/jupyter/tf")
 data = data_wrangling.MyData()
 # %% Helper functions
 
@@ -104,4 +105,6 @@ with gzip.open("dataset/testsets/non_homophone.pkl.gz", "rb") as f:
 from importlib import reload
 reload(data_wrangling)
 data = data_wrangling.MyData()
-data.testsets["homophone"]["word"]
+data.testsets["homophone"]["item"]
+
+# %%
