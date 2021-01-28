@@ -241,7 +241,7 @@ class HS04Model(tf.keras.Model):
 
         self.bias_hop = self.add_weight(
             shape=(self.hidden_op_units,),
-            name="hidden_op_units",
+            name="bias_hop",
             initializer="zeros",
             trainable=True,
         )
