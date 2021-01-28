@@ -37,6 +37,12 @@ class PhoAccuracy(tf.keras.metrics.Metric):
             )
         )
 
+    def item_metric(self, y_true, y_pred):
+        return tf.cast(tf.math.reduce_all(tf.math.equal(
+                    self.get_pho_idx_batch(y_pred),
+                    self.get_pho_idx_batch(y_true),
+                ),axis=-1), tf.float32).numpy()
+
     def result(self):
         return self.out
 
@@ -86,6 +92,10 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
                 axis=-1,
             )
         )
+
+    def item_metric(self, y_true, y_pred):
+        return tf.cast(tf.math.less(tf.reduce_max(tf.math.abs(y_pred - y_true), axis=-1),
+                 0.5),tf.float32,).numpy()
 
     def result(self):
         return self.out

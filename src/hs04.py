@@ -1,12 +1,14 @@
 # %%
 import sys
 import time
+import os
 
 import numpy as np
 import pandas as pd
 from pandas.io.stata import stata_epoch
 import tensorflow as tf
 from IPython.display import clear_output
+from tensorflow.core.protobuf.cluster_pb2 import _JOBDEF_TASKSENTRY
 from tqdm import tqdm
 
 sys.path.append("/home/jupyter/tf/src")
@@ -17,7 +19,7 @@ import modeling
 
 # %% Parameters block
 
-code_name = "boo"
+code_name = "hs04_phase2_test2"
 tf_root = "/home/jupyter/tf"
 
 # Model architechture
@@ -25,30 +27,39 @@ ort_units = 119
 pho_units = 250
 sem_units = 2446
 
-hidden_os_units = 500
-hidden_op_units = 100
+hidden_os_units = 500  # P2
+hidden_op_units = 100  # P2
 hidden_ps_units = 500
 hidden_sp_units = 500
 
 pho_cleanup_units = 50
 sem_cleanup_units = 50
 
-pho_noise_level = 0.0
-sem_noise_level = 0.0
+pho_noise_level = 0.0  # P3
+sem_noise_level = 0.0  # P3
 
 activation = "sigmoid"
 tau = 1 / 3
 max_unit_time = 4.0
-output_ticks = 4
+output_ticks = 11
+
+# Pretraining
+pretrained_checkpoint = (
+    "/home/jupyter/tf/models/hs04_phase1_selected_fix_attractor/weights/ep0200"
+)
 
 # Training
 sample_name = "hs04"
+
 rng_seed = 53797
 learning_rate = 0.01
-n_mil_sample = 0.1
+n_mil_sample = 2.0
 batch_size = 100
 save_freq = 10
 
+cfg = meta.ModelConfig.from_json(
+    os.path.join(tf_root, "models", code_name, "model_config.json")
+)
 
 # %% Package model configurations into meta.ModelConfig()
 config_dict = {}
@@ -241,6 +252,8 @@ for epoch in range(cfg.total_number_of_epoch):
 
     # End of epoch operations
 
+    #%%
+
     ## Log all scalar metrics (losses and metrics)and histogram (weights and biases) to tensorboard
     with train_summary_writer.as_default():
         [
@@ -275,31 +288,38 @@ for epoch in range(cfg.total_number_of_epoch):
 # model.save(cfg.path["save_model_folder"])
 print("Done")
 
+# %%
 
 
-
-# %% Universal testset format
-
-class testset():
+class testset:
     """Universal test set object for evaluating model results
     1. Single condition, single metric, single value output for maximum capatibility
     2. Model level info should be stored at separate table, and merge it at the end
     """
-    def __init__(self, name, cfg, model, x_test, y_test, metrics):
+
+    def __init__(self, name, cfg, model, task, testitems, x_test, y_test, metric):
         self.name = name
         self.cfg = cfg
         self.model = model
+        self.task = task
+        self.model.set_active_task(self.task)
+        self.testitems = testitems
         self.x_test = x_test
         self.y_test = y_test
-        self.metrics = metrics
-    
+        self.metric = metric
+
     def _convert_dict_to_df(self, x):
-        df = pd.DataFrame.from_dict({(epoch, timetick): x[epoch][timetick] 
+
+        self.flat_dict = {
+            (epoch, timetick, item): {metric: x[epoch][timetick][metric][item]}
             for epoch in x.keys()
             for timetick in x[epoch].keys()
-            }, orient='index')
+            for metric in x[epoch][timetick].keys()
+            for item in x[epoch][timetick][metric].keys()
+        }
 
-        df.index.rename(['epoch', 'timeticks'], inplace=True)
+        df = pd.DataFrame.from_dict(self.flat_dict, orient="index")
+        df.index.rename(["epoch", "timeticks", "item"], inplace=True)
         df.reset_index(inplace=True)
         return df
 
@@ -311,14 +331,14 @@ class testset():
         df = self._convert_dict_to_df(output)
 
         try:
-            df["model_id"] = model_id
+            df["code_name"] = model_id
             df["testset"] = testset_label
             df["condition"] = condition_label
         except:
             pass
 
         return df
-            
+
     def _eval_one_epoch(self, epoch):
         checkpoint = self.cfg.path["weights_checkpoint_fstring"].format(epoch=epoch)
         self.model.load_weights(checkpoint)
@@ -335,41 +355,34 @@ class testset():
         return output
 
     def _eval_one_timetick(self, y_pred):
-
+        
         output = {}
-        for metric in self.metrics:
-            metric.update_state(self.y_test, y_pred)
-            output[metric.name] = metric.result().numpy()
+        output[self.metric.name] = dict(
+            zip(self.testitems, self.metric.item_metric(self.y_test, y_pred))
+        )
 
         return output
 
-# %%
-metric_1 = metrics.RightSideAccuracy("right_side_acc")
-metric_2 = metrics.PhoAccuracy("acc")
 
-model.set_active_task('sem_pho')
-t = testset(name="test",
-            cfg=cfg, 
-            model=model, 
-            x_test=data.testsets["homophone"]["sem"], 
-            y_test=data.testsets["homophone"]["pho"],
-            metrics=[metric_1, metric_2])
+# %%
+import metrics
+
+t = testset(
+    name="test",
+    cfg=cfg,
+    model=model,
+    task="sem_pho",
+    testitems=data.testsets["homophone"]["item"],
+    x_test=data.testsets["homophone"]["sem"],
+    y_test=data.testsets["homophone"]["pho"],
+    metric=metrics.RightSideAccuracy("right_side_acc"),
+)
 
 x = t.eval_all(model_id=123, testset_label="homophone", condition_label="homophone")
-x
-# %%
+x.tail()
 
 
 
-# %%
-
-df = pd.DataFrame.from_dict({(epoch, timetick): x[epoch][timetick] 
-    for epoch in x.keys()
-    for timetick in x[epoch].keys()
-    }, orient='index')
-
-df.index.rename(['epoch', 'timeticks'], inplace=True)
-df.reset_index()
 
 
 
