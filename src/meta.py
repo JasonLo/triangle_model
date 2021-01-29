@@ -2,10 +2,7 @@ import itertools
 import json
 import os
 import uuid
-import pandas as pd
 import tensorflow as tf
-from tqdm import tqdm
-from evaluate import vis
 
 
 # Parameters registry
@@ -40,7 +37,7 @@ OPTIONAL_CONFIGS = (
     "batch_name",
     "batch_unique_setting_string",
     "oral_vocab_size",
-    "pretrained_checkpoint"
+    "pretrained_checkpoint",
 )
 
 
@@ -66,12 +63,11 @@ class ModelConfig:
         print(f"Loading config from {json_file}")
         with open(json_file) as f:
             config_dict = json.load(f)
-        
+
         return cls(**config_dict)
 
     def __call__(self):
         return self.__dict__
-
 
     def _init_from_scratch(self):
 
@@ -100,11 +96,19 @@ class ModelConfig:
         path_dict["tf_root"] = self.tf_root
         path_dict["model_folder"] = os.path.join(self.tf_root, "models", self.code_name)
         path_dict["weight_folder"] = os.path.join(path_dict["model_folder"], "weights")
-        path_dict["save_model_folder"] = os.path.join(path_dict["model_folder"], "saved_model")
+        path_dict["save_model_folder"] = os.path.join(
+            path_dict["model_folder"], "saved_model"
+        )
         path_dict["plot_folder"] = os.path.join(path_dict["model_folder"], "plots")
-        path_dict["tensorboard_folder"] = os.path.join(self.tf_root, "tensorboard_log", self.code_name)
-        path_dict["weights_checkpoint_fstring"] = os.path.join(path_dict["weight_folder"], "ep{epoch:04d}")
-        path_dict["history_pickle"] = os.path.join(path_dict["model_folder"], "history.pkl")
+        path_dict["tensorboard_folder"] = os.path.join(
+            self.tf_root, "tensorboard_log", self.code_name
+        )
+        path_dict["weights_checkpoint_fstring"] = os.path.join(
+            path_dict["weight_folder"], "ep{epoch:04d}"
+        )
+        path_dict["history_pickle"] = os.path.join(
+            path_dict["model_folder"], "history.pkl"
+        )
         path_dict["weights_list"] = [
             os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
             for epoch in self.saved_epoches
@@ -127,7 +131,7 @@ class ModelConfig:
 
         if json_file is None:
             json_file = os.path.join(self.path["model_folder"], "model_config.json")
-            
+
         with open(json_file, "w") as f:
             json.dump(self.__dict__, f)
         print(f"Saved config json to {json_file}")
@@ -201,30 +205,31 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
     return batch_cfgs
 
 
-def parse_batch_results(cfgs):
-    """
-    Parse and Concat all condition level results from item level csvs
-    And merge with cfg data (run level meta data) from cfgs
-    cfgs: batch cfgs in dictionary format (The one we saved to disk, for running papermill)
-    """
+# Broken
+# def parse_batch_results(cfgs):
+#     """
+#     Parse and Concat all condition level results from item level csvs
+#     And merge with cfg data (run level meta data) from cfgs
+#     cfgs: batch cfgs in dictionary format (The one we saved to disk, for running papermill)
+#     """
 
-    evals_df = pd.DataFrame()
-    cfgs_df = pd.DataFrame()
+#     evals_df = pd.DataFrame()
+#     cfgs_df = pd.DataFrame()
 
-    for i in tqdm(range(len(cfgs))):
+#     for i in tqdm(range(len(cfgs))):
 
-        # Extra cfg (with UUID) from actual saved cfg json
-        this_ModelConfig = ModelConfig(cfgs[i]["model_folder"] + "model_config.json")
-        cfgs_df = pd.concat(
-            [cfgs_df, pd.DataFrame(this_ModelConfig.to_dict(), index=[i])]
-        )
+#         # Extra cfg (with UUID) from actual saved cfg json
+#         this_ModelConfig = ModelConfig(cfgs[i]["model_folder"] + "model_config.json")
+#         cfgs_df = pd.concat(
+#             [cfgs_df, pd.DataFrame(this_ModelConfig.to_dict(), index=[i])]
+#         )
 
-        # Evaluate results
-        this_eval = vis(cfgs[i]["model_folder"])
-        this_eval.parse_cond_df()
-        evals_df = pd.concat([evals_df, this_eval.cdf], ignore_index=True)
+#         # Evaluate results
+#         this_eval = vis(cfgs[i]["model_folder"])
+#         this_eval.parse_cond_df()
+#         evals_df = pd.concat([evals_df, this_eval.cdf], ignore_index=True)
 
-    return cfgs_df, pd.merge(evals_df, cfgs_df, "left", "code_name")
+#     return cfgs_df, pd.merge(evals_df, cfgs_df, "left", "code_name")
 
 
 # %% Other misc functions
