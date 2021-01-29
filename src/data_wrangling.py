@@ -429,33 +429,33 @@ class MyData:
         self.img = np.array(self.df_train["img"], dtype="float32")
 
 
-        print("==========Orthographic representation==========")
-        print("ort_train shape:", self.ort_train.shape)
-        print("ort_strain shape:", self.ort_strain.shape)
-        print("ort_grain shape:", self.ort_grain.shape)
-        print("ort_taraban shape:", self.ort_taraban.shape)
-        print("ort_glushko shape:", self.ort_glushko.shape)
+        # print("==========Orthographic representation==========")
+        # print("ort_train shape:", self.ort_train.shape)
+        # print("ort_strain shape:", self.ort_strain.shape)
+        # print("ort_grain shape:", self.ort_grain.shape)
+        # print("ort_taraban shape:", self.ort_taraban.shape)
+        # print("ort_glushko shape:", self.ort_glushko.shape)
 
-        print("\n==========Phonological representation==========")
-        print(len(self.phon_key), " phonemes: ", self.phon_key.keys())
-        print("pho_train shape:", self.pho_train.shape)
-        print("pho_strain shape:", self.pho_strain.shape)
-        print("pho_large_grain shape:", self.pho_large_grain.shape)
-        print("pho_small_grain shape:", self.pho_small_grain.shape)
-        print("pho_taraban shape:", self.pho_taraban.shape)
-        print(
-            "pho_glushko shape: ({}, {})".format(
-                len(self.pho_glushko.items()), len(self.pho_glushko["beed"][0])
-            )
-        )
+        # print("\n==========Phonological representation==========")
+        # print(len(self.phon_key), " phonemes: ", self.phon_key.keys())
+        # print("pho_train shape:", self.pho_train.shape)
+        # print("pho_strain shape:", self.pho_strain.shape)
+        # print("pho_large_grain shape:", self.pho_large_grain.shape)
+        # print("pho_small_grain shape:", self.pho_small_grain.shape)
+        # print("pho_taraban shape:", self.pho_taraban.shape)
+        # print(
+        #     "pho_glushko shape: ({}, {})".format(
+        #         len(self.pho_glushko.items()), len(self.pho_glushko["beed"][0])
+        #     )
+        # )
 
-        print("\n==========Semantic representation==========")
-        print("sem_train shape:", self.sem_train.shape)
-        print("sem_strain shape:", self.sem_strain.shape)
+        # print("\n==========Semantic representation==========")
+        # print("sem_train shape:", self.sem_train.shape)
+        # print("sem_strain shape:", self.sem_strain.shape)
 
     def create_testset_from_train_idx(self, idx):
         """Return a test set representation dictionary with word, ort, pho, sem"""
-        item = self.df_train.loc[idx, "word"].to_list()
+        item = list(self.df_train.loc[idx, "word"].astype('str'))
         ort = self.ort_train[idx,]
         pho = self.pho_train[idx,]
         sem = self.sem_train[idx,]
