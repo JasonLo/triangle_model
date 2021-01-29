@@ -118,7 +118,7 @@ class eval_reading:
         for y in ys:
             
             tmp = testset(
-                name=testset_name + '_' + 'pho',
+                name=f'{testset_name}_{y}',
                 cfg=self.cfg,
                 model=self.model,
                 task="triangle",
