@@ -1,7 +1,8 @@
-""" Custom metrics for diagnostic or experimental purpose"""
 # %%
+
+""" Custom metrics for diagnostic or experimental purpose"""
+
 import tensorflow as tf
-import numpy as np
 import pandas as pd
 
 
@@ -17,7 +18,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         mapping = pd.read_table(pho_key_file, header=None, delim_whitespace=True)
         pho_key = mapping.set_index(0).T.to_dict("list")
 
-        self.pho_map_keys = list(pho_key.keys())
+        self.pho_map_keys = tf.constant(list(pho_key.keys()))
         self.pho_map_values = tf.constant([v for v in pho_key.values()], tf.float32)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
@@ -29,7 +30,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
                             self.get_pho_idx_batch(y_pred),
                             self.get_pho_idx_batch(y_true),
                         ),
-                        axis=-1
+                        axis=-1,
                     ),
                     tf.float32,
                 ),
@@ -38,10 +39,16 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         )
 
     def item_metric(self, y_true, y_pred):
-        return tf.cast(tf.math.reduce_all(tf.math.equal(
+        return tf.cast(
+            tf.math.reduce_all(
+                tf.math.equal(
                     self.get_pho_idx_batch(y_pred),
                     self.get_pho_idx_batch(y_true),
-                ),axis=-1), tf.float32).numpy()
+                ),
+                axis=-1,
+            ),
+            tf.float32,
+        ).numpy()
 
     def result(self):
         return self.out
@@ -50,7 +57,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         self.out.assign(0.0)
 
     def get_pho_idx_slot(self, act):
-        """Trio function for getting phoneme 1 (Slot): 
+        """Trio function for getting phoneme 1 (Slot):
         Get cloest distance pho idx in a slot
         """
         slot_distance = tf.math.squared_difference(self.pho_map_values, act)
@@ -58,14 +65,15 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         return tf.argmin(sum_distance)
 
     def get_pho_idx_item(self, act):
-        """Trio function for getting phoneme 2 (Item): 
+        """Trio function for getting phoneme 2 (Item):
         Get cloest distance pho idx in an item
         """
         act_2d = tf.reshape(tf.cast(act, tf.float32), shape=(10, 25))
         return tf.vectorized_map(self.get_pho_idx_slot, act_2d)
 
+    @tf.function
     def get_pho_idx_batch(self, act):
-        """Trio function for getting phoneme 3 (Batch): 
+        """Trio function for getting phoneme 3 (Batch):
         Get cloest distance pho idx in a batch
         """
         return tf.vectorized_map(self.get_pho_idx_item, act)
@@ -94,8 +102,10 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
         )
 
     def item_metric(self, y_true, y_pred):
-        return tf.cast(tf.math.less(tf.reduce_max(tf.math.abs(y_pred - y_true), axis=-1),
-                 0.5),tf.float32,).numpy()
+        return tf.cast(
+            tf.math.less(tf.reduce_max(tf.math.abs(y_pred - y_true), axis=-1), 0.5),
+            tf.float32,
+        ).numpy()
 
     def result(self):
         return self.out
