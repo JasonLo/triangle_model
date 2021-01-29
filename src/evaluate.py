@@ -1,6 +1,11 @@
+from altair.vegalite.v4.schema.channels import StrokeDash
 from tqdm import tqdm
+import os
 import metrics
 import pandas as pd
+import altair as alt
+
+alt.data_transformers.disable_max_rows()
 
 
 class testset:
@@ -43,7 +48,7 @@ class testset:
         }
 
         df = pd.DataFrame.from_dict(self.flat_dict, orient="index")
-        df.index.rename(["epoch", "timeticks", "item"], inplace=True)
+        df.index.rename(["epoch", "timetick", "item"], inplace=True)
         df.reset_index(inplace=True)
         return df
 
@@ -100,10 +105,17 @@ class testset:
 
 class eval_reading:
     """Bundle of testsets"""
+
     Y_CONFIG_DICT = {
         "pho": {"triangle_out": "pho", "metric": metrics.PhoAccuracy("acc")},
-        "pho_large_grain": {"triangle_out": "pho", "metric": metrics.PhoAccuracy("acc")},
-        "pho_small_grain": {"triangle_out": "pho", "metric": metrics.PhoAccuracy("acc")},
+        "pho_large_grain": {
+            "triangle_out": "pho",
+            "metric": metrics.PhoAccuracy("acc"),
+        },
+        "pho_small_grain": {
+            "triangle_out": "pho",
+            "metric": metrics.PhoAccuracy("acc"),
+        },
         "sem": {"triangle_out": "sem", "metric": metrics.RightSideAccuracy("acc")},
     }
 
@@ -116,9 +128,9 @@ class eval_reading:
 
         output = pd.DataFrame()
         for y in ys:
-            
+
             tmp = testset(
-                name=f'{testset_name}_{y}',
+                name=f"{testset_name}",
                 cfg=self.cfg,
                 model=self.model,
                 task="triangle",
@@ -126,21 +138,122 @@ class eval_reading:
                 testitems=self.data.testsets[testset_name]["item"],
                 x_test=self.data.testsets[testset_name]["ort"],
                 y_test=self.data.testsets[testset_name][y],
-                metric=self.Y_CONFIG_DICT[y]["metric"]
+                metric=self.Y_CONFIG_DICT[y]["metric"],
             )
 
             tmp.eval_all()
+            tmp.result["y_test"] = y
+
             output = pd.concat([output, tmp.result])
-        
+
         return output
 
+    def eval_train(self):
+        """Call run_eval in testset (train), and run testset specific post-processing"""
+
+        df = self.run_eval("train")
+        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_train.csv"))
+        mean_df = (
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y_test"])
+            .mean()
+            .reset_index()
+        )
+        mean_df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval_mean_train.csv")
+        )
+        self.train_mean_df = mean_df
+
     def eval_strain(self):
+        """Call run_eval in testset (strain), and run testset specific post-processing"""
 
         df = self.run_eval("strain")
         df = df.merge(
-            self.data.df_strain[["word", "frequency", "pho_consistency", "imageability"]], 
-            how="left", left_on="item", right_on="word")
+            self.data.df_strain[
+                ["word", "frequency", "pho_consistency", "imageability"]
+            ],
+            how="left",
+            left_on="item",
+            right_on="word",
+        )
 
-        df['cond'] = df.frequency + '_' + df.pho_consistency + '_' + df.imageability
+        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_strain.csv"))
+        mean_df = (
+            df.groupby(
+                [
+                    "code_name",
+                    "task",
+                    "testset",
+                    "epoch",
+                    "timetick",
+                    "y_test",
+                    "frequency",
+                    "pho_consistency",
+                    "imageability",
+                ]
+            )
+            .mean()
+            .reset_index()
+        )
+        mean_df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval_mean_strain.csv")
+        )
+        self.strain_mean_df = mean_df
 
-        self.strain_df = df
+    def eval_grain(self):
+        """Call run_eval in testset (grain), and run testset specific post-processing"""
+
+        df = pd.DataFrame()
+        for g in ("grain_unambiguous", "grain_ambiguous"):
+            tmp = self.run_eval(g, ys=["pho_small_grain", "pho_large_grain", "sem"])
+            df = pd.concat([df, tmp])
+
+        # Calculate pho acc by summing large and small grain response
+        acc_df = (
+            df.loc[df.y_test.isin(["pho_large_grain", "pho_small_grain"])]
+            .groupby(["code_name", "task", "testset", "epoch", "timetick", "item"])
+            .sum()
+            .reset_index()
+        )
+        acc_df["y_test"] = "pho"
+        df = pd.concat([df, acc_df])
+        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_grain.csv"))
+
+        mean_df = (
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y_test"])
+            .mean()
+            .reset_index()
+        )
+        mean_df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval_mean_grain.csv")
+        )
+
+        self.grain_mean_df = mean_df
+
+    def plot_reading_acc(self, df):
+        timetick_selection = alt.selection_single(
+            bind=alt.binding_range(min=0, max=self.cfg.n_timesteps, step=1),
+            fields=["timetick"],
+            init={"timetick": self.cfg.n_timesteps},
+            name="timetick",
+        )
+
+        p = (
+            alt.Chart(df)
+            .mark_line()
+            .encode(
+                x="epoch:Q",
+                y=alt.Y("acc:Q", scale=alt.Scale(domain=(0, 1))),
+                color="y_test",
+            )
+            .add_selection(timetick_selection)
+            .transform_filter(timetick_selection)
+        )
+
+        return p
+
+    def plot_grain_by_resp(self):
+        df = self.grain_mean_df.loc[
+            self.grain_mean_df.y_test.isin(["pho_large_grain", "pho_small_grain"])
+        ]
+        p = self.plot_reading_acc(df).encode(color="testset", strokeDash="y_test")
+        return p
