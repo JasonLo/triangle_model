@@ -21,7 +21,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         self.pho_map_keys = tf.constant(list(pho_key.keys()))
         self.pho_map_values = tf.constant([v for v in pho_key.values()], tf.float32)
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
+    def update_state(self, y_true, y_pred):
         self.out.assign(
             tf.reduce_mean(
                 tf.cast(
@@ -88,7 +88,7 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
         super(RightSideAccuracy, self).__init__(name=name, **kwargs)
         self.out = self.add_weight(name="right_side_accuracy", initializer="zeros")
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
+    def update_state(self, y_true, y_pred):
         self.out.assign(
             tf.reduce_mean(
                 tf.cast(
@@ -104,6 +104,39 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
     def item_metric(self, y_true, y_pred):
         return tf.cast(
             tf.math.less(tf.reduce_max(tf.math.abs(y_pred - y_true), axis=-1), 0.5),
+            tf.float32,
+        ).numpy()
+
+    def result(self):
+        return self.out
+
+    def reset_states(self):
+        self.out.assign(0.0)
+
+
+class SumSquaredError(tf.keras.metrics.Metric):
+    """Accuracy based on all output nodes falls within the right half
+    i.e. max(abs(true-pred)) < 0.5 is correct
+    """
+
+    def __init__(self, name="sum_squared_error", **kwargs):
+        super(SumSquaredError, self).__init__(name=name, **kwargs)
+        self.out = self.add_weight(name="sum_squared_error", initializer="zeros")
+
+    def update_state(self, y_true, y_pred):
+        self.out.assign(
+            tf.reduce_mean(
+                tf.cast(
+                    tf.reduce_sum(tf.math.square(y_pred - y_true), axis=-1),
+                    tf.float32,
+                ),
+                axis=-1,
+            )
+        )
+
+    def item_metric(self, y_true, y_pred):
+        return tf.cast(
+            tf.reduce_sum(tf.math.square(y_pred - y_true), axis=-1),
             tf.float32,
         ).numpy()
 
