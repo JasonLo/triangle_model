@@ -34,11 +34,9 @@ WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 
 WEIGHTS_AND_BIASES["triangle"] = (
-    "w_os",
     "w_hos_oh",
     "w_hos_hs",
     "bias_hos",
-    "w_op",
     "w_hop_oh",
     "w_hop_hp",
     "bias_hop",
@@ -189,12 +187,12 @@ class HS04Model(tf.keras.Model):
         # Phase 2 weight and biases
 
         # OS branch
-        self.w_os = self.add_weight(
-            shape=(self.ort_units, self.sem_units),
-            name="w_os",
-            initializer=weight_initializer,
-            trainable=True,
-        )
+#         self.w_os = self.add_weight(
+#             shape=(self.ort_units, self.sem_units),
+#             name="w_os",
+#             initializer=weight_initializer,
+#             trainable=True,
+#         )
 
         self.w_hos_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_os_units),
@@ -218,12 +216,12 @@ class HS04Model(tf.keras.Model):
         )
 
         # OP branch
-        self.w_op = self.add_weight(
-            shape=(self.ort_units, self.pho_units),
-            name="w_op",
-            initializer=weight_initializer,
-            trainable=True,
-        )
+#         self.w_op = self.add_weight(
+#             shape=(self.ort_units, self.pho_units),
+#             name="w_op",
+#             initializer=weight_initializer,
+#             trainable=True,
+#         )
 
         self.w_hop_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_op_units),
@@ -668,9 +666,9 @@ class HS04Model(tf.keras.Model):
             sem_ss = tf.matmul(act_s_list[t], w_ss)
             css_cs = tf.matmul(act_css_list[t], w_cs)
             hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
-            ort_os = tf.matmul(inputs[t], self.w_os)
+            # ort_os = tf.matmul(inputs[t], self.w_os)
 
-            s = self.tau * (hps_hs + sem_ss + css_cs + hos_hs + ort_os + bias_s)
+            s = self.tau * (hps_hs + sem_ss + css_cs + hos_hs + bias_s)
             s += (1 - self.tau) * input_s_list[t]
 
             ##### Phonology layer #####
@@ -678,9 +676,9 @@ class HS04Model(tf.keras.Model):
             pho_pp = tf.matmul(act_p_list[t], w_pp)
             cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
             hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp)
-            ort_op = tf.matmul(inputs[t], self.w_op)
+            # ort_op = tf.matmul(inputs[t], self.w_op)
 
-            p = self.tau * (hsp_hp + pho_pp + cpp_cp + hop_hp + ort_op + bias_p)
+            p = self.tau * (hsp_hp + pho_pp + cpp_cp + hop_hp + bias_p)
             p += (1 - self.tau) * input_p_list[t]
 
             ##### Hidden layer (PS) #####
