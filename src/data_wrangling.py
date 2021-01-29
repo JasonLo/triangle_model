@@ -463,9 +463,9 @@ class MyData:
 
     def load_testsets(self):
 
-        with gzip.open(os.path.join(self.input_path, "testsets", "homophone.pkl.gz"), "rb") as f:
-            self.testsets["homophone"] = pickle.load(f)
+        all_testsets = ("homophone", "non_homophone", "train", "strain", "grain_unambiguous", "grain_ambiguous")
 
-        with gzip.open(os.path.join(self.input_path, "testsets", "non_homophone.pkl.gz"), "rb") as f:
-            self.testsets["non_homophone"] = pickle.load(f)
+        for testset in all_testsets:
+            with gzip.open(os.path.join(self.input_path, "testsets", testset + ".pkl.gz"), "rb") as f:
+                self.testsets[testset] = pickle.load(f)
 
