@@ -7,12 +7,15 @@ import altair as alt
 
 alt.data_transformers.disable_max_rows()
 
-
 class testset:
     """Universal test set object for evaluating model results
     1. Single condition, single metric, single value output for maximum capatibility
     2. Model level info should be stored at separate table, and merge it at the end
     """
+
+    pho_acc = metrics.PhoAccuracy("acc")
+    right_side_acc = metrics.RightSideAccuracy("acc")
+    sse = metrics.SumSquaredError("sse")
 
     def __init__(
         self,
@@ -23,8 +26,6 @@ class testset:
         testitems,
         x_test,
         y_test,
-        metric,
-        triangle_out=None,
     ):
         self.name = name
         self.cfg = cfg
@@ -34,13 +35,14 @@ class testset:
         self.testitems = testitems
         self.x_test = x_test
         self.y_test = y_test
-        self.metric = metric
-        self.triangle_out = triangle_out
 
     def _convert_dict_to_df(self, x):
 
-        self.flat_dict = {
-            (epoch, y, timetick, item): {metric: x[epoch][y][timetick][metric][item]}
+        # Flatten the nested output dictionary
+        self._flat_dict = {
+            (epoch, y, timetick, item, metric): {
+                "value": x[epoch][y][timetick][metric][item]
+            }
             for epoch in x.keys()
             for y in x[epoch].keys()
             for timetick in x[epoch][y].keys()
@@ -48,9 +50,15 @@ class testset:
             for item in x[epoch][y][timetick][metric].keys()
         }
 
-        df = pd.DataFrame.from_dict(self.flat_dict, orient="index")
-        df.index.rename(["epoch", "y", "timetick", "item"], inplace=True)
-        df.reset_index(inplace=True)
+        # Create pd df and pivot by metric as column
+        df = pd.DataFrame.from_dict(self._flat_dict, orient="index")
+        df.index.rename(["epoch", "y", "timetick", "item", "metric"], inplace=True)
+        df = df.pivot_table(
+            index=["epoch", "timetick", "y", "item"],
+            columns="metric",
+            values="value",
+        ).reset_index()
+
         return df
 
     def eval_all(self, label_dict=None):
@@ -58,12 +66,12 @@ class testset:
         for epoch in tqdm(self.cfg.saved_epoches, desc=f"Evaluating {self.name}"):
             output[epoch] = self._eval_one_epoch(epoch)
 
-        self.outputdict = output
         df = self._convert_dict_to_df(output)
         df["code_name"] = self.cfg.code_name
         df["testset"] = self.name
         df["task"] = self.task
 
+        # Attach additional labels
         try:
             for k, v in label_dict.items():
                 df[k] = v
@@ -80,104 +88,113 @@ class testset:
 
         output = {}
         if self.task == "triangle":
-            output["pho"] = self._eval_one_y(pred_y[0], self.y_test[0])
-            output["sem"] = self._eval_one_y(pred_y[1], self.y_test[1])
-        elif (self.task == "pho_sem") or (self.task == "sem_sem"):              
-            output["sem"] = self._eval_one_y(pred_y)
+            output["pho"] = self._eval_one_y(pred_y[0], self.y_test[0], y_name="pho")
+            output["sem"] = self._eval_one_y(pred_y[1], self.y_test[1], y_name="sem")
+        elif (self.task == "pho_sem") or (self.task == "sem_sem"):
+            output["sem"] = self._eval_one_y(pred_y, self.y_test, y_name="sem")
         elif (self.task == "sem_pho") or (self.task == "pho_pho"):
-            output["pho"] = self._eval_one_y(pred_y)
+            output["pho"] = self._eval_one_y(pred_y, self.y_test, y_name="pho")
         else:
             print(f"{self.task} task does not exist in evaluator")
- 
+
         return output
-    
-    def _eval_one_y(self, pred_y, true_y):
+
+    def _eval_one_y(self, pred_y, true_y, y_name):
         output = {}
         if type(pred_y) is list:
             # Model with multi time ticks
             for i, pred_y_at_this_time in enumerate(pred_y):
                 tick = self.cfg.n_timesteps - self.cfg.output_ticks + i + 1
-                output[tick] = self._eval_one_timetick(pred_y_at_this_time, true_y)
+                output[tick] = self._eval_one_timetick(
+                    pred_y_at_this_time, true_y, y_name
+                )
         else:
             # Model with only one output tick
-            output[self.cfg.n_timesteps] = self._eval_one_timetick(pred_y, true_y)
+            output[self.cfg.n_timesteps] = self._eval_one_timetick(
+                pred_y, true_y, y_name
+            )
         return output
-    
-    def _eval_one_timetick(self, pred_y, true_y):
+
+    def _eval_one_timetick(self, pred_y, true_y, y_name):
 
         output = {}
-        output[self.metric.name] = dict(
-            zip(self.testitems, self.metric.item_metric(true_y, pred_y))
-        )
 
+        # Use different acc depending on output nature
+        if y_name == "pho":
+            output["acc"] = dict(
+                zip(self.testitems, self.pho_acc.item_metric(true_y, pred_y))
+            )
+        elif y_name == "sem":
+            output["acc"] = dict(
+                zip(self.testitems, self.right_side_acc.item_metric(true_y, pred_y))
+            )
+
+        output["sse"] = dict(zip(self.testitems, self.sse.item_metric(true_y, pred_y)))
         return output
-
+    
+    
 
 class eval_reading:
     """Bundle of testsets"""
-
-    Y_CONFIG_DICT = {
-        "pho": {"triangle_out": "pho", "metric": metrics.PhoAccuracy("acc")},
-        "pho_large_grain": {
-            "triangle_out": "pho",
-            "metric": metrics.PhoAccuracy("acc"),
-        },
-        "pho_small_grain": {
-            "triangle_out": "pho",
-            "metric": metrics.PhoAccuracy("acc"),
-        },
-        "sem": {"triangle_out": "sem", "metric": metrics.RightSideAccuracy("acc")},
-    }
 
     def __init__(self, cfg, model, data):
         self.cfg = cfg
         self.model = model
         self.data = data
 
-    def run_eval(self, testset_name, ys=["pho", "sem"]):
-
-        output = pd.DataFrame()
-        for y in ys:
-
-            acc = testset(
-                name=f"{testset_name}",
-                cfg=self.cfg,
-                model=self.model,
-                task="triangle",
-                triangle_out=self.Y_CONFIG_DICT[y]["triangle_out"],
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["ort"],
-                y_test=self.data.testsets[testset_name][y],
-                metric=self.Y_CONFIG_DICT[y]["metric"],
-            )
-            
-
-            acc.eval_all()
-            acc.result["y_test"] = y
-
-            output = pd.concat([output, tmp.result])
-
-        return output
-
     def eval_train(self):
-        """Call run_eval in testset (train), and run testset specific post-processing"""
+        testset_name = "train"
+        t = testset(
+            name=testset_name,
+            cfg=self.cfg,
+            model=self.model,
+            task="triangle",
+            testitems=self.data.testsets[testset_name]["item"],
+            x_test=self.data.testsets[testset_name]["ort"],
+            y_test=[
+                self.data.testsets[testset_name]["pho"],
+                self.data.testsets[testset_name]["sem"],
+            ],
+        )
 
-        df = self.run_eval("train")
+        t.eval_all()
+        df = t.result
+
+        # Item level
         df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_train.csv"))
+
+        # Aggregate
         mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y_test"])
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
             .mean()
             .reset_index()
         )
+
         mean_df.to_csv(
             os.path.join(self.cfg.path["model_folder"], "eval_mean_train.csv")
         )
         self.train_mean_df = mean_df
 
     def eval_strain(self):
-        """Call run_eval in testset (strain), and run testset specific post-processing"""
+        testset_name = "strain"
 
-        df = self.run_eval("strain")
+        t = testset(
+            name=testset_name,
+            cfg=self.cfg,
+            model=self.model,
+            task="triangle",
+            testitems=self.data.testsets[testset_name]["item"],
+            x_test=self.data.testsets[testset_name]["ort"],
+            y_test=[
+                self.data.testsets[testset_name]["pho"],
+                self.data.testsets[testset_name]["sem"],
+            ],
+        )
+
+        t.eval_all()
+        df = t.result
+
+        # Merge condition label
         df = df.merge(
             self.data.df_strain[
                 ["word", "frequency", "pho_consistency", "imageability"]
@@ -188,6 +205,8 @@ class eval_reading:
         )
 
         df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_strain.csv"))
+
+        # Condition level aggregate
         mean_df = (
             df.groupby(
                 [
@@ -196,7 +215,7 @@ class eval_reading:
                     "testset",
                     "epoch",
                     "timetick",
-                    "y_test",
+                    "y",
                     "frequency",
                     "pho_consistency",
                     "imageability",
@@ -214,23 +233,51 @@ class eval_reading:
         """Call run_eval in testset (grain), and run testset specific post-processing"""
 
         df = pd.DataFrame()
-        for g in ("grain_unambiguous", "grain_ambiguous"):
-            tmp = self.run_eval(g, ys=["pho_small_grain", "pho_large_grain", "sem"])
-            df = pd.concat([df, tmp])
+        for testset_name in ("grain_unambiguous", "grain_ambiguous"):
+            for grain_size in ("pho_small_grain", "pho_large_grain"):
+                t = testset(
+                    name=testset_name,
+                    cfg=self.cfg,
+                    model=self.model,
+                    task="triangle",
+                    testitems=self.data.testsets[testset_name]["item"],
+                    x_test=self.data.testsets[testset_name]["ort"],
+                    y_test=[
+                        self.data.testsets[testset_name][grain_size],
+                        self.data.testsets[testset_name]["sem"],
+                    ],
+                )
+
+                t.eval_all()
+                t.result["y_test"] = grain_size
+                df = pd.concat([df, t.result])
+
+        # Pho only
+        pho_df = df.loc[df.y == "pho"]
 
         # Calculate pho acc by summing large and small grain response
-        acc_df = (
-            df.loc[df.y_test.isin(["pho_large_grain", "pho_small_grain"])]
-            .groupby(["code_name", "task", "testset", "epoch", "timetick", "item"])
+        pho_acc_df = (
+            pho_df.groupby(
+                ["code_name", "task", "y", "testset", "epoch", "timetick", "item"]
+            )
             .sum()
             .reset_index()
         )
-        acc_df["y_test"] = "pho"
-        df = pd.concat([df, acc_df])
+
+        pho_acc_df["y_test"] = "pho"
+
+        # Sem only (Because we have evaluated semantic twice, we need to remove the duplicates)
+        sem_df = df.loc[(df.y == "sem") & (df.y_test == "pho_small_grain")]
+        sem_df = sem_df.drop(columns="y_test")
+        sem_df["y_test"] = "sem"
+
+        df = pd.concat([pho_df, pho_acc_df, sem_df])
         df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_grain.csv"))
 
         mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y_test"])
+            df.groupby(
+                ["code_name", "task", "testset", "epoch", "timetick", "y", "y_test"]
+            )
             .mean()
             .reset_index()
         )
@@ -254,7 +301,7 @@ class eval_reading:
             .encode(
                 x="epoch:Q",
                 y=alt.Y("acc:Q", scale=alt.Scale(domain=(0, 1))),
-                color="y_test",
+                color="y",
             )
             .add_selection(timetick_selection)
             .transform_filter(timetick_selection)
