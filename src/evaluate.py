@@ -40,15 +40,16 @@ class testset:
     def _convert_dict_to_df(self, x):
 
         self.flat_dict = {
-            (epoch, timetick, item): {metric: x[epoch][timetick][metric][item]}
+            (epoch, y, timetick, item): {metric: x[epoch][y][timetick][metric][item]}
             for epoch in x.keys()
-            for timetick in x[epoch].keys()
-            for metric in x[epoch][timetick].keys()
-            for item in x[epoch][timetick][metric].keys()
+            for y in x[epoch].keys()
+            for timetick in x[epoch][y].keys()
+            for metric in x[epoch][y][timetick].keys()
+            for item in x[epoch][y][timetick][metric].keys()
         }
 
         df = pd.DataFrame.from_dict(self.flat_dict, orient="index")
-        df.index.rename(["epoch", "timetick", "item"], inplace=True)
+        df.index.rename(["epoch", "y", "timetick", "item"], inplace=True)
         df.reset_index(inplace=True)
         return df
 
@@ -57,13 +58,13 @@ class testset:
         for epoch in tqdm(self.cfg.saved_epoches, desc=f"Evaluating {self.name}"):
             output[epoch] = self._eval_one_epoch(epoch)
 
+        self.outputdict = output
         df = self._convert_dict_to_df(output)
         df["code_name"] = self.cfg.code_name
         df["testset"] = self.name
         df["task"] = self.task
 
         try:
-            df["triangle_out"] = self.triangle_out
             for k, v in label_dict.items():
                 df[k] = v
         except:
@@ -77,27 +78,36 @@ class testset:
 
         pred_y = self.model([self.x_test] * self.cfg.n_timesteps)
 
-        if self.triangle_out is not None:
-            if self.triangle_out == "pho":
-                pred_y = pred_y[0]
-            elif self.triangle_out == "sem":
-                pred_y = pred_y[1]
-
+        output = {}
+        if self.task == "triangle":
+            output["pho"] = self._eval_one_y(pred_y[0], self.y_test[0])
+            output["sem"] = self._eval_one_y(pred_y[1], self.y_test[1])
+        elif (self.task == "pho_sem") or (self.task == "sem_sem"):              
+            output["sem"] = self._eval_one_y(pred_y)
+        elif (self.task == "sem_pho") or (self.task == "pho_pho"):
+            output["pho"] = self._eval_one_y(pred_y)
+        else:
+            print(f"{self.task} task does not exist in evaluator")
+ 
+        return output
+    
+    def _eval_one_y(self, pred_y, true_y):
         output = {}
         if type(pred_y) is list:
+            # Model with multi time ticks
             for i, pred_y_at_this_time in enumerate(pred_y):
                 tick = self.cfg.n_timesteps - self.cfg.output_ticks + i + 1
-                output[tick] = self._eval_one_timetick(pred_y_at_this_time)
+                output[tick] = self._eval_one_timetick(pred_y_at_this_time, true_y)
         else:
-            output[self.cfg.n_timesteps] = self._eval_one_timetick(pred_y)
-
+            # Model with only one output tick
+            output[self.cfg.n_timesteps] = self._eval_one_timetick(pred_y, true_y)
         return output
-
-    def _eval_one_timetick(self, y_pred):
+    
+    def _eval_one_timetick(self, pred_y, true_y):
 
         output = {}
         output[self.metric.name] = dict(
-            zip(self.testitems, self.metric.item_metric(self.y_test, y_pred))
+            zip(self.testitems, self.metric.item_metric(true_y, pred_y))
         )
 
         return output
@@ -129,7 +139,7 @@ class eval_reading:
         output = pd.DataFrame()
         for y in ys:
 
-            tmp = testset(
+            acc = testset(
                 name=f"{testset_name}",
                 cfg=self.cfg,
                 model=self.model,
@@ -140,9 +150,10 @@ class eval_reading:
                 y_test=self.data.testsets[testset_name][y],
                 metric=self.Y_CONFIG_DICT[y]["metric"],
             )
+            
 
-            tmp.eval_all()
-            tmp.result["y_test"] = y
+            acc.eval_all()
+            acc.result["y_test"] = y
 
             output = pd.concat([output, tmp.result])
 
