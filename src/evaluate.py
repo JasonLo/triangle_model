@@ -7,7 +7,7 @@ import altair as alt
 
 alt.data_transformers.disable_max_rows()
 
-class testset:
+class TestSet:
     """Universal test set object for evaluating model results
     1. Single condition, single metric, single value output for maximum capatibility
     2. Model level info should be stored at separate table, and merge it at the end
@@ -144,7 +144,7 @@ class eval_reading:
 
     def eval_train(self):
         testset_name = "train"
-        t = testset(
+        t = TestSet(
             name=testset_name,
             cfg=self.cfg,
             model=self.model,
@@ -178,7 +178,7 @@ class eval_reading:
     def eval_strain(self):
         testset_name = "strain"
 
-        t = testset(
+        t = TestSet(
             name=testset_name,
             cfg=self.cfg,
             model=self.model,
@@ -235,7 +235,7 @@ class eval_reading:
         df = pd.DataFrame()
         for testset_name in ("grain_unambiguous", "grain_ambiguous"):
             for grain_size in ("pho_small_grain", "pho_large_grain"):
-                t = testset(
+                t = TestSet(
                     name=testset_name,
                     cfg=self.cfg,
                     model=self.model,
