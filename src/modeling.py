@@ -3,7 +3,8 @@ import tensorflow.keras.backend as K
 from IPython.display import clear_output
 
 # Create dictionary for weight & biases related to each task
-## Important: Since trainable flag need recompiling,
+## Important: Due to model complexity, cannot use trainable flag to turn on/off training in a particular matric
+## Therefore, it must use custom training loop to control which matric will perform gradient descent 
 ## Since there are 4 sets of hidden layers and 2 sets of cleanup units,
 ## when refering to hidden, we need to state the exact layer in this format: h{from}{to} in weights
 ## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
@@ -44,9 +45,15 @@ WEIGHTS_AND_BIASES["triangle"] = (
 
 
 class HS04Model(tf.keras.Model):
-    """HS04 Phase 1: Oral stage (P/S) pretraining"""
+    """
+    HS04 Phase 1: Oral stage (P/S) pretraining
+    HS04 Phase 2: Reading stage (O to P/S simuteneously, freeze all phase 1 matrices)
+    Changes to orginal HS04:
+    - No direct connection from O to S / P 
+    """
 
-    def __init__(self, cfg, name="oral", **kwargs):
+
+    def __init__(self, cfg, name="hs04r", **kwargs):
         super().__init__(**kwargs)
 
         for key, value in cfg.__dict__.items():
@@ -63,9 +70,8 @@ class HS04Model(tf.keras.Model):
         }
 
     def build(self, input_shape=None):
-        """Build entire Phase 1 model's weights and biases
+        """Build entire model's weights and biases
         Manually control gradient decent in custom training loop
-        # CAUTION: indexing is used in
         """
 
         weight_initializer = tf.random_uniform_initializer(minval=-0.1, maxval=0.1)
