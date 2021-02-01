@@ -1,4 +1,4 @@
-# This script contain a set of custom functions for managing representations 
+# This script contain a set of custom functions for managing representations
 
 import pickle, gzip, os
 import numpy as np
@@ -17,9 +17,10 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
 
 
 class Sampling:
-    """ Full function sampling class, can be quite slow, but contain a dynamic logging function, 
+    """Full function sampling class, can be quite slow, but contain a dynamic logging function,
     mainly for model v3.x (using equation to manage semantic input)
     """
+
     def __init__(self, cfg, data, debugging=False):
         self.cfg = cfg
         self.data = data
@@ -130,9 +131,14 @@ class Sampling:
                 batch_x = self.data.np_representations[x][idx]
 
                 if type(y) is list:
-                    batch_y = [[self.data.np_representations[yi][idx]] * self.cfg.output_ticks for yi in y]
+                    batch_y = [
+                        [self.data.np_representations[yi][idx]] * self.cfg.output_ticks
+                        for yi in y
+                    ]
                 else:
-                    batch_y = [self.data.np_representations[y][idx]] * self.cfg.output_ticks
+                    batch_y = [
+                        self.data.np_representations[y][idx]
+                    ] * self.cfg.output_ticks
                 yield (batch_x, batch_y)
 
     def get_stage(self, sample, normalize=False):
@@ -220,7 +226,7 @@ class Sampling:
                 print(f"There are {np.sum(clip>0)} words in the training set")
 
             compressed_wf = np.log(clip + 1)
-            
+
         if implementation == "chang_ssr":
             wf = df_train.wf.copy()
             root = np.sqrt(wf) / np.sqrt(30000)
@@ -228,7 +234,6 @@ class Sampling:
 
             sel = df_train.wf.rank(ascending=False) <= vocab_size
             compressed_wf[~sel] = 0
-            
 
         if implementation == "developmental_rank_frequency":
             """Continuous sampling set"""
@@ -260,8 +265,6 @@ class Sampling:
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
 
 
-    
-    
 class FastSampling:
     """Performance oriented sample generator
     A simplified version of Sampling() for hs04 model
@@ -277,17 +280,17 @@ class FastSampling:
             self.static_p = Sampling.get_sampling_probability(
                 df_train=self.data.df_train, implementation=self.cfg.sample_name
             )
-            
+
         elif self.cfg.sample_name == "chang_ssr":
             self.static_p = Sampling.get_sampling_probability(
-                df_train=self.data.df_train, implementation=self.cfg.sample_name, vocab_size=self.cfg.oral_vocab_size
-            )       
-                
-            
+                df_train=self.data.df_train,
+                implementation=self.cfg.sample_name,
+                vocab_size=self.cfg.oral_vocab_size,
+            )
+
         else:
             self.static_p = None
 
-            
     def sample_generator(self, x, y, x_ticks=None, y_ticks=None):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
@@ -302,7 +305,7 @@ class FastSampling:
             y_ticks = self.cfg.output_ticks
 
         while True:
-            
+
             # Get master sampling stage if using Chang's implementation
             if self.cfg.sample_name == "chang_jml":
                 # Need to minus batch_size, because the sample is
@@ -336,13 +339,14 @@ class FastSampling:
 
             if type(y) is list:
                 # Multi output as a list
-                batch_y = [[self.data.np_representations[yi][idx]] * y_ticks for yi in y]
+                batch_y = [
+                    [self.data.np_representations[yi][idx]] * y_ticks for yi in y
+                ]
             else:
                 # Single output
                 batch_y = [self.data.np_representations[y][idx]] * y_ticks
 
             yield (batch_x, batch_y)
-
 
 
 class MyData:
@@ -377,39 +381,52 @@ class MyData:
         self.df_strain = pd.read_csv(
             os.path.join(self.input_path, "df_strain.csv"), index_col=0
         )
-        self.ort_strain = np.load(os.path.join(self.input_path, "ort_strain.npz"))["data"]
-        self.ort_strain_wf = np.array(self.df_strain["wf"])
-        self.ort_strain_img = np.array(self.df_strain["img"])
-        self.pho_strain = np.load(os.path.join(self.input_path, "pho_strain.npz"))["data"]
-        self.sem_strain = np.load(os.path.join(self.input_path, "sem_strain.npz"))["data"]
+        # self.ort_strain = np.load(os.path.join(self.input_path, "ort_strain.npz"))[
+        #     "data"
+        # ]
+        # self.ort_strain_wf = np.array(self.df_strain["wf"])
+        # self.ort_strain_img = np.array(self.df_strain["img"])
+        # self.pho_strain = np.load(os.path.join(self.input_path, "pho_strain.npz"))[
+        #     "data"
+        # ]
+        # self.sem_strain = np.load(os.path.join(self.input_path, "sem_strain.npz"))[
+        #     "data"
+        # ]
 
         self.df_grain = pd.read_csv(
             os.path.join(self.input_path, "df_grain.csv"), index_col=0
         )
-        self.ort_grain = np.load(os.path.join(self.input_path, "ort_grain.npz"))["data"]
-        self.ort_grain_wf = np.array(self.df_grain["wf"])
-        self.ort_grain_img = np.array(self.df_grain["img"])
-        self.pho_large_grain = np.load(os.path.join(self.input_path, "pho_large_grain.npz"))[
-            "data"
-        ]
-        self.pho_small_grain = np.load(os.path.join(self.input_path, "pho_small_grain.npz"))[
-            "data"
-        ]
+        # self.ort_grain = np.load(os.path.join(self.input_path, "ort_grain.npz"))["data"]
+        # self.ort_grain_wf = np.array(self.df_grain["wf"])
+        # self.ort_grain_img = np.array(self.df_grain["img"])
+        # self.pho_large_grain = np.load(
+        #     os.path.join(self.input_path, "pho_large_grain.npz")
+        # )["data"]
+        # self.pho_small_grain = np.load(
+        #     os.path.join(self.input_path, "pho_small_grain.npz")
+        # )["data"]
+
 
         self.df_taraban = pd.read_csv(
             os.path.join(self.input_path, "df_taraban.csv"), index_col=0
         )
-        self.ort_taraban = np.load(os.path.join(self.input_path, "ort_taraban.npz"))["data"]
-        self.ort_taraban_wf = np.array(self.df_taraban["wf"])
-        self.ort_taraban_img = np.array(self.df_taraban["img"])
-        self.pho_taraban = np.load(os.path.join(self.input_path, "pho_taraban.npz"))["data"]
+        # self.ort_taraban = np.load(os.path.join(self.input_path, "ort_taraban.npz"))[
+        #     "data"
+        # ]
+        # self.ort_taraban_wf = np.array(self.df_taraban["wf"])
+        # self.ort_taraban_img = np.array(self.df_taraban["img"])
+        # self.pho_taraban = np.load(os.path.join(self.input_path, "pho_taraban.npz"))[
+        #     "data"
+        # ]
 
         self.df_glushko = pd.read_csv(
             os.path.join(self.input_path, "df_glushko.csv"), index_col=0
         )
-        self.ort_glushko = np.load(os.path.join(self.input_path, "ort_glushko.npz"))["data"]
-        self.ort_glushko_wf = np.array(self.df_glushko["wf"])
-        self.ort_glushko_img = np.array(self.df_glushko["img"])
+        # self.ort_glushko = np.load(os.path.join(self.input_path, "ort_glushko.npz"))[
+        #     "data"
+        # ]
+        # self.ort_glushko_wf = np.array(self.df_glushko["wf"])
+        # self.ort_glushko_img = np.array(self.df_glushko["img"])
 
         with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
@@ -425,9 +442,8 @@ class MyData:
         self.phon_key = gen_pkey()
 
         # Elevate for easier access
-        self.wf = np.array(self.df_train["wf"], dtype="float32")
-        self.img = np.array(self.df_train["img"], dtype="float32")
-
+        # self.wf = np.array(self.df_train["wf"], dtype="float32")
+        # self.img = np.array(self.df_train["img"], dtype="float32")
 
         # print("==========Orthographic representation==========")
         # print("ort_train shape:", self.ort_train.shape)
@@ -455,17 +471,25 @@ class MyData:
 
     def create_testset_from_train_idx(self, idx):
         """Return a test set representation dictionary with word, ort, pho, sem"""
-        item = list(self.df_train.loc[idx, "word"].astype('str'))
+        item = list(self.df_train.loc[idx, "word"].astype("str"))
         ort = self.ort_train[idx,]
         pho = self.pho_train[idx,]
         sem = self.sem_train[idx,]
-        return {"item":item, "ort": ort, "pho":pho, "sem":sem}
+        return {"item": item, "ort": ort, "pho": pho, "sem": sem}
 
     def load_testsets(self):
 
-        all_testsets = ("homophone", "non_homophone", "train", "strain", "grain_unambiguous", "grain_ambiguous")
+        all_testsets = (
+            "homophone",
+            "non_homophone",
+            "train",
+            "strain",
+            "grain_unambiguous",
+            "grain_ambiguous",
+        )
 
         for testset in all_testsets:
-            with gzip.open(os.path.join(self.input_path, "testsets", testset + ".pkl.gz"), "rb") as f:
+            with gzip.open(
+                os.path.join(self.input_path, "testsets", testset + ".pkl.gz"), "rb"
+            ) as f:
                 self.testsets[testset] = pickle.load(f)
-
