@@ -486,6 +486,8 @@ class MyData:
             "strain",
             "grain_unambiguous",
             "grain_ambiguous",
+            "train_cortese_hi_img", 
+            "train_cortese_low_img"
         )
 
         for testset in all_testsets:

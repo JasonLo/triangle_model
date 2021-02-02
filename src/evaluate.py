@@ -1,4 +1,6 @@
-from altair.vegalite.v4.schema.channels import StrokeDash
+""" This module is for all things related to testsets
+"""
+
 from tqdm import tqdm
 import os
 import metrics
@@ -35,6 +37,9 @@ class TestSet:
         self.testitems = testitems
         self.x_test = x_test
         self.y_test = y_test
+
+        self._flat_dict = None
+        self.result = None
 
     def _convert_dict_to_df(self, x):
 
@@ -75,7 +80,7 @@ class TestSet:
         try:
             for k, v in label_dict.items():
                 df[k] = v
-        except:
+        except AttributeError:
             pass
 
         self.result = df
@@ -134,7 +139,7 @@ class TestSet:
     
     
 
-class eval_reading:
+class EvalReading:
     """Bundle of testsets"""
 
     def __init__(self, cfg, model, data):
@@ -286,6 +291,42 @@ class eval_reading:
         )
 
         self.grain_mean_df = mean_df
+
+    def eval_train_cortese_img(self):
+
+        df = pd.DataFrame()
+        for testset_name in ("train_cortese_hi_img", "train_cortese_low_img"):
+            t = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task="triangle",
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]["ort"],
+                y_test=[
+                    self.data.testsets[testset_name]["pho"],
+                    self.data.testsets[testset_name]["sem"],
+                ],
+            )
+
+            t.eval_all()
+            df = pd.concat([df, t.result])
+
+        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_train_cortese_img.csv"))
+
+        mean_df = (
+            df.groupby(
+                ["code_name", "task", "testset", "epoch", "timetick", "y"]
+            )
+            .mean()
+            .reset_index()
+        )
+
+        mean_df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval_mean_train_cortese_img.csv")
+        )
+
+        self.train_cortese_img_mean_df = mean_df
 
     def plot_reading_acc(self, df):
         timetick_selection = alt.selection_single(
