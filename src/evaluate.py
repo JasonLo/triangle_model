@@ -292,6 +292,55 @@ class EvalReading:
 
         self.grain_mean_df = mean_df
 
+    def eval_taraban(self):
+
+        testsets = (
+            "taraban_hf-exc",
+            "taraban_hf-reg-inc",
+            "taraban_lf-exc",
+            "taraban_lf-reg-inc",
+            "taraban_ctrl-hf-exc",
+            "taraban_ctrl-hf-reg-inc",
+            "taraban_ctrl-lf-exc",
+            "taraban_ctrl-lf-reg-inc"
+            )
+
+        df = pd.DataFrame()
+
+        for testset_name in testsets:
+
+            t = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task="triangle",
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]["ort"],
+                y_test=[
+                    self.data.testsets[testset_name]["pho"],
+                    self.data.testsets[testset_name]["sem"],
+                ],
+            )
+
+            t.eval_all()
+            df = pd.concat([df, t.result])
+        
+        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_taraban.csv"))
+
+        mean_df = (
+            df.groupby(
+                ["code_name", "task", "testset", "epoch", "timetick", "y"]
+            )
+            .mean()
+            .reset_index()
+        )
+
+        mean_df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval_mean_taraban.csv")
+        )
+
+        self.taraban_mean_df = mean_df
+
     def eval_train_cortese_img(self):
 
         df = pd.DataFrame()
