@@ -9,6 +9,7 @@ import altair as alt
 
 alt.data_transformers.disable_max_rows()
 
+
 class TestSet:
     """Universal test set object for evaluating model results
     1. Single condition, single metric, single value output for maximum capatibility
@@ -136,18 +137,47 @@ class TestSet:
 
         output["sse"] = dict(zip(self.testitems, self.sse.item_metric(true_y, pred_y)))
         return output
-    
-    
+
 
 class EvalReading:
     """Bundle of testsets"""
+
+    TESTSETS_NAME = ("train", "strain", "grain", "taraban", "cortese")
 
     def __init__(self, cfg, model, data):
         self.cfg = cfg
         self.model = model
         self.data = data
 
-    def eval_train(self):
+        # Preload eval results from file
+        for _testset_name in self.TESTSETS_NAME:
+            try:
+                _file = os.path.join(
+                    self.cfg.path["model_folder"],
+                    "eval",
+                    f"{_testset_name}_mean_df.csv",
+                )
+                setattr(self, f"{_testset_name}_mean_df", pd.read_csv(_file))
+            except (FileNotFoundError, IOError):
+                setattr(self, f"{_testset_name}_mean_df", None)
+
+        # Bundle testsets into dictionary
+        self.run_eval = {
+            "train": self._eval_train,
+            "strain": self._eval_strain,
+            "grain": self._eval_grain,
+            "taraban": self._eval_taraban,
+            "cortese": self._eval_cortese,
+        }
+
+    def eval(self, testset_name):
+        if getattr(self, f"{testset_name}_mean_df") is None:
+            print("Evaluation results not found")
+            self.run_eval[testset_name]()
+        else:
+            print("Evaluation results found, loaded from file.")
+
+    def _eval_train(self):
         testset_name = "train"
         t = TestSet(
             name=testset_name,
@@ -161,12 +191,13 @@ class EvalReading:
                 self.data.testsets[testset_name]["sem"],
             ],
         )
-
         t.eval_all()
         df = t.result
-
-        # Item level
-        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_train.csv"))
+        df.to_csv(
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", f"{testset_name}_item_df.csv"
+            )
+        )
 
         # Aggregate
         mean_df = (
@@ -174,13 +205,15 @@ class EvalReading:
             .mean()
             .reset_index()
         )
-
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval_mean_train.csv")
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", f"{testset_name}_mean_df.csv"
+            )
         )
+
         self.train_mean_df = mean_df
 
-    def eval_strain(self):
+    def _eval_strain(self):
         testset_name = "strain"
 
         t = TestSet(
@@ -209,7 +242,11 @@ class EvalReading:
             right_on="word",
         )
 
-        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_strain.csv"))
+        df.to_csv(
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", f"{testset_name}_item_df.csv"
+            )
+        )
 
         # Condition level aggregate
         mean_df = (
@@ -230,13 +267,13 @@ class EvalReading:
             .reset_index()
         )
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval_mean_strain.csv")
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", f"{testset_name}_mean_df.csv"
+            )
         )
         self.strain_mean_df = mean_df
 
-    def eval_grain(self):
-        """Call run_eval in testset (grain), and run testset specific post-processing"""
-
+    def _eval_grain(self):
         df = pd.DataFrame()
         for testset_name in ("grain_unambiguous", "grain_ambiguous"):
             for grain_size in ("pho_small_grain", "pho_large_grain"):
@@ -277,7 +314,9 @@ class EvalReading:
         sem_df["y_test"] = "sem"
 
         df = pd.concat([pho_df, pho_acc_df, sem_df])
-        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_item_grain.csv"))
+        df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "grain_item_df.csv")
+        )
 
         mean_df = (
             df.groupby(
@@ -287,12 +326,12 @@ class EvalReading:
             .reset_index()
         )
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval_mean_grain.csv")
+            os.path.join(self.cfg.path["model_folder"], "eval", "grain_mean_df.csv")
         )
 
         self.grain_mean_df = mean_df
 
-    def eval_taraban(self):
+    def _eval_taraban(self):
 
         testsets = (
             "taraban_hf-exc",
@@ -302,8 +341,8 @@ class EvalReading:
             "taraban_ctrl-hf-exc",
             "taraban_ctrl-hf-reg-inc",
             "taraban_ctrl-lf-exc",
-            "taraban_ctrl-lf-reg-inc"
-            )
+            "taraban_ctrl-lf-reg-inc",
+        )
 
         df = pd.DataFrame()
 
@@ -324,27 +363,27 @@ class EvalReading:
 
             t.eval_all()
             df = pd.concat([df, t.result])
-        
-        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_taraban.csv"))
+
+        df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_item_df.csv")
+        )
 
         mean_df = (
-            df.groupby(
-                ["code_name", "task", "testset", "epoch", "timetick", "y"]
-            )
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
             .mean()
             .reset_index()
         )
 
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval_mean_taraban.csv")
+            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_mean_df.csv")
         )
 
         self.taraban_mean_df = mean_df
 
-    def eval_train_cortese_img(self):
+    def _eval_cortese(self):
 
         df = pd.DataFrame()
-        for testset_name in ("train_cortese_hi_img", "train_cortese_low_img"):
+        for testset_name in ("cortese_hi_img", "cortese_low_img"):
             t = TestSet(
                 name=testset_name,
                 cfg=self.cfg,
@@ -361,21 +400,21 @@ class EvalReading:
             t.eval_all()
             df = pd.concat([df, t.result])
 
-        df.to_csv(os.path.join(self.cfg.path["model_folder"], "eval_train_cortese_img.csv"))
+        df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "cortese_item_df.csv")
+        )
 
         mean_df = (
-            df.groupby(
-                ["code_name", "task", "testset", "epoch", "timetick", "y"]
-            )
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
             .mean()
             .reset_index()
         )
 
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval_mean_train_cortese_img.csv")
+            os.path.join(self.cfg.path["model_folder"], "eval", "cortese_mean_df.csv")
         )
 
-        self.train_cortese_img_mean_df = mean_df
+        self.cortese_mean_df = mean_df
 
     def plot_reading_acc(self, df):
         timetick_selection = alt.selection_single(
