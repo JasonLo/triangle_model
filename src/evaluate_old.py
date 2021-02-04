@@ -237,7 +237,8 @@ class testset():
             self.model.load_weights(model_h5_name)
 
 
-            y_pred_matrix = self.model.predict(self.x_test)
+            y_pred_matrix = self.model.predict([self.x_test] * self.cfg.n_timesteps)
+            y_pred_matrix = y_pred_matrix[0]
 
             for timestep in range(self.cfg.output_ticks):
 
