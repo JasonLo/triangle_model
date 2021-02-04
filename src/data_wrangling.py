@@ -422,22 +422,18 @@ class MyData:
         self.df_glushko = pd.read_csv(
             os.path.join(self.input_path, "df_glushko.csv"), index_col=0
         )
-        # self.ort_glushko = np.load(os.path.join(self.input_path, "ort_glushko.npz"))[
-        #     "data"
-        # ]
-        # self.ort_glushko_wf = np.array(self.df_glushko["wf"])
-        # self.ort_glushko_img = np.array(self.df_glushko["img"])
+        self.x_glushko = np.load(os.path.join(self.input_path, "ort_glushko.npz"))[
+            "data"
+        ]
+        self.x_glushko_wf = np.array(self.df_glushko["wf"])
+        self.x_glushko_img = np.array(self.df_glushko["img"])
+
+        with open(self.input_path + 'y_glushko.pkl', "rb") as f:
+            self.y_glushko = pickle.load(f)
 
         with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
 
-        with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
-            self.pho_glushko = pickle.load(f)
-
-        with gzip.open(
-            os.path.join(self.input_path, "representation_dictionary.pkl.gz"), "rb"
-        ) as f:
-            self.representation = pickle.load(f)
 
         self.phon_key = gen_pkey()
 
@@ -487,7 +483,15 @@ class MyData:
             "grain_unambiguous",
             "grain_ambiguous",
             "train_cortese_hi_img", 
-            "train_cortese_low_img"
+            "train_cortese_low_img",
+            "taraban_hf-exc",
+            "taraban_hf-reg-inc",
+            "taraban_lf-exc",
+            "taraban_lf-reg-inc",
+            "taraban_ctrl-hf-exc",
+            "taraban_ctrl-hf-reg-inc",
+            "taraban_ctrl-lf-exc",
+            "taraban_ctrl-lf-reg-inc",
         )
 
         for testset in all_testsets:
