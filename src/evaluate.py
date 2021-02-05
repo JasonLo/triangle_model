@@ -5,9 +5,38 @@ from tqdm import tqdm
 import os
 import metrics
 import pandas as pd
+import numpy as np
 import altair as alt
 
 alt.data_transformers.disable_max_rows()
+
+def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
+    """Read phonological patterns from the mapping file
+    See Harm & Seidenberg PDF file
+    """
+
+    mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
+    m_dict = mapping.set_index(0).T.to_dict("list")
+    return m_dict
+
+phon_key = gen_pkey()
+
+def get_pronunciation_fast(act, phon_key):
+    phonemes = list(phon_key.keys())
+    act10 = np.tile([v for k, v in phon_key.items()], 10)
+
+    d = np.abs(act10 - act)
+    d_mat = np.reshape(d, (38, 10, 25))
+    sumd_mat = np.squeeze(np.sum(d_mat, 2))
+    map_idx = np.argmin(sumd_mat, 0)
+    out = str()
+    for x in map_idx:
+        out += phonemes[x]
+    return out
+
+def get_batch_pronunciations_fast(act, phon_key):
+    return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
+
 
 
 class TestSet:
@@ -59,13 +88,15 @@ class TestSet:
         # Create pd df and pivot by metric as column
         df = pd.DataFrame.from_dict(self._flat_dict, orient="index")
         df.index.rename(["epoch", "y", "timetick", "item", "metric"], inplace=True)
-        df = df.pivot_table(
+
+        df = df.reset_index().pivot(
             index=["epoch", "timetick", "y", "item"],
             columns="metric",
             values="value",
         ).reset_index()
-
-        return df
+        
+        # automatically convert to best dtype
+        return df.convert_dtypes()
 
     def eval_all(self, label_dict=None):
         output = {}
@@ -127,16 +158,29 @@ class TestSet:
 
         # Use different acc depending on output nature
         if y_name == "pho":
+            acc = self.pho_acc.item_metric(true_y, pred_y)
             output["acc"] = dict(
-                zip(self.testitems, self.pho_acc.item_metric(true_y, pred_y))
+                zip(self.testitems, acc)
+            )
+            output["pho_symbol"] = dict(
+                zip(self.testitems, get_batch_pronunciations_fast(pred_y, phon_key))
             )
         elif y_name == "sem":
+            acc = self.right_side_acc.item_metric(true_y, pred_y)
             output["acc"] = dict(
-                zip(self.testitems, self.right_side_acc.item_metric(true_y, pred_y))
+                zip(self.testitems, acc)
             )
 
-        output["sse"] = dict(zip(self.testitems, self.sse.item_metric(true_y, pred_y)))
+        sse = self.sse.item_metric(true_y, pred_y)
+        output["sse"] = dict(zip(self.testitems, sse))
+
+        conditional_sse = sse
+        conditional_sse[acc==0] = np.nan
+
+        output["conditional_sse"] = dict(zip(self.testitems, conditional_sse))
+        
         return output
+
 
 
 class EvalReading:
@@ -149,6 +193,11 @@ class EvalReading:
         self.model = model
         self.data = data
 
+        self.train_mean_df = None
+        self.strain_mean_df = None
+        self.grain_mean_df = None
+        self.taraban_mean_df = None
+        self.cortese_mean_df = None
         # Preload eval results from file
         for _testset_name in self.TESTSETS_NAME:
             try:
@@ -159,7 +208,7 @@ class EvalReading:
                 )
                 setattr(self, f"{_testset_name}_mean_df", pd.read_csv(_file))
             except (FileNotFoundError, IOError):
-                setattr(self, f"{_testset_name}_mean_df", None)
+                pass
 
         # Bundle testsets into dictionary
         self.run_eval = {
@@ -172,7 +221,6 @@ class EvalReading:
 
     def eval(self, testset_name):
         if getattr(self, f"{testset_name}_mean_df") is None:
-            print("Evaluation results not found")
             self.run_eval[testset_name]()
         else:
             print("Evaluation results found, loaded from file.")
@@ -248,6 +296,9 @@ class EvalReading:
             )
         )
 
+        df.drop(columns=["pho_symbol"], inplace = True)
+
+        self.df = df
         # Condition level aggregate
         mean_df = (
             df.groupby(
