@@ -296,8 +296,6 @@ class EvalReading:
             )
         )
 
-        df.drop(columns=["pho_symbol"], inplace = True)
-
         self.df = df
         # Condition level aggregate
         mean_df = (
