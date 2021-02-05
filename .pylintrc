@@ -1,2 +1,2 @@
 [TYPECHECK]
-ignored-classes=ModelConfig
+ignored-classes=ModelConfig, HS04Model
