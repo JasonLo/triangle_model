@@ -364,7 +364,10 @@ class HS04Model(tf.keras.Model):
         act_css_list.append(input_css_list[0] + 0.5)
 
         for t in range(self.n_timesteps):
-            # Inject fresh white noise to weights and biases within pho system in each time step while training
+            """Inject fresh white noise to weights and biases within pho system
+            in each time step while training
+            """
+
             w_ss = K.in_train_phase(
                 self._inject_noise(self.w_ss, self.sem_noise_level),
                 self.w_ss,
