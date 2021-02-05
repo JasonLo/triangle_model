@@ -96,6 +96,7 @@ class ModelConfig:
         path_dict["tf_root"] = self.tf_root
         path_dict["model_folder"] = os.path.join(self.tf_root, "models", self.code_name)
         path_dict["weight_folder"] = os.path.join(path_dict["model_folder"], "weights")
+        path_dict["eval_folder"] = os.path.join(path_dict["model_folder"], "eval")
         path_dict["save_model_folder"] = os.path.join(
             path_dict["model_folder"], "saved_model"
         )
@@ -113,8 +114,11 @@ class ModelConfig:
             os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
             for epoch in self.saved_epoches
         ]
+        
+
 
         os.makedirs(path_dict["weight_folder"], exist_ok=True)
+        os.makedirs(path_dict["eval_folder"], exist_ok=True)
         os.makedirs(path_dict["plot_folder"], exist_ok=True)
         os.makedirs(path_dict["save_model_folder"], exist_ok=True)
         return path_dict
