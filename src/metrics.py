@@ -22,6 +22,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         self.pho_map_values = tf.constant([v for v in pho_key.values()], tf.float32)
 
     def update_state(self, y_true, y_pred):
+        """Batch level averaged metric"""
         self.out.assign(
             tf.reduce_mean(
                 tf.cast(
@@ -39,6 +40,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         )
 
     def item_metric(self, y_true, y_pred):
+        """Item level calculation for evaluator"""
         return tf.cast(
             tf.math.reduce_all(
                 tf.math.equal(
