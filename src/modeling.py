@@ -770,15 +770,15 @@ class CustomBCE(tf.keras.losses.Loss):
         super().__init__(name=name)
         self.radius = radius
 
-    @staticmethod
-    def _constant_to_tensor(x, dtype):
-        return tf.python.framework.constant_op.constant(x, dtype=dtype)
+#     @staticmethod
+#     def _constant_to_tensor(x, dtype):
+#         return tf.python.framework.constant_op.constant(x, dtype=dtype)
 
-    @staticmethod
-    def _backtrack_identity(tensor):
-        while tensor.op.type == "Identity":
-            tensor = tensor.op.inputs[0]
-        return tensor
+#     @staticmethod
+#     def _backtrack_identity(tensor):
+#         while tensor.op.type == "Identity":
+#             tensor = tensor.op.inputs[0]
+#         return tensor
 
     @staticmethod
     def zer_replace(target, output, zero_error_radius):
@@ -789,24 +789,28 @@ class CustomBCE(tf.keras.losses.Loss):
         return tf.where(within_zer, target, output)
 
     def call(self, y_true, y_pred):
-        if not isinstance(
-            y_pred,
-            (tf.python.framework.ops.EagerTensor, tf.python.ops.variables.Variable),
-        ):
-            y_pred = CustomBCE._backtrack_identity(y_pred)
+#         if not isinstance(
+#             y_pred,
+#             (tf.python.framework.ops.EagerTensor, tf.python.ops.variables.Variable),
+#         ):
+#             y_pred = CustomBCE._backtrack_identity(y_pred)
+
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+    
 
         # Replace output by target if value within zero error radius
         zer_output = CustomBCE.zer_replace(y_true, y_pred, self.radius)
 
         # Clip with a tiny constant to avoid zero division
-        epsilon_ = CustomBCE._constant_to_tensor(K.epsilon(), y_pred.dtype.base_dtype)
-        zer_output = tf.python.ops.clip_ops.clip_by_value(
+        epsilon_ = tf.convert_to_tensor(K.epsilon(), y_pred.dtype)
+        zer_output = tf.clip_by_value(
             zer_output, epsilon_, 1.0 - epsilon_
         )
 
         # Compute cross entropy from probabilities.
-        bce = y_true * tf.python.ops.log(zer_output + K.epsilon())
-        bce += (1 - y_true) * tf.python.ops.log(1 - zer_output + K.epsilon())
+        bce = y_true * tf.math.log(zer_output + K.epsilon())
+        bce += (1 - y_true) * tf.math.log(1 - zer_output + K.epsilon())
         return -bce
 
 

@@ -27,6 +27,7 @@ CORE_CONFIGS = (
     "sample_name",
     "rng_seed",
     "learning_rate",
+    "zero_error_radius",
     "n_mil_sample",
     "batch_size",
     "save_freq",
