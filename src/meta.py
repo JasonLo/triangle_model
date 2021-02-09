@@ -246,29 +246,21 @@ def check_gpu():
         print("GPU is NOT AVAILABLE \n")
 
 
-def set_gpu_mem_cap(b=2048):
+def set_gpu_mem_cap(limit_MB=7168):
     """
     Set GPU memory cap per python kernal for parallel run
     Smaller models usually do not need 100% GPU throughput
     By limiting the memory cap per python kernal,
     we can run multiple models in parallel to maximize efficiency
-    OSP model can archieve 2-3x saving.
+    OSP model can get 2-3x saving.
 
     Use nvidia-smi in terminal to check total available memory
     """
+    gpus = tf.config.list_physical_devices("GPU")
 
-    gpus = tf.config.experimental.list_physical_devices("GPU")
-    if gpus:
-        try:
-            tf.config.experimental.set_virtual_device_configuration(
-                gpus[0],
-                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=b)],
-            )
-            logical_gpus = tf.config.experimental.list_logical_devices("GPU")
-            print(f"{len(gpus)} Physical GPUs, {len(logical_gpus)} Logical GPUs")
-
-        except:
-            print("failed")
-            pass
-    else:
-        print("No GPU")
+    tf.config.set_logical_device_configuration(
+                    gpus[0],
+                    [tf.config.LogicalDeviceConfiguration(memory_limit=limit_MB),
+                     tf.config.LogicalDeviceConfiguration(memory_limit=limit_MB)],
+                )
+    tf.config.list_logical_devices("GPU")
