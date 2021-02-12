@@ -3,8 +3,8 @@ import tensorflow.keras.backend as K
 from IPython.display import clear_output
 
 # Create dictionary for weight & biases related to each task
-## Important: Due to model complexity, cannot use trainable flag to turn on/off training in a particular matric
-## Therefore, it must use custom training loop to control which matric will perform gradient descent 
+## Important: Due to model complexity, cannot use trainable flag to turn on/off training during a vanilla training loop
+## Therefore, it must use custom training loop to control which matrix to perform gradient descent
 ## Since there are 4 sets of hidden layers and 2 sets of cleanup units,
 ## when refering to hidden, we need to state the exact layer in this format: h{from}{to} in weights
 ## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
@@ -33,7 +33,6 @@ WEIGHTS_AND_BIASES["sem_pho"] = (
 )
 WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
-
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
     "w_hos_hs",
@@ -49,9 +48,8 @@ class HS04Model(tf.keras.Model):
     HS04 Phase 1: Oral stage (P/S) pretraining
     HS04 Phase 2: Reading stage (O to P/S simuteneously, freeze all phase 1 matrices)
     Changes to orginal HS04:
-    - No direct connection from O to S / P 
+    - No direct connection from O to S / P
     """
-
 
     def __init__(self, cfg, name="hs04r", **kwargs):
         super().__init__(**kwargs)
@@ -60,6 +58,7 @@ class HS04Model(tf.keras.Model):
             setattr(self, key, value)
 
         self.activation = tf.keras.activations.get(self.activation)
+        self.active_task = "triangle"
 
         self.tasks = {
             "pho_sem": self.task_pho_sem,
@@ -193,12 +192,6 @@ class HS04Model(tf.keras.Model):
         # Phase 2 weight and biases
 
         # OS branch
-#         self.w_os = self.add_weight(
-#             shape=(self.ort_units, self.sem_units),
-#             name="w_os",
-#             initializer=weight_initializer,
-#             trainable=True,
-#         )
 
         self.w_hos_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_os_units),
@@ -222,12 +215,6 @@ class HS04Model(tf.keras.Model):
         )
 
         # OP branch
-#         self.w_op = self.add_weight(
-#             shape=(self.ort_units, self.pho_units),
-#             name="w_op",
-#             initializer=weight_initializer,
-#             trainable=True,
-#         )
 
         self.w_hop_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_op_units),
@@ -253,10 +240,8 @@ class HS04Model(tf.keras.Model):
         self.built = True
 
     def set_active_task(self, task):
-        # print(f"Activate task: {task}")
+        print(f"Activate task: {task}")
         self.active_task = task
-        # Turn on trainable
-        # Cannot turn on individual weight, handle it in custom training loop
 
     def call(self, inputs, training=None):
         """
@@ -770,16 +755,6 @@ class CustomBCE(tf.keras.losses.Loss):
         super().__init__(name=name)
         self.radius = radius
 
-#     @staticmethod
-#     def _constant_to_tensor(x, dtype):
-#         return tf.python.framework.constant_op.constant(x, dtype=dtype)
-
-#     @staticmethod
-#     def _backtrack_identity(tensor):
-#         while tensor.op.type == "Identity":
-#             tensor = tensor.op.inputs[0]
-#         return tensor
-
     @staticmethod
     def zer_replace(target, output, zero_error_radius):
         """Replace output by target if value within zero-error-radius"""
@@ -789,48 +764,17 @@ class CustomBCE(tf.keras.losses.Loss):
         return tf.where(within_zer, target, output)
 
     def call(self, y_true, y_pred):
-#         if not isinstance(
-#             y_pred,
-#             (tf.python.framework.ops.EagerTensor, tf.python.ops.variables.Variable),
-#         ):
-#             y_pred = CustomBCE._backtrack_identity(y_pred)
-
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
-    
 
         # Replace output by target if value within zero error radius
         zer_output = CustomBCE.zer_replace(y_true, y_pred, self.radius)
 
         # Clip with a tiny constant to avoid zero division
         epsilon_ = tf.convert_to_tensor(K.epsilon(), y_pred.dtype)
-        zer_output = tf.clip_by_value(
-            zer_output, epsilon_, 1.0 - epsilon_
-        )
+        zer_output = tf.clip_by_value(zer_output, epsilon_, 1.0 - epsilon_)
 
         # Compute cross entropy from probabilities.
         bce = y_true * tf.math.log(zer_output + K.epsilon())
         bce += (1 - y_true) * tf.math.log(1 - zer_output + K.epsilon())
         return -bce
-
-
-class ModelCheckpoint_custom(tf.keras.callbacks.Callback):
-    """
-    Modified from original ModelCheckpoint
-    Always save first 10 epochs regardless save period
-    """
-
-    def __init__(self, filepath_fstring, save_weights_only=False):
-        super().__init__()
-        self.filepath_fstring = filepath_fstring
-        self.save_weights_only = save_weights_only
-
-    def on_epoch_end(self, epoch, logs=None):
-        if (epoch < 10) or (epoch % 10 == 0):
-            filepath = self.filepath_fstring.format(epoch=epoch + 1)
-            clear_output(wait=True)
-            print("\nEpoch %05d: saving model to %s" % (epoch + 1, filepath))
-            if self.save_weights_only:
-                self.model.save_weights(filepath, overwrite=True)
-            else:
-                self.model.save(filepath, overwrite=True)
