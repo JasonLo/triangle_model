@@ -240,7 +240,7 @@ class HS04Model(tf.keras.Model):
         self.built = True
 
     def set_active_task(self, task):
-        print(f"Activate task: {task}")
+        # print(f"Activate task: {task}")
         self.active_task = task
 
     def call(self, inputs, training=None):
