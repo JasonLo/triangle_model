@@ -327,7 +327,10 @@ class HS04Model(tf.keras.Model):
             act_s_list.append(self.activation(s))
             act_css_list.append(self.activation(css))
 
-        return act_s_list[-self.output_ticks :]
+        
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        return act_s_list[-output_ticks :]
 
     def task_sem_sem(self, inputs, training=None):
         """
@@ -403,7 +406,9 @@ class HS04Model(tf.keras.Model):
             act_s_list.append(self.activation(s))
             act_css_list.append(self.activation(css))
 
-        return act_s_list[-self.output_ticks :]
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        return act_s_list[-output_ticks :]
 
     def task_sem_pho(self, inputs, training=None):
         """
@@ -479,8 +484,10 @@ class HS04Model(tf.keras.Model):
             act_hsp_list.append(self.activation(hsp))
             act_p_list.append(self.activation(p))
             act_cpp_list.append(self.activation(cpp))
-
-        return act_p_list[-self.output_ticks :]
+            
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        return act_p_list[-output_ticks :]
 
     def task_pho_pho(self, inputs, training=None):
         """
@@ -551,7 +558,9 @@ class HS04Model(tf.keras.Model):
             act_p_list.append(self.activation(p))
             act_cpp_list.append(self.activation(cpp))
 
-        return act_p_list[-self.output_ticks :]
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        return act_p_list[-output_ticks :]
 
     def task_triangle(self, inputs, training=None):
 
@@ -714,7 +723,9 @@ class HS04Model(tf.keras.Model):
             act_hos_list.append(self.activation(hos))
             act_hop_list.append(self.activation(hop))
 
-        return act_p_list[-self.output_ticks :], act_s_list[-self.output_ticks :]
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        return act_p_list[-output_ticks :], act_s_list[-output_ticks :]
 
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""

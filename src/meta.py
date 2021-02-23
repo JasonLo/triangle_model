@@ -23,6 +23,7 @@ CORE_CONFIGS = (
     "activation",
     "tau",
     "max_unit_time",
+    "inject_error_ticks",
     "output_ticks",
     "sample_name",
     "rng_seed",
