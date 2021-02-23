@@ -58,7 +58,7 @@ class HS04Model(tf.keras.Model):
             setattr(self, key, value)
 
         self.activation = tf.keras.activations.get(self.activation)
-        self.active_task = "triangle"
+        # self.active_task = "triangle" # Cannot set default task, will trigger inf. recursion for some reason
 
         self.tasks = {
             "pho_sem": self.task_pho_sem,
