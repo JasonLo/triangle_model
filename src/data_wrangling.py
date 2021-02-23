@@ -132,13 +132,13 @@ class Sampling:
 
                 if type(y) is list:
                     batch_y = [
-                        [self.data.np_representations[yi][idx]] * self.cfg.output_ticks
+                        [self.data.np_representations[yi][idx]] * self.cfg.inject_error_ticks
                         for yi in y
                     ]
                 else:
                     batch_y = [
                         self.data.np_representations[y][idx]
-                    ] * self.cfg.output_ticks
+                    ] * self.cfg.inject_error_ticks
                 yield (batch_x, batch_y)
 
     def get_stage(self, sample, normalize=False):
@@ -302,7 +302,7 @@ class FastSampling:
             x_ticks = self.cfg.n_timesteps
 
         if y_ticks is None:
-            y_ticks = self.cfg.output_ticks
+            y_ticks = self.cfg.inject_error_ticks
 
         while True:
 
