@@ -4,6 +4,7 @@
 from tqdm import tqdm
 import os
 import metrics
+import sqlite3
 import pandas as pd
 import numpy as np
 import altair as alt
@@ -198,7 +199,14 @@ class EvalReading:
         self.grain_mean_df = None
         self.taraban_mean_df = None
         self.cortese_mean_df = None
-        # Preload eval results from file
+        
+        # Setup database
+        if self.cfg.batch_name is not None:
+            sqlite_file = os.path.join(self.cfg.path["batch_folder"], "batch_results.sqlite")
+            self.con = sqlite3.connect(sqlite_file)
+            self.cur = self.con.cursor()
+        
+        # Load eval results from file
         for _testset_name in self.TESTSETS_NAME:
             try:
                 _file = os.path.join(
@@ -218,10 +226,15 @@ class EvalReading:
             "taraban": self._eval_taraban,
             "cortese": self._eval_cortese,
         }
-
+        
     def eval(self, testset_name):
+        """Run eval and push to dat"""
         if getattr(self, f"{testset_name}_mean_df") is None:
-            self.run_eval[testset_name]()
+            results = self.run_eval[testset_name]()
+            try:
+                results.to_sql(testset_name, self.con, if_exists="append")
+            except:
+                pass
         else:
             print("Evaluation results found, loaded from file.")
 
@@ -260,6 +273,8 @@ class EvalReading:
         )
 
         self.train_mean_df = mean_df
+        
+        return df
 
     def _eval_strain(self):
         testset_name = "strain"
@@ -279,6 +294,7 @@ class EvalReading:
 
         t.eval_all()
         df = t.result
+        
 
         # Merge condition label
         df = df.merge(
@@ -296,7 +312,6 @@ class EvalReading:
             )
         )
 
-        self.df = df
         # Condition level aggregate
         mean_df = (
             df.groupby(
@@ -321,6 +336,8 @@ class EvalReading:
             )
         )
         self.strain_mean_df = mean_df
+        
+        return df
 
     def _eval_grain(self):
         df = pd.DataFrame()
@@ -379,6 +396,8 @@ class EvalReading:
         )
 
         self.grain_mean_df = mean_df
+        
+        return df
 
     def _eval_taraban(self):
 
@@ -428,6 +447,8 @@ class EvalReading:
         )
 
         self.taraban_mean_df = mean_df
+        
+        return df
 
     def _eval_cortese(self):
 
@@ -464,6 +485,8 @@ class EvalReading:
         )
 
         self.cortese_mean_df = mean_df
+        
+        return df
 
     def plot_reading_acc(self, df):
         timetick_selection = alt.selection_single(
