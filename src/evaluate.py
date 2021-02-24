@@ -277,34 +277,36 @@ class EvalReading:
         return df
 
     def _eval_strain(self):
-        testset_name = "strain"
 
-        t = TestSet(
-            name=testset_name,
-            cfg=self.cfg,
-            model=self.model,
-            task="triangle",
-            testitems=self.data.testsets[testset_name]["item"],
-            x_test=self.data.testsets[testset_name]["ort"],
-            y_test=[
-                self.data.testsets[testset_name]["pho"],
-                self.data.testsets[testset_name]["sem"],
-            ],
+        df = pd.DataFrame()
+        testsets = (
+            "strain_hf_con_hi",
+            "strain_hf_inc_hi",
+            "strain_hf_con_li",
+            "strain_hf_inc_li",
+            "strain_lf_con_hi",
+            "strain_lf_inc_hi",
+            "strain_lf_con_li",
+            "strain_lf_inc_li"
         )
 
-        t.eval_all()
-        df = t.result
-        
+        for testset_name in testsets:
+            t = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task="triangle",
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]["ort"],
+                y_test=[
+                    self.data.testsets[testset_name]["pho"],
+                    self.data.testsets[testset_name]["sem"],
+                ],
+            )
 
-        # Merge condition label
-        df = df.merge(
-            self.data.df_strain[
-                ["word", "frequency", "pho_consistency", "imageability"]
-            ],
-            how="left",
-            left_on="item",
-            right_on="word",
-        )
+            t.eval_all()
+            df = pd.concat([df, t.result])
+
 
         df.to_csv(
             os.path.join(
@@ -322,9 +324,6 @@ class EvalReading:
                     "epoch",
                     "timetick",
                     "y",
-                    "frequency",
-                    "pho_consistency",
-                    "imageability",
                 ]
             )
             .mean()
