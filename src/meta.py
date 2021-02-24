@@ -96,7 +96,14 @@ class ModelConfig:
     def _make_path(self):
         path_dict = {}
         path_dict["tf_root"] = self.tf_root
-        path_dict["model_folder"] = os.path.join(self.tf_root, "models", self.code_name)
+        
+        if self.batch_name is not None:
+            # Put all stuff under batch folder if running in batch
+            path_dict["batch_folder"] = os.path.join(self.tf_root, "models", "batch_run", self.batch_name)         
+            path_dict["model_folder"] = os.path.join(path_dict["batch_folder"], self.code_name)
+        else:
+            path_dict["model_folder"] = os.path.join(self.tf_root, "models", self.code_name)
+            
         path_dict["weight_folder"] = os.path.join(path_dict["model_folder"], "weights")
         path_dict["eval_folder"] = os.path.join(path_dict["model_folder"], "eval")
         path_dict["save_model_folder"] = os.path.join(
@@ -192,8 +199,8 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
                 sn=i,
                 in_notebook=in_notebook,
                 code_name=code_name,
-                model_folder="models/" + code_name + "/",
-                out_notebook="models/" + code_name + "/output.ipynb",
+                model_folder=os.path.join(batch_output_dir, code_name),
+                out_notebook=os.path.join(batch_output_dir, code_name, "output.ipynb"),
                 params=this_hpar,
             )
 
@@ -247,7 +254,7 @@ def check_gpu():
         print("GPU is NOT AVAILABLE \n")
 
 
-def set_gpu_mem_cap(limit_MB=7168):
+def limit_gpu_memory_use(limit_MB=7168):
     """
     Set GPU memory cap per python kernal for parallel run
     Smaller models usually do not need 100% GPU throughput
@@ -258,10 +265,9 @@ def set_gpu_mem_cap(limit_MB=7168):
     Use nvidia-smi in terminal to check total available memory
     """
     gpus = tf.config.list_physical_devices("GPU")
-
-    tf.config.set_logical_device_configuration(
-                    gpus[0],
-                    [tf.config.LogicalDeviceConfiguration(memory_limit=limit_MB),
-                     tf.config.LogicalDeviceConfiguration(memory_limit=limit_MB)],
-                )
-    tf.config.list_logical_devices("GPU")
+    cfg = [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=limit_MB)]
+    
+    try:
+        tf.config.experimental.set_virtual_device_configuration(gpus[0], cfg)
+    except:
+        pass
