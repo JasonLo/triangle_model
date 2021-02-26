@@ -44,6 +44,7 @@ with st.beta_expander("More details", expanded=False):
 
 developmental_plot_container = st.beta_container()
 bar_plot_container = st.beta_container()
+sel_run_lme = st.checkbox("Run LME?")
 stat_container = st.beta_container()
 
 # Load data
@@ -136,7 +137,7 @@ def developmental_plot(output):
         .mark_line()
         .encode(
             x="epoch:Q",
-            y=f"mean({sel_measurement}):Q",
+            y=f"mean(acc):Q",
             color="testset",
             opacity=alt.condition(legend_selection, alt.value(1), alt.value(0)),
         )
@@ -149,7 +150,7 @@ def developmental_plot(output):
 
 with developmental_plot_container:
     st.header("Mean accuracy by condition over development")
-    "*Ignore epoch selection"
+    "*Ignore epoch & DV selection"
 
     left_col, right_col = st.beta_columns(2)
     left_col.write(developmental_plot("pho"))
@@ -202,29 +203,30 @@ def run_lme(output):
     fit = model.fit()
     return fit.summary()
 
+if sel_run_lme:
 
-with stat_container:
-    st.header("Linear mixed effect model")
-    left_col, right_col = st.beta_columns(2)
+    with stat_container:
+        st.header("Linear mixed effect model")
+        left_col, right_col = st.beta_columns(2)
 
-    pho_summary = run_lme('pho')
-    sem_summary = run_lme('sem')
+        pho_summary = run_lme('pho')
+        sem_summary = run_lme('sem')
 
-    with left_col:
-        "Accuracy ~ Frequency x Consistency x Imageability"
-        pho_summary.tables[1]
+        with left_col:
+            "Accuracy ~ Frequency x Consistency x Imageability"
+            pho_summary.tables[1]
 
-    with right_col:
-        "Sum squared error ~ Frequency x Consistency x Imagebility"
-        sem_summary.tables[1]
+        with right_col:
+            "Sum squared error ~ Frequency x Consistency x Imagebility"
+            sem_summary.tables[1]
 
-    with st.beta_expander("More details", expanded=False):
-        """
-        Mean value in each condition is used in the linear mixed effect model (LME),
-        model ID is set as random effect (Groups)
-        """
-        detail_left, detail_right = st.beta_columns(2)
-        detail_left.write(pho_summary.tables[0])
-        detail_right.write(sem_summary.tables[0])
+        with st.beta_expander("More details", expanded=False):
+            """
+            Mean value in each condition is used in the linear mixed effect model (LME),
+            model ID is set as random effect (Groups)
+            """
+            detail_left, detail_right = st.beta_columns(2)
+            detail_left.write(pho_summary.tables[0])
+            detail_right.write(sem_summary.tables[0])
 
 
