@@ -231,10 +231,7 @@ class EvalReading:
         """Run eval and push to dat"""
         if getattr(self, f"{testset_name}_mean_df") is None:
             results = self.run_eval[testset_name]()
-            try:
-                results.to_sql(testset_name, self.con, if_exists="append")
-            except:
-                pass
+            results.to_sql(testset_name, self.con, if_exists="append")
         else:
             print("Evaluation results found, loaded from file.")
 
@@ -310,7 +307,7 @@ class EvalReading:
 
         df.to_csv(
             os.path.join(
-                self.cfg.path["model_folder"], "eval", f"{testset_name}_item_df.csv"
+                self.cfg.path["model_folder"], "eval", "strain_item_df.csv"
             )
         )
 
@@ -331,7 +328,7 @@ class EvalReading:
         )
         mean_df.to_csv(
             os.path.join(
-                self.cfg.path["model_folder"], "eval", f"{testset_name}_mean_df.csv"
+                self.cfg.path["model_folder"], "eval", "strain_mean_df.csv"
             )
         )
         self.strain_mean_df = mean_df
