@@ -202,6 +202,7 @@ class EvalReading:
         
         # Setup database
         if self.cfg.batch_name is not None:
+            
             sqlite_file = os.path.join(self.cfg.path["batch_folder"], "batch_results.sqlite")
             self.con = sqlite3.connect(sqlite_file)
             self.cur = self.con.cursor()
