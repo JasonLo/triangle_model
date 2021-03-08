@@ -51,7 +51,7 @@ stat_container = st.beta_container()
 
 # Load data
 @st.cache
-def load_raw_data(batch_name, source):
+def load_raw_data(source):
     """Read averaged data from batch results database"""
 
     query = f"""
@@ -85,7 +85,7 @@ df, max_epoch = load_raw_data("triangle_oral.strain")
 # Interactive sidebar
 
 st.sidebar.header("Select inputs")
-sel_error_ticks = st.sidebar.radio("How many error injection ticks", (2, 11))
+
 
 sel_epoch = st.sidebar.select_slider(
     "Select epoch",
@@ -105,12 +105,10 @@ sel_measurement = st.sidebar.radio(
 df_filtered = df.loc[
     (df.epoch == sel_epoch)
     & (df.timetick.isin(sel_timetick))
-    & (df.inject_error_ticks == sel_error_ticks)
 ]
 
 df_filteded_ignore_epoch = df.loc[
     (df.timetick.isin(sel_timetick))
-    & (df.inject_error_ticks == sel_error_ticks)
 ]
 
 # Plot
