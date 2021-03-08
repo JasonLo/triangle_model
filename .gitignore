@@ -10,4 +10,4 @@ tensorboard_log/
 **_weights
 __pycache__
 .vscode
-triangle-*.json
+secret/*
