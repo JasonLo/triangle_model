@@ -305,4 +305,22 @@ def batch_config_to_bigquery(batch_cfgs_json, dataset_name, table_name):
     print("Loaded dataframe to {}".format(table_ref.path))
         
         
-    
+def csv_to_bigquery(csv_file, dataset_name, table_name):
+    from google.cloud import bigquery
+    import json, os
+    import pandas as pd
+
+    # Create connection to BQ and push data
+    client = bigquery.Client()
+    dataset = client.create_dataset(dataset_name, exists_ok=True)
+    table_ref = dataset.table(table_name)
+
+    job_config = bigquery.LoadJobConfig(
+        source_format=bigquery.SourceFormat.CSV, skip_leading_rows=1, autodetect=True
+    )
+
+    with open(csv_file, "rb") as f:
+        job = client.load_table_from_file(f, table_ref, job_config=job_config)
+
+    job.result()
+    print(f"Loaded {job.output_rows} rows into {dataset_name}:{table_ref.path}")
