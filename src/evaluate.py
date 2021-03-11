@@ -200,12 +200,13 @@ class EvalReading:
         self.taraban_mean_df = None
         self.cortese_mean_df = None
         
-        # Setup database
+        # Setup database if in batch_mode
         if self.cfg.batch_name is not None:
-            
+            self.batch_mode = True
             sqlite_file = os.path.join(self.cfg.path["batch_folder"], "batch_results.sqlite")
             self.con = sqlite3.connect(sqlite_file)
-            self.cur = self.con.cursor()
+        else:
+            self.batch_mode = False
         
         # Load eval results from file
         for _testset_name in self.TESTSETS_NAME:
@@ -232,9 +233,13 @@ class EvalReading:
         """Run eval and push to dat"""
         if getattr(self, f"{testset_name}_mean_df") is None:
             results = self.run_eval[testset_name]()
-            results.to_sql(testset_name, self.con, if_exists="append")
+     
+            if self.batch_mode:
+                results.to_sql(testset_name, self.con, if_exists="append")
         else:
             print("Evaluation results found, loaded from file.")
+                  
+        
 
     def _eval_train(self):
         testset_name = "train"
