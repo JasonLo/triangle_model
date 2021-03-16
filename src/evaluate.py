@@ -73,7 +73,7 @@ class TestSet:
         self.result = None
 
     def _convert_dict_to_df(self, x):
-
+        
         # Flatten the nested output dictionary
         self._flat_dict = {
             (epoch, y, timetick, item, metric): {
@@ -99,12 +99,14 @@ class TestSet:
         # automatically convert to best dtype
         return df.convert_dtypes()
 
-    def eval_all(self, label_dict=None):
-        output = {}
+    def eval_all(self, label_dict=None):       
+        df = pd.DataFrame()
         for epoch in tqdm(self.cfg.saved_epoches, desc=f"Evaluating {self.name}"):
+            output = {}
             output[epoch] = self._eval_one_epoch(epoch)
+            this_epoch_df = self._convert_dict_to_df(output)
+            df = df.append(this_epoch_df, ignore_index=True)
 
-        df = self._convert_dict_to_df(output)
         df["code_name"] = self.cfg.code_name
         df["testset"] = self.name
         df["task"] = self.task
@@ -182,7 +184,241 @@ class TestSet:
         
         return output
 
+class EvalOral:
+    """Bundle of testsets for Oral stage
+    Not finished... only have train strain and taraban
+    """
 
+    TESTSETS_NAME = ("train",  "strain", "taraban")
+
+    def __init__(self, cfg, model, data):
+        self.cfg = cfg
+        self.model = model
+        self.data = data
+
+        self.train_mean_df = None
+        self.strain_mean_df = None
+        self.grain_mean_df = None
+        self.taraban_mean_df = None
+        self.cortese_mean_df = None
+
+        # Setup database
+        if self.cfg.batch_name is not None:
+
+            sqlite_file = os.path.join(
+                self.cfg.path["batch_folder"], "batch_results.sqlite"
+            )
+            self.con = sqlite3.connect(sqlite_file)
+            self.cur = self.con.cursor()
+
+        # Load eval results from file
+        for _testset_name in self.TESTSETS_NAME:
+            try:
+                _file = os.path.join(
+                    self.cfg.path["model_folder"],
+                    "eval",
+                    f"{_testset_name}_mean_df.csv",
+                )
+                setattr(self, f"{_testset_name}_mean_df", pd.read_csv(_file))
+            except (FileNotFoundError, IOError):
+                pass
+
+        # Bundle testsets into dictionary
+        self.run_eval = {
+            "train": self._eval_train,
+            "strain": self._eval_strain,
+            "taraban": self._eval_taraban,
+        }
+
+    def eval(self, testset_name):
+        """Run eval and push to dat"""
+        if getattr(self, f"{testset_name}_mean_df") is None:
+            results = self.run_eval[testset_name]()
+            try:
+                results.to_sql(testset_name, self.con, if_exists="append")
+            except:
+                pass
+        else:
+            print("Evaluation results found, loaded from file.")
+
+    def _eval_train(self):
+        testset_name = "train"
+        df = pd.DataFrame()
+
+        t_ps = TestSet(
+            name=testset_name,
+            cfg=self.cfg,
+            model=self.model,
+            task="pho_sem",
+            testitems=self.data.testsets[testset_name]["item"],
+            x_test=self.data.testsets[testset_name]["pho"],
+            y_test=self.data.testsets[testset_name]["sem"],
+        )
+        t_ps.eval_all()
+        df = df.append(t_ps.result, ignore_index=True)
+
+        t_sp = TestSet(
+            name=testset_name,
+            cfg=self.cfg,
+            model=self.model,
+            task="sem_pho",
+            testitems=self.data.testsets[testset_name]["item"],
+            x_test=self.data.testsets[testset_name]["sem"],
+            y_test=self.data.testsets[testset_name]["pho"],
+        )
+        t_sp.eval_all()
+        df = df.append(t_sp.result, ignore_index=True)
+
+        # Write item level results
+        df.to_csv(
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", f"{testset_name}_item_df.csv"
+            )
+        )
+
+        # Aggregate
+        mean_df = (
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+            .mean()
+            .reset_index()
+        )
+        mean_df.to_csv(
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", f"{testset_name}_mean_df.csv"
+            )
+        )
+
+        self.train_mean_df = mean_df
+
+        return df
+
+    def _eval_strain(self):
+
+        df = pd.DataFrame()
+        testsets = (
+            "strain_hf_con_hi",
+            "strain_hf_inc_hi",
+            "strain_hf_con_li",
+            "strain_hf_inc_li",
+            "strain_lf_con_hi",
+            "strain_lf_inc_hi",
+            "strain_lf_con_li",
+            "strain_lf_inc_li",
+        )
+
+        for testset_name in testsets:
+            t_ps = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task="pho_sem",
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]["pho"],
+                y_test=self.data.testsets[testset_name]["sem"],
+            )
+
+            t_ps.eval_all()
+            df = pd.concat([df, t_ps.result])
+
+            t_sp = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task="sem_pho",
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]["sem"],
+                y_test=self.data.testsets[testset_name]["pho"],
+            )
+
+            t_sp.eval_all()
+            df = pd.concat([df, t_sp.result])
+
+        df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "strain_item_df.csv")
+        )
+
+        # Condition level aggregate
+        mean_df = (
+            df.groupby(
+                [
+                    "code_name",
+                    "task",
+                    "testset",
+                    "epoch",
+                    "timetick",
+                    "y",
+                ]
+            )
+            .mean()
+            .reset_index()
+        )
+        mean_df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "strain_mean_df.csv")
+        )
+        self.strain_mean_df = mean_df
+
+        return df
+
+    def _eval_taraban(self):
+
+        testsets = (
+            "taraban_hf-exc",
+            "taraban_hf-reg-inc",
+            "taraban_lf-exc",
+            "taraban_lf-reg-inc",
+            "taraban_ctrl-hf-exc",
+            "taraban_ctrl-hf-reg-inc",
+            "taraban_ctrl-lf-exc",
+            "taraban_ctrl-lf-reg-inc",
+        )
+
+        df = pd.DataFrame()
+
+        for testset_name in testsets:
+
+            t_ps = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task="pho_sem",
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]["pho"],
+                y_test=self.data.testsets[testset_name]["sem"],
+            )
+
+            t_ps.eval_all()
+            df = pd.concat([df, t_ps.result])
+
+            t_sp = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task="sem_pho",
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]["sem"],
+                y_test=self.data.testsets[testset_name]["pho"],
+            )
+
+            t_sp.eval_all()
+            df = pd.concat([df, t_sp.result])
+
+        df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_item_df.csv")
+        )
+
+        mean_df = (
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+            .mean()
+            .reset_index()
+        )
+
+        mean_df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_mean_df.csv")
+        )
+
+        self.taraban_mean_df = mean_df
+
+        return df
 
 class EvalReading:
     """Bundle of testsets"""
