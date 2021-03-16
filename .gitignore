@@ -12,4 +12,7 @@ __pycache__
 .vscode
 secret/*
 .Rproj.user
-.Rproj
+*checkpoint*.rda
+sim_df.csv.gz
+*.Rproj
+pretrain_train_item_df.csv
