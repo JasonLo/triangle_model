@@ -1,0 +1,650 @@
+---
+title: "Stim property"
+author: "Jason Lo"
+data: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    df_print: paged
+    theme: "united"
+---
+
+```{r}
+library(tidyverse)
+library(lmerTest)
+library(GGally)
+library(effectsize)
+library(data.table)
+```
+
+
+
+
+# Pull simulation data from BQ
+Don't run, already have a local copy
+```{r eval=FALSE, include=FALSE}
+library(bigrquery)
+library(DBI)
+con <- dbConnect(
+  bigrquery::bigquery(),
+  project = "mimetic-core-276919",
+  dataset = "error_injection_timing_test",
+  )
+
+query="
+SELECT
+    code_name,
+    epoch,
+    timetick,
+    y,
+    item,
+    AVG(acc) AS acc,
+    AVG(sse) AS sse,
+    AVG(CAST(conditional_sse AS NUMERIC)) AS csse
+FROM train_high_stress_only
+GROUP BY
+    code_name,
+    y,
+    epoch,
+    timetick,
+    item
+"
+
+sim_df <- dbGetQuery(con, query) # Long run
+fwrite(sim_df, "sim_df.csv.gz")
+```
+
+Read from local copy
+```{r}
+sim_df <- fread("sim_df.csv.gz")
+summary(sim_df)
+```
+
+
+# Examine ELP as reference
+
+## Correlations
+```{r}
+items <- fread("data/item_properties.csv") %>%
+    mutate(img = ifelse((img > 4.198) & (img < 4.2), NA, img)) 
+df_elp_train <- fread("data/lme_df_train.csv.gz")
+df_elp_strain <- fread("data/lme_df_strain.csv.gz")
+
+variables_of_interest <- c("word_length", "log_wf", "os", "ps", "op_uncond", "log_ons", "log_pns", "img")
+
+items %>% ggpairs(columns = variables_of_interest, progress = F) 
+ggsave("correlations_full_sample.png", width = 16, height = 9)
+
+items %>%
+    filter(word %in% unique(df_elp_strain$word)) %>%
+    ggpairs(columns = variables_of_interest, progress = F)
+ggsave("correlations_strain.png", width=16, height=9)
+
+```
+
+Merge articulation
+```{r}
+load("data/articulation.elp.rda")
+names(articulation.elp)[1] <- 'word'
+
+df_elp_train <- df_elp_train %>% 
+    left_join(articulation.elp, by="word")
+
+df_elp_strain <- df_elp_strain %>% 
+    left_join(articulation.elp, by="word")
+```
+
+
+## LME on ELP data
+
+### model_elp1: Full-ACC-OSC
+```{r}
+model_elp1 <- glmer(acc ~ scale(os) * scale(op_uncond) * scale(ps) + 
+                       log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                       (1|word) + (1|sub_id),
+                   data=df_elp_train, family = "binomial", nAGQ = 0) %>%
+    standardize_parameters()
+
+model_elp1
+```
+
+### model_elp2: Full-Log RT-OSC
+```{r}
+model_elp2 <- lmer(log_rt ~ scale(os) * scale(op_uncond) * scale(ps) + 
+                       log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                       (1|word) + (1|sub_id), data=df_elp_train) %>%
+    standardize_parameters()
+
+model_elp2
+```
+
+
+### model_elp3: Full-ACC-IMG
+```{r}
+model_elp3 <- glmer(acc ~ scale(img) * scale(op_uncond) * scale(ps) + 
+                        log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                        (1|word) + (1|sub_id), data=df_elp_train, family = "binomial", nAGQ = 0) %>%
+    standardize_parameters()
+
+model_elp3
+```
+
+### model_elp4: Full-Log RT-IMG
+```{r}
+model_elp4 <- lmer(log_rt ~ scale(img) * scale(op_uncond) * scale(ps) + 
+                       log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                       (1|word) + (1|sub_id), data=df_elp_train) %>%
+    standardize_parameters()
+
+model_elp4
+```
+
+
+
+### model_elp5: Strain-ACC-OSC
+```{r}
+model_elp5 <- glmer(acc ~ scale(os) * scale(op_uncond) * scale(ps) + 
+                       log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                       (1|word) + (1|sub_id),
+                   data=df_elp_strain, family = "binomial", nAGQ = 0) %>%
+    standardize_parameters()
+
+model_elp5
+```
+
+### model_elp6: Strain-Log RT-OSC
+```{r}
+model_elp6 <- lmer(log_rt ~ scale(os) * scale(op_uncond) * scale(ps) + 
+                       log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                       (1|word) + (1|sub_id), data=df_elp_strain) %>%
+    standardize_parameters()
+
+model_elp6
+```
+
+### model_elp7: Strain-ACC-IMG
+```{r}
+model_elp7 <- glmer(acc ~ scale(img) * scale(op_uncond) * scale(ps) + 
+                        log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                        (1|word) + (1|sub_id), data=df_elp_strain, family = "binomial", nAGQ = 0) %>%
+    standardize_parameters()
+
+model_elp7
+```
+
+### model_elp8: Strain-Log RT-IMG
+```{r}
+model_elp8 <- lmer(log_rt ~ scale(img) * scale(op_uncond) * scale(ps) + 
+                       log_wf + word_length + log_ons + log_pns + 
+                       art1 + art2 + art3 + art4 + art5 + art6 + art7 + art8 +
+                       art9 + art10 + art11 + art12 + art13 + art14 + art15 +
+                       (1|word) + (1|sub_id), data=df_elp_strain) %>%
+    standardize_parameters()
+
+model_elp8
+```
+
+## Collect references
+We have the original reference beta from OSC paper (noam), and the recalculated one (new)
+- New reference subset to 5862 items where is the union set of modeling training set, 
+osc paper osf file, op paper osf file
+- Re-pull from ELP online
+- No ELP outliers
+
+
+```{r}
+# Useful xs in ELP model are 2:8, 21:24
+xs <- c("os", "op", "ps", "wf", "wlen", "ons", "pns",
+        "os_op", "os_ps", "op_ps", "os_op_ps")
+
+
+# Naming 
+naming_acc_beta_noam <- c(-.001, -.013, .005, .011, .008, .015, -.004, -.002, -.001, .003, -.001)
+naming_rt_beta_noam <- c(-.002, .013, -.006, -.014, .01, -.027, .012, .003, .001, -.001, -.001)
+
+# Lexical decision
+ld_acc_beta_noam <- c(0.01, -0.012, 0.021, 0.043, 0.054, 0.044, -0.0004, -0.004, -0.004, 0.0003, -0.0001)
+ld_rt_beta_noam <- c(-0.012, 0.006, -0.014, -0.034, -0.011, -0.020, -0.011, 0.001, 0.004, 0.002, -0.0006)
+
+
+references <- data.frame(
+    x = xs,
+    ref1 = model_elp1$Std_Coefficient[c(2:8, 21:24)],
+    ref1_ci_low = model_elp1$CI_low[c(2:8, 21:24)],
+    ref1_ci_hi = model_elp1$CI_high[c(2:8, 21:24)],
+    ref2 = model_elp2$Std_Coefficient[c(2:8, 21:24)],
+    ref2_ci_low = model_elp2$CI_low[c(2:8, 21:24)],
+    ref2_ci_hi = model_elp2$CI_high[c(2:8, 21:24)],
+    ref3 = model_elp3$Std_Coefficient[c(2:8, 21:24)],
+    ref3_ci_low = model_elp3$CI_low[c(2:8, 21:24)],
+    ref3_ci_hi = model_elp3$CI_high[c(2:8, 21:24)],
+    ref4 = model_elp4$Std_Coefficient[c(2:8, 21:24)],
+    ref4_ci_low = model_elp4$CI_low[c(2:8, 21:24)],
+    ref4_ci_hi = model_elp4$CI_high[c(2:8, 21:24)],
+    ref5 = model_elp5$Std_Coefficient[c(2:8, 21:24)],
+    ref5_ci_low = model_elp5$CI_low[c(2:8, 21:24)],
+    ref5_ci_hi = model_elp5$CI_high[c(2:8, 21:24)],
+    ref6 = model_elp6$Std_Coefficient[c(2:8, 21:24)],
+    ref6_ci_low = model_elp6$CI_low[c(2:8, 21:24)],
+    ref6_ci_hi = model_elp6$CI_high[c(2:8, 21:24)],
+    ref7 = model_elp7$Std_Coefficient[c(2:8, 21:24)],
+    ref7_ci_low = model_elp7$CI_low[c(2:8, 21:24)],
+    ref7_ci_hi = model_elp7$CI_high[c(2:8, 21:24)],
+    ref8 = model_elp8$Std_Coefficient[c(2:8, 21:24)],
+    ref8_ci_low = model_elp8$CI_low[c(2:8, 21:24)],
+    ref8_ci_hi = model_elp8$CI_high[c(2:8, 21:24)],
+    ref_naming_acc_noam = naming_acc_beta_noam,
+    ref_naming_rt_noam = naming_rt_beta_noam) %>%
+    mutate(x = factor(x, levels = xs))
+
+
+references %>% 
+    ggplot(aes(x, ref_naming_acc_noam, fill=x)) +
+    scale_x_discrete(limits=rev(levels(references$x))) +
+    geom_bar(stat="identity") +
+    geom_point(stat = "identity", aes(y=ref1)) +
+    coord_flip() +
+    ggtitle("ACC Beta from OSC paper (bars) vs. New calculation from ELP (points)")
+
+ggsave("reference_acc.png", width = 16, height = 9)  
+
+
+references %>% 
+    ggplot(aes(x, ref_naming_rt_noam, fill=x)) +
+    scale_x_discrete(limits=rev(levels(references$x))) +
+    geom_bar(stat="identity") +
+    geom_point(stat = "identity", aes(y=ref2)) +
+    coord_flip() +
+    ggtitle("Log RT Beta from OSC paper (bars) vs. New calculation from ELP (points)")
+
+ggsave("reference_rt.png", width = 16, height = 9) 
+```
+
+Checkpoint1
+```{r}
+save.image("checkpoint1.rda")
+load("checkpoint1.rda")
+```
+
+
+# LME on Simulation data
+
+## Oral stage (Failed, too few observation, need to run more models)
+```{r}
+oral_df <- read.csv("data/pretrain_train_item_df.csv") %>%
+    mutate(word=item) %>% 
+    filter(epoch %in% c(1, 3, 5, 10, 20, 50, 100, 200, 300)) %>%
+    filter(timetick %in% c(2, 6, 12)) %>%
+    mutate(epoch_timetick = paste(epoch, timetick, sep="_")) %>%
+    mutate(csse = conditional_sse)
+
+strain_words <- unique(df_elp_strain$word) 
+train_words <- unique(df_elp_train$word) 
+
+split_oral_df_full <- oral_df %>%
+    filter(word %in% train_words) %>%
+    split(.$epoch_timetick, drop=TRUE)
+    
+split_oral_df_strain <- oral_df %>% 
+    filter(word %in% strain_words) %>%
+    split(.$epoch_timetick, drop=TRUE)
+```
+
+### Accuracy in each cell
+
+```{r}
+
+oral_df %>% 
+    filter(word %in% train_words) %>% 
+    group_by(epoch, timetick, y) %>%
+    summarise(acc = mean(acc)) %>%
+    ggplot(aes(x=epoch, y=acc, color=as.factor(timetick))) +
+    geom_line(stat="identity") +
+    facet_wrap(.~y) +
+    scale_y_continuous(limits=c(0,1))
+
+ggsave("oral_acc_train.png")
+
+oral_df %>% 
+    filter(word %in% strain_words) %>% 
+    group_by(epoch, timetick, y) %>%
+    summarise(acc = mean(acc)) %>%
+    ggplot(aes(x=epoch, y=acc, color=as.factor(timetick))) +
+    geom_line(stat="identity") +
+    facet_wrap(.~y) +
+    scale_y_continuous(limits=c(0,1))
+
+ggsave("oral_acc_strain.png")
+```
+
+```{r}
+run_lme_on_oral_sim <- function(x, model_version, tri_output, item_df=items) {
+    # Function for getting betas
+    # Random effect on word
+    # No random effect on model, since there is only one model in this cell
+
+    if (mean(x$acc) > 0.05) {
+        
+        this_df <- x %>%
+            filter(y==tri_output) %>% 
+            mutate(word = item) %>%
+            left_join(item_df, by = "word")
+        
+        if (model_version == 1) {
+            model <- glm(
+                acc ~ scale(os) * scale(op_uncond) * scale(ps) + 
+                    log_wf + word_length + log_ons + log_pns,
+                data = this_df,
+                family = "binomial"
+            )
+            
+        } else if (model_version == 2) {
+            model <- lm(
+                csse ~ scale(os) * scale(op_uncond) * scale(ps) +
+                    log_wf + word_length + log_ons + log_pns,
+                data = this_df
+            )
+            
+        } else if (model_version == 3) {
+            model <- glm(
+                acc ~ scale(img) * scale(op_uncond) * scale(ps) +
+                    log_wf + word_length + log_ons + log_pns,
+                data = this_df,
+                family = "binomial"
+            )
+            
+        } else if (model_version == 4) {
+            model <- lm(
+                csse ~ scale(img) * scale(op_uncond) * scale(ps) +
+                    log_wf + word_length + log_ons + log_pns,
+                data = this_df
+            )
+        }
+        
+        sp <- standardize_parameters(model)
+        betas <- sp$Std_Coefficient
+        names(betas) <- sp$Parameter
+        return(betas)
+    } 
+}
+
+run_oral <- possibly(.f = run_lme_on_oral_sim, otherwise = rep(NA, 12))
+
+```
+
+
+### Run model 1-8 in pho and sem (Not enough data, need new sims)
+```{r}
+# i = 0
+# oral_sim_betas <- data.frame()
+
+while (i < 16) {
+    i <- i + 1
+    
+    if (i<5) {
+        # Full models 1-4
+        this_betas <- split_oral_df_full %>% map(run_oral, i, "pho") 
+    } else if (i<9) {
+        # Strain models 5-8
+        this_betas <- split_oral_df_strain %>% map(run_oral, i-4, "pho") 
+    } else if (i<13) {
+        this_betas <- split_oral_df_full %>% map(run_oral, i-8, "sem")
+    } else {
+        this_betas <- split_oral_df_strain %>% map(run_oral, i-12, "sem")
+    }
+    
+
+    
+    this_betas <- this_betas %>%
+        enframe(name="epoch_timetick") %>%
+        unnest_wider(value) %>%
+        separate(epoch_timetick, c("epoch", "timetick"), sep="_") %>%
+        mutate(epoch = as.numeric(epoch), convert=T) %>%
+        mutate(model=i)
+    
+    names(this_betas) <- c("epoch", "timetick", "intercept", "os", "op", "ps",
+                           "wf", "wlen", "ons", "pns", "os_op", "os_ps", "op_ps",
+                           "os_op_ps", "convert", "model")
+    
+    oral_sim_betas <- rbind(oral_sim_betas, this_betas)        
+
+}
+
+oral_sim_betas <- oral_sim_betas %>% na.omit()
+fwrite(oral_sim_betas, "oral_sim_betas.csv")
+```
+
+
+### Plot models (Skip)
+```{r}
+plot_df <- oral_sim_betas %>%
+    select(-"intercept", -"convert") %>% 
+    mutate(timetick = as.numeric(timetick)) %>%
+    pivot_longer(cols = 3:13, names_to = "x", values_to="beta") %>%
+    left_join(references, by="x") %>%
+    na.omit()
+
+for (model_id in 1:16){
+    
+    ref_id <- ifelse(model_id <= 8, model_id, model_id-8)
+
+    plot_df %>% filter(model==model_id) %>% 
+        ggplot(aes(x, beta, fill=x)) +
+        scale_x_discrete(limits=rev(levels(references$x))) +
+        geom_bar(stat = "identity") +
+        coord_flip() +
+        geom_errorbar(aes_string(ymin=paste0("ref", ref_id, "_ci_low"),
+                                 ymax=paste0("ref", ref_id, "_ci_hi")),
+                      width=.2) +
+        facet_grid(timetick ~ epoch) + 
+        theme(legend.position = "none")
+    
+    ggsave(paste0("sim_results_", model_id, "_with_ci_and_articulation.png"), width=16, height=9)
+    
+}
+
+
+```
+
+
+## Reading stage
+Prepare full data set in all epoch x timetick
+```{r}
+small_sim_df <- sim_df %>% 
+    mutate(word = item) %>%
+    filter(epoch %in% c(1, 3, 5, 10, 20, 50, 100, 150, 200)) %>%
+    filter(timetick %in% c(2, 6, 12)) %>%
+    mutate(epoch_timetick = paste(epoch, timetick, sep="_")) 
+
+split_sim_df_full <- small_sim_df %>%
+    filter(word %in% unique(df_elp_train$word)) %>%
+    split(.$epoch_timetick, drop=TRUE)
+    
+split_sim_df_strain <- small_sim_df %>% 
+    filter(word %in% unique(df_elp_strain$word)) %>%
+    split(.$epoch_timetick, drop=TRUE)
+
+```
+
+### Accuracy in each cell
+```{r}
+strain_words <- unique(df_elp_strain$word) 
+train_words <- unique(df_elp_train$word) 
+
+small_sim_df %>% 
+    filter(word %in% train_words) %>% 
+    group_by(epoch, timetick, y) %>%
+    summarise(acc = mean(acc)) %>%
+    ggplot(aes(x=epoch, y=acc, color=as.factor(timetick))) +
+    geom_line(stat="identity") +
+    scale_y_continuous(limits=c(0,1)) +
+    facet_wrap(.~y)
+
+ggsave("acc_train.png")
+
+small_sim_df %>% 
+    filter(word %in% strain_words) %>% 
+    group_by(epoch, timetick,y) %>%
+    summarise(acc = mean(acc)) %>%
+    ggplot(aes(x=epoch, y=acc, color=as.factor(timetick))) +
+    geom_line(stat="identity") +
+    scale_y_continuous(limits=c(0,1)) +
+    facet_wrap(.~y) +
+
+ggsave("acc_strain.png")
+```
+
+
+Run LME function
+```{r}
+run_lme_on_sim <- function(x, model_version, tri_output, item_df=items) {
+    # Function for getting betas
+    
+    this_df <- x %>%
+        filter(y==tri_output) %>% 
+        mutate(word = item) %>%
+        left_join(item_df, by = "word")
+    
+    m <- mean(this_df$acc)
+    
+    if (m > 0.05 & m < .95) {
+
+        if (model_version == 1) {
+            model <- glmer(
+                acc ~ scale(os) * scale(op_uncond) * scale(ps) + 
+                    log_wf + word_length + log_ons + log_pns +
+                    (1 | word) + (1 | code_name),
+                data = this_df,
+                family = "binomial",
+                nAGQ = 0
+            )
+            
+        } else if (model_version == 2) {
+            model <- lmer(
+                csse ~ scale(os) * scale(op_uncond) * scale(ps) +
+                    log_wf + word_length + log_ons + log_pns +
+                    (1 |
+                         word) + (1 | code_name),
+                data = this_df
+            )
+            
+        } else if (model_version == 3) {
+            model <- glmer(
+                acc ~ scale(img) * scale(op_uncond) * scale(ps) +
+                    log_wf + word_length + log_ons + log_pns +
+                    (1 | word) + (1 | code_name),
+                data = this_df,
+                family = "binomial",
+                nAGQ = 0
+            )
+            
+        } else if (model_version == 4) {
+            model <- lmer(
+                csse ~ scale(img) * scale(op_uncond) * scale(ps) +
+                    log_wf + word_length + log_ons + log_pns +
+                    (1 |
+                         word) + (1 | code_name),
+                data = this_df
+            )
+        }
+        
+        sp <- standardize_parameters(model)
+        betas <- sp$Std_Coefficient
+        names(betas) <- sp$Parameter
+        return(betas)
+    }
+    
+}
+
+run_reading <- possibly(.f=run_lme_on_sim, NULL)
+```
+
+
+### Run model 1-8 in pho and sem
+```{r}
+i <- 4
+sim_betas <- data.frame()
+
+while (i < 8) {
+    i <- i + 1
+    
+    if (i<5) {
+        # Full models 1-4
+        this_betas <- split_sim_df_full %>% map(run_reading, i, "pho") 
+    } else if (i<9) {
+        # Strain models 5-8
+        this_betas <- split_sim_df_strain %>% map(run_reading, i-4, "pho") 
+    } else if (i<13) {
+        this_betas <- split_sim_df_full %>% map(run_reading, i-8, "sem")
+    } else {
+        this_betas <- split_sim_df_strain %>% map(run_reading, i-12, "sem")
+    }
+    
+    this_betas <- this_betas %>%
+        enframe(name="epoch_timetick") %>%
+        unnest_wider(value) %>%
+        separate(epoch_timetick, c("epoch", "timetick"), sep="_") %>%
+        mutate(epoch = as.numeric(epoch), convert=T) %>%
+        mutate(model=i)
+    
+    names(this_betas) <- c("epoch", "timetick", "intercept", "os", "op", "ps",
+                       "wf", "wlen", "ons", "pns", "os_op", "os_ps", "op_ps",
+                       "os_op_ps", "convert", "model")
+
+    sim_betas <- rbind(sim_betas, this_betas)
+}
+
+sim_betas <- na.omit(sim_betas)
+fwrite(sim_betas, "sim_betas.csv")
+
+```
+
+
+
+### Plot models
+```{r}
+plot_df <- sim_betas %>%
+    select(-"intercept", -"convert") %>% 
+    mutate(timetick = as.numeric(timetick)) %>%
+    pivot_longer(cols = 3:13, names_to = "x", values_to="beta") %>%
+    left_join(references, by="x") 
+
+for (model_id in 5:8){
+
+    ref_id <- ifelse(model_id <= 8, model_id, model_id-8)
+    
+    plot_df %>% filter(model==model_id) %>% 
+        ggplot(aes(x, beta, fill=x)) +
+        scale_x_discrete(limits=rev(levels(references$x))) +
+        geom_bar(stat = "identity") +
+        coord_flip() +
+        geom_errorbar(aes_string(ymin=paste0("ref", ref_id, "_ci_low"),
+                                 ymax=paste0("ref", ref_id, "_ci_hi")),
+                      width=.2) +
+        facet_grid(timetick ~ epoch) + 
+        theme(legend.position = "none")
+    
+    ggsave(paste0("sim_results_", model_id, "_with_ci_and_articulation.png"), width=16, height=9)
+    
+}
+
+
+```
+
+
