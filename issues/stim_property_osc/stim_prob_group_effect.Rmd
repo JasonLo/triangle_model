@@ -83,6 +83,18 @@ items %>%
 ggsave("correlations_strain.png", width=16, height=9)
 
 ```
+ELP words by subject
+```{r}
+tmp <- df_elp_train %>% 
+    na.omit() %>% 
+    select(sub_id, word, acc) %>% 
+    pivot_wider(names_from = word, values_from=acc, values_fn=mean)
+
+library(ltm)
+
+fit1 <- rasch(tmp[2:30])
+```
+
 
 Merge articulation
 ```{r}
