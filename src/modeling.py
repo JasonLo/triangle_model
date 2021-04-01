@@ -759,33 +759,3 @@ class HS04Model(tf.keras.Model):
         return cfg
 
 
-class CustomBCE(tf.keras.losses.Loss):
-    """Binarycross entropy loss with variable zero-error-radius"""
-
-    def __init__(self, radius=0.1, name="bce_with_ZER"):
-        super().__init__(name=name)
-        self.radius = radius
-
-    @staticmethod
-    def zer_replace(target, output, zero_error_radius):
-        """Replace output by target if value within zero-error-radius"""
-        within_zer = tf.math.less_equal(
-            tf.math.abs(output - target), tf.constant(zero_error_radius)
-        )
-        return tf.where(within_zer, target, output)
-
-    def call(self, y_true, y_pred):
-        y_pred = tf.convert_to_tensor(y_pred)
-        y_true = tf.cast(y_true, y_pred.dtype)
-
-        # Replace output by target if value within zero error radius
-        zer_output = CustomBCE.zer_replace(y_true, y_pred, self.radius)
-
-        # Clip with a tiny constant to avoid zero division
-        epsilon_ = tf.convert_to_tensor(K.epsilon(), y_pred.dtype)
-        zer_output = tf.clip_by_value(zer_output, epsilon_, 1.0 - epsilon_)
-
-        # Compute cross entropy from probabilities.
-        bce = y_true * tf.math.log(zer_output + K.epsilon())
-        bce += (1 - y_true) * tf.math.log(1 - zer_output + K.epsilon())
-        return -bce
