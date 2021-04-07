@@ -240,6 +240,30 @@ class EvalOral:
                 pass
         else:
             print("Evaluation results found, loaded from file.")
+            
+    def tmp_eval_ss(self):
+        """Only eval SS in training set"""
+        testset_name = 'train'
+
+        testset = TestSet(
+                name="train",
+                cfg=self.cfg,
+                model=self.model,
+                task='sem_sem',
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name]['sem'],
+                y_test=self.data.testsets[testset_name]['sem'],
+            )
+
+        testset.eval_all()
+        testset.result.to_csv(
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", f"train_ss_item_df.csv"
+            )
+        )
+        
+        return testset.result
+        
 
 
 
