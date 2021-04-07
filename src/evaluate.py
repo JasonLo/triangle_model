@@ -269,6 +269,30 @@ class EvalOral:
         t_sp.eval_all()
         df = df.append(t_sp.result, ignore_index=True)
 
+        t_ss = TestSet(
+            name=testset_name,
+            cfg=self.cfg,
+            model=self.model,
+            task="sem_sem",
+            testitems=self.data.testsets[testset_name]["item"],
+            x_test=self.data.testsets[testset_name]["sem"],
+            y_test=self.data.testsets[testset_name]["sem"],
+        )
+        t_ss.eval_all()
+        df = df.append(t_ss.result, ignore_index=True)
+
+        t_pp = TestSet(
+            name=testset_name,
+            cfg=self.cfg,
+            model=self.model,
+            task="pho_pho",
+            testitems=self.data.testsets[testset_name]["item"],
+            x_test=self.data.testsets[testset_name]["pho"],
+            y_test=self.data.testsets[testset_name]["pho"],
+        )
+        t_pp.eval_all()
+        df = df.append(t_pp.result, ignore_index=True)
+
         # Write item level results
         df.to_csv(
             os.path.join(
