@@ -241,57 +241,43 @@ class EvalOral:
         else:
             print("Evaluation results found, loaded from file.")
 
-    def _eval_train(self):
-        testset_name = "train"
+
+
+    def _eval_oral_tasks(self, testset_name):
+        """ The oral evalution consists of multiple tasks, sp, ps, pp, ss
+        This function will:
+        1. Create the four tasks (TestSet object) based on testset_name
+        2. Evaluate the tasks
+        3. Concatenate all results into output df
+        """
+
         df = pd.DataFrame()
 
-        t_ps = TestSet(
-            name=testset_name,
-            cfg=self.cfg,
-            model=self.model,
-            task="pho_sem",
-            testitems=self.data.testsets[testset_name]["item"],
-            x_test=self.data.testsets[testset_name]["pho"],
-            y_test=self.data.testsets[testset_name]["sem"],
-        )
-        t_ps.eval_all()
-        df = df.append(t_ps.result, ignore_index=True)
+        tasks = ("pho_sem", "sem_pho", "sem_sem", "pho_pho")
 
-        t_sp = TestSet(
-            name=testset_name,
-            cfg=self.cfg,
-            model=self.model,
-            task="sem_pho",
-            testitems=self.data.testsets[testset_name]["item"],
-            x_test=self.data.testsets[testset_name]["sem"],
-            y_test=self.data.testsets[testset_name]["pho"],
-        )
-        t_sp.eval_all()
-        df = df.append(t_sp.result, ignore_index=True)
+        for this_task in tasks:
 
-        t_ss = TestSet(
-            name=testset_name,
-            cfg=self.cfg,
-            model=self.model,
-            task="sem_sem",
-            testitems=self.data.testsets[testset_name]["item"],
-            x_test=self.data.testsets[testset_name]["sem"],
-            y_test=self.data.testsets[testset_name]["sem"],
-        )
-        t_ss.eval_all()
-        df = df.append(t_ss.result, ignore_index=True)
+            x, y = this_task.split('_')
+            this_testset_object = TestSet(
+                name=testset_name,
+                cfg=self.cfg,
+                model=self.model,
+                task=this_task,
+                testitems=self.data.testsets[testset_name]["item"],
+                x_test=self.data.testsets[testset_name][x],
+                y_test=self.data.testsets[testset_name][y],
+            )
 
-        t_pp = TestSet(
-            name=testset_name,
-            cfg=self.cfg,
-            model=self.model,
-            task="pho_pho",
-            testitems=self.data.testsets[testset_name]["item"],
-            x_test=self.data.testsets[testset_name]["pho"],
-            y_test=self.data.testsets[testset_name]["pho"],
-        )
-        t_pp.eval_all()
-        df = df.append(t_pp.result, ignore_index=True)
+            this_testset_object.eval_all()
+            df = df.append(this_testset_object.result, ignore_index=True)
+
+        return df
+
+    # Different _eval_xxx bundle has slightly differnt post-processing needs,
+    # separate into multiple functions
+    def _eval_train(self):
+        testset_name = "train"
+        df = self._eval_oral_tasks(testset_name)
 
         # Write item level results
         df.to_csv(
@@ -317,7 +303,6 @@ class EvalOral:
         return df
 
     def _eval_strain(self):
-
         df = pd.DataFrame()
         testsets = (
             "strain_hf_con_hi",
@@ -331,31 +316,7 @@ class EvalOral:
         )
 
         for testset_name in testsets:
-            t_ps = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task="pho_sem",
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["pho"],
-                y_test=self.data.testsets[testset_name]["sem"],
-            )
-
-            t_ps.eval_all()
-            df = pd.concat([df, t_ps.result])
-
-            t_sp = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task="sem_pho",
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["sem"],
-                y_test=self.data.testsets[testset_name]["pho"],
-            )
-
-            t_sp.eval_all()
-            df = pd.concat([df, t_sp.result])
+            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
 
         df.to_csv(
             os.path.join(self.cfg.path["model_folder"], "eval", "strain_item_df.csv")
@@ -399,32 +360,7 @@ class EvalOral:
         df = pd.DataFrame()
 
         for testset_name in testsets:
-
-            t_ps = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task="pho_sem",
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["pho"],
-                y_test=self.data.testsets[testset_name]["sem"],
-            )
-
-            t_ps.eval_all()
-            df = pd.concat([df, t_ps.result])
-
-            t_sp = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task="sem_pho",
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["sem"],
-                y_test=self.data.testsets[testset_name]["pho"],
-            )
-
-            t_sp.eval_all()
-            df = pd.concat([df, t_sp.result])
+            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
 
         df.to_csv(
             os.path.join(self.cfg.path["model_folder"], "eval", "taraban_item_df.csv")
