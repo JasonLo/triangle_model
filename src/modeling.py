@@ -382,29 +382,27 @@ class HS04Model(tf.keras.Model):
                 training=training,
             )
 
-            ##### S Cleanup layer #####
-            if t >= 8:
-                input_at_this_tick = inputs[t] * 0
+            if t < 8:
+                # Clamp input and activation to teaching signal
+                input_s_list.append((input[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
+                act_s_list.append(input[t])  
+                
             else:
-                input_at_this_tick = inputs[t]
+                cs = tf.matmul(act_css_list[t], w_cs)
+                s = self.tau * (cs + bias_s)
+                s += (1 - self.tau) * input_s_list[t]
 
-            sc = tf.matmul(input_at_this_tick, w_sc)
-            css = self.tau * (sc + bias_css)
-            css += (1 - self.tau) * input_css_list[t]
+                input_s_list.append(s)
+                act_s_list.append(self.activation(s))
 
-            ##### Semantic layer #####
-            ss = tf.matmul(act_s_list[t], w_ss)
-            cs = tf.matmul(act_css_list[t], w_cs)
-
-            s = self.tau * (ss + cs + bias_s)
-            s += (1 - self.tau) * input_s_list[t]
-
+            # Clean up unit
+            sc = tf.matmul(act_s_list[t], w_sc)
+            css = self.tau * (sc + bias_css) + (1 - self.tau) * input_css_list[t]
+            
             # Record this timestep to list
-            input_s_list.append(s)
-            input_css_list.append(css)
-
-            act_s_list.append(self.activation(s))
+            input_css_list.append(css)           
             act_css_list.append(self.activation(css))
+
 
         # output different number of time ticks depending on training/testing
         output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
@@ -536,26 +534,25 @@ class HS04Model(tf.keras.Model):
                 training=training,
             )
 
-            ##### P Cleanup layer #####
-            if t >= 8:
-                input_at_this_tick = inputs[t] * 0
+            if t < 8:
+                # Clamp input and activation to teaching signal
+                input_p_list.append((input[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
+                act_p_list.append(input[t])  
+                
             else:
-                input_at_this_tick = inputs[t]
-            pc = tf.matmul(input_at_this_tick, w_pc)
+                cp = tf.matmul(act_cpp_list[t], w_cp)
+                p = self.tau * (cp + bias_p)
+                p += (1 - self.tau) * input_p_list[t]
+
+                input_p_list.append(p)
+                act_p_list.append(self.activation(p))
+
+            # Clean up unit
+            pc = tf.matmul(act_p_list[t], w_pc)
             cpp = self.tau * (pc + bias_cpp) + (1 - self.tau) * input_cpp_list[t]
-
-            ##### Phonology output layer #####
-            pp = tf.matmul(act_p_list[t], w_pp)
-            cp = tf.matmul(act_cpp_list[t], w_cp)
-
-            p = self.tau * (pp + cp + bias_p)
-            p += (1 - self.tau) * input_p_list[t]
-
+            
             # Record this timestep to list
-            input_p_list.append(p)
-            input_cpp_list.append(cpp)
-
-            act_p_list.append(self.activation(p))
+            input_cpp_list.append(cpp)           
             act_cpp_list.append(self.activation(cpp))
 
         # output different number of time ticks depending on training/testing
