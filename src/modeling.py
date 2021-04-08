@@ -384,12 +384,13 @@ class HS04Model(tf.keras.Model):
 
             if t < 8:
                 # Clamp input and activation to teaching signal
-                input_s_list.append((input[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
-                act_s_list.append(input[t])  
+                input_s_list.append((inputs[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
+                act_s_list.append(inputs[t])  
                 
             else:
                 cs = tf.matmul(act_css_list[t], w_cs)
-                s = self.tau * (cs + bias_s)
+                ss = tf.matmul(act_s_list[t], w_ss)
+                s = self.tau * (cs + ss + bias_s)
                 s += (1 - self.tau) * input_s_list[t]
 
                 input_s_list.append(s)
@@ -536,12 +537,13 @@ class HS04Model(tf.keras.Model):
 
             if t < 8:
                 # Clamp input and activation to teaching signal
-                input_p_list.append((input[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
-                act_p_list.append(input[t])  
+                input_p_list.append((inputs[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
+                act_p_list.append(inputs[t])  
                 
             else:
                 cp = tf.matmul(act_cpp_list[t], w_cp)
-                p = self.tau * (cp + bias_p)
+                pp = tf.matmul(act_p_list[t], w_pp)
+                p = self.tau * (cp + pp + bias_p)
                 p += (1 - self.tau) * input_p_list[t]
 
                 input_p_list.append(p)
