@@ -85,7 +85,7 @@ class TestSet:
             for metric in x[epoch][y][timetick].keys()
             for item in x[epoch][y][timetick][metric].keys()
         }
-
+        
         # Create pd df and pivot by metric as column
         df = pd.DataFrame.from_dict(self._flat_dict, orient="index")
         df.index.rename(["epoch", "y", "timetick", "item", "metric"], inplace=True)
@@ -186,7 +186,7 @@ class TestSet:
 
 class EvalOral:
     """Bundle of testsets for Oral stage
-    Not finished... only have train strain and taraban
+    Not finished... only have train strain and taraban cortese img
     """
 
     TESTSETS_NAME = ("train",  "strain", "taraban")
@@ -201,6 +201,7 @@ class EvalOral:
         self.grain_mean_df = None
         self.taraban_mean_df = None
         self.cortese_mean_df = None
+        self.cortese_img_mean_df = None
 
         # Setup database
         if self.cfg.batch_name is not None:
@@ -228,6 +229,7 @@ class EvalOral:
             "train": self._eval_train,
             "strain": self._eval_strain,
             "taraban": self._eval_taraban,
+            "cortese_img": self._eval_img 
         }
 
     def eval(self, testset_name):
@@ -240,31 +242,7 @@ class EvalOral:
                 pass
         else:
             print("Evaluation results found, loaded from file.")
-            
-    def tmp_eval_ss(self):
-        """Only eval SS in training set"""
-        testset_name = 'train'
-
-        testset = TestSet(
-                name="train",
-                cfg=self.cfg,
-                model=self.model,
-                task='sem_sem',
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]['sem'],
-                y_test=self.data.testsets[testset_name]['sem'],
-            )
-
-        testset.eval_all()
-        testset.result.to_csv(
-            os.path.join(
-                self.cfg.path["model_folder"], "eval", f"train_ss_item_df.csv"
-            )
-        )
-        
-        return testset.result
-        
-
+                  
 
 
     def _eval_oral_tasks(self, testset_name):
@@ -326,6 +304,22 @@ class EvalOral:
 
         return df
 
+
+    
+    def _eval_img(self):
+        df = pd.DataFrame()
+        testsets = ("cortese_hi_img", "cortese_low_img")
+        
+        for testset_name in testsets:
+            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
+            
+        df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "img_item_df.csv")
+        )
+        
+        return df
+        
+    
     def _eval_strain(self):
         df = pd.DataFrame()
         testsets = (
