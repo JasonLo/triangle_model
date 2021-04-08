@@ -382,21 +382,22 @@ class HS04Model(tf.keras.Model):
                 training=training,
             )
 
+            ### Semantic ###
+            
+            cs = tf.matmul(act_css_list[t], w_cs)
+            ss = tf.matmul(act_s_list[t], w_ss)
+            s = self.tau * (cs + ss + bias_s)
+            #  s = self.tau * (cs + bias_s)
+            s += (1 - self.tau) * input_s_list[t]
+            input_s_list.append(s)
+            
             if t < 8:
-                # Clamp input and activation to teaching signal
-                input_s_list.append((inputs[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
+                # Clamp activation to teaching signal
                 act_s_list.append(inputs[t])  
-                
             else:
-                cs = tf.matmul(act_css_list[t], w_cs)
-                ss = tf.matmul(act_s_list[t], w_ss)
-                s = self.tau * (cs + ss + bias_s)
-                s += (1 - self.tau) * input_s_list[t]
-
-                input_s_list.append(s)
                 act_s_list.append(self.activation(s))
 
-            # Clean up unit
+            ### Cleanup unit ###
             sc = tf.matmul(act_s_list[t], w_sc)
             css = self.tau * (sc + bias_css) + (1 - self.tau) * input_css_list[t]
             
@@ -534,19 +535,19 @@ class HS04Model(tf.keras.Model):
                 self.bias_p,
                 training=training,
             )
-
+            
+            # Phonological unit
+            cp = tf.matmul(act_cpp_list[t], w_cp)
+            pp = tf.matmul(act_p_list[t], w_pp)
+            p = self.tau * (cp + pp + bias_p)
+#           p = self.tau * (cp + bias_p)
+            p += (1 - self.tau) * input_p_list[t]
+            input_p_list.append(p)
+            
             if t < 8:
-                # Clamp input and activation to teaching signal
-                input_p_list.append((inputs[t] - 0.5) * 100)   # cheap un-sigmoid without inf.
+                # Clamp activation to teaching signal
                 act_p_list.append(inputs[t])  
-                
-            else:
-                cp = tf.matmul(act_cpp_list[t], w_cp)
-                pp = tf.matmul(act_p_list[t], w_pp)
-                p = self.tau * (cp + pp + bias_p)
-                p += (1 - self.tau) * input_p_list[t]
-
-                input_p_list.append(p)
+            else:           
                 act_p_list.append(self.activation(p))
 
             # Clean up unit
