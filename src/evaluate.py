@@ -130,9 +130,9 @@ class TestSet:
         if self.task == "triangle":
             output["pho"] = self._eval_one_y(pred_y[0], self.y_test[0], y_name="pho")
             output["sem"] = self._eval_one_y(pred_y[1], self.y_test[1], y_name="sem")
-        elif (self.task == "pho_sem") or (self.task == "sem_sem"):
+        elif (self.task in ("pho_sem", "sem_sem", "ort_sem")):
             output["sem"] = self._eval_one_y(pred_y, self.y_test, y_name="sem")
-        elif (self.task == "sem_pho") or (self.task == "pho_pho"):
+        elif (self.task in ("sem_pho", "pho_pho", "ort_pho")):
             output["pho"] = self._eval_one_y(pred_y, self.y_test, y_name="pho")
         else:
             print(f"{self.task} task does not exist in evaluator")
