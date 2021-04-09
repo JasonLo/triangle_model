@@ -231,6 +231,9 @@ class OutputOfZeroTarget(tf.keras.metrics.Metric):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         self.out.assign(tf.reduce_mean(y_pred[y_true == 0]))
+        
+    def item_metric(self, y_true, y_pred):
+        return tf.reduce_mean(y_pred * (1-y_true), axis=-1).numpy()
 
     def result(self):
         return self.out
@@ -248,6 +251,9 @@ class OutputOfOneTarget(tf.keras.metrics.Metric):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         self.out.assign(tf.reduce_mean(y_pred[y_true == 1]))
+        
+    def item_metric(self, y_true, y_pred):
+        return tf.reduce_mean(y_pred * y_true, axis=-1).numpy()
 
     def result(self):
         return self.out
