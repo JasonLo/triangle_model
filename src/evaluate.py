@@ -49,6 +49,8 @@ class TestSet:
     pho_acc = metrics.PhoAccuracy("acc")
     right_side_acc = metrics.RightSideAccuracy("acc")
     sse = metrics.SumSquaredError("sse")
+    act1 = metrics.OutputOfOneTarget("act1")
+    act0 = metrics.OutputOfZeroTarget("act0")
 
     def __init__(
         self,
@@ -174,13 +176,19 @@ class TestSet:
                 zip(self.testitems, acc)
             )
 
+        # SSE
         sse = self.sse.item_metric(true_y, pred_y)
         output["sse"] = dict(zip(self.testitems, sse))
 
         conditional_sse = sse
         conditional_sse[acc==0] = np.nan
-
         output["conditional_sse"] = dict(zip(self.testitems, conditional_sse))
+        
+        # Activations
+        this_act0 = self.act0.item_metric(true_y, pred_y)
+        this_act1 = self.act1.item_metric(true_y, pred_y)
+        output["act0"] = dict(zip(self.testitems, this_act0))
+        output["act1"] = dict(zip(self.testitems, this_act1))
         
         return output
 
