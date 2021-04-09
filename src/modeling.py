@@ -33,6 +33,11 @@ WEIGHTS_AND_BIASES["sem_pho"] = (
 )
 WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
+WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "w_ss", "w_sc", "w_cs", "bias_hos", "bias_s", "bias_css")
+WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "w_pp", "w_pc", "w_cp", "bias_hop", "bias_p", "bias_cpp")
+
+
+
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
     "w_hos_hs",
@@ -65,6 +70,7 @@ class HS04Model(tf.keras.Model):
             "sem_pho": self.task_sem_pho,
             "pho_pho": self.task_pho_pho,
             "sem_sem": self.task_sem_sem,
+            "ort_sem": self.task_ort_sem,
             "triangle": self.task_triangle,
         }
 
@@ -561,6 +567,86 @@ class HS04Model(tf.keras.Model):
         # output different number of time ticks depending on training/testing
         output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
         return act_p_list[-output_ticks :]
+
+
+    def task_ort_sem(self, inputs, training=None):
+ 
+        # init
+
+        # input
+        input_hos_list, input_s_list, input_css_list = [], [], []
+        act_hos_list, act_s_list, act_css_list = [], [], []
+        
+        # Set inputs to 0
+        input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
+        input_css_list.append(tf.zeros((1, self.sem_cleanup_units), dtype=tf.float32))
+        input_hos_list.append(tf.zeros((1, self.hidden_os_units), dtype=tf.float32))
+
+        # Set activations to 0.5
+        act_s_list.append(input_s_list[0] + 0.5)
+        act_css_list.append(input_css_list[0] + 0.5)
+        act_hos_list.append(input_hos_list[0] + 0.5)
+
+        # Recurrent structure over time ticks (Time averaged input)
+        for t in range(self.n_timesteps):
+
+            # Inject fresh white noise to weights and biases within pho system in each time step while training
+            w_ss = K.in_train_phase(
+                self._inject_noise(self.w_ss, self.sem_noise_level),
+                self.w_ss,
+                training=training,
+            )
+            w_sc = K.in_train_phase(
+                self._inject_noise(self.w_sc, self.sem_noise_level),
+                self.w_sc,
+                training=training,
+            )
+            w_cs = K.in_train_phase(
+                self._inject_noise(self.w_cs, self.sem_noise_level),
+                self.w_cs,
+                training=training,
+            )
+            bias_css = K.in_train_phase(
+                self._inject_noise(self.bias_css, self.sem_noise_level),
+                self.bias_css,
+                training=training,
+            )
+            bias_s = K.in_train_phase(
+                self._inject_noise(self.bias_s, self.sem_noise_level),
+                self.bias_s,
+                training=training,
+            )
+
+            ##### Hidden layer (OS) #####
+            hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+            hos += (1 - self.tau) * input_hos_list[t]
+
+            ##### Semantic layer #####
+            sem_ss = tf.matmul(act_s_list[t], w_ss)
+            css_cs = tf.matmul(act_css_list[t], w_cs)
+            hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
+
+            s = self.tau * (sem_ss + css_cs + hos_hs + bias_s)
+            s += (1 - self.tau) * input_s_list[t]
+
+            ##### Semantic Cleanup layer #####
+            css = self.tau * (tf.matmul(act_s_list[t], w_sc) + bias_css)
+            css += (1 - self.tau) * input_css_list[t]
+
+            # Record this timestep to list
+            input_s_list.append(s)
+            input_css_list.append(css)
+            input_hos_list.append(hos)
+
+            act_s_list.append(self.activation(s))
+            act_css_list.append(self.activation(css))
+            act_hos_list.append(self.activation(hos))
+
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        return act_s_list[-output_ticks :]
+       
+
 
     def task_triangle(self, inputs, training=None):
 
