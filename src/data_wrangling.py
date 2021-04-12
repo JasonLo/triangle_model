@@ -264,6 +264,47 @@ class Sampling:
 
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
 
+class FastSampling_uniform:
+    """Performance oriented sample generator
+    A simplified version of Sampling() with uniform p
+    """
+
+    def __init__(self, cfg, data):
+        self.cfg = cfg
+        self.data = data
+        np.random.seed(cfg.rng_seed)
+
+    def sample_generator(self, x, y, x_ticks=None, y_ticks=None):
+        """Generator for training data
+        x: input str ("ort" / "pho" / "sem")
+        y: output str ("ort" / "pho" / "sem") can be a list
+        representation dimension guide: (batch_size, timesteps, output_nodes)
+        """
+
+        if x_ticks is None:
+            x_ticks = self.cfg.n_timesteps
+
+        if y_ticks is None:
+            y_ticks = self.cfg.inject_error_ticks
+
+        while True:
+
+            # Sample
+            idx = np.random.choice(
+                len(self.data.np_representations[x]), self.cfg.batch_size
+            )
+            batch_x = [self.data.np_representations[x][idx]] * x_ticks
+
+            if type(y) is list:
+                # Multi output as a list
+                batch_y = [
+                    [self.data.np_representations[yi][idx]] * y_ticks for yi in y
+                ]
+            else:
+                # Single output
+                batch_y = [self.data.np_representations[y][idx]] * y_ticks
+
+            yield (batch_x, batch_y)
 
 class FastSampling:
     """Performance oriented sample generator
