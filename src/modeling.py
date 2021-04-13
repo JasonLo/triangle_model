@@ -1,6 +1,5 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
-from IPython.display import clear_output
 
 # Create dictionary for weight & biases related to each task
 ## Important: Due to model complexity, cannot use trainable flag to turn on/off training during a vanilla training loop
@@ -36,7 +35,8 @@ WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "w_ss", "w_sc", "w_cs", "bias_hos", "bias_s", "bias_css")
 WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "w_pp", "w_pc", "w_cp", "bias_hop", "bias_p", "bias_cpp")
 
-
+WEIGHTS_AND_BIASES["exp_osp"] = ("w_hos_oh", "w_hos_hs", "w_ss", "w_sc", "w_cs", "bias_hos", "bias_s", "bias_css",
+    "w_hsp_sh", "w_hsp_hp", "w_pp", "w_pc", "w_cp", "bias_hsp", "bias_p", "bias_cpp")
 
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
@@ -73,6 +73,7 @@ class HS04Model(tf.keras.Model):
             "ort_sem": self.task_ort_sem,
             "ort_pho": self.task_ort_pho,
             "triangle": self.task_triangle,
+            "exp_osp": self.experimental_task_osp
         }
 
     def build(self, input_shape=None):
@@ -889,6 +890,158 @@ class HS04Model(tf.keras.Model):
         # output different number of time ticks depending on training/testing
         output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
         return act_p_list[-output_ticks :], act_s_list[-output_ticks :]
+
+
+    def experimental_task_osp(self, inputs, training=None):
+        """This experimental task is a O to S to P model without any direct connection from O to P. 
+        The purpose of this task is to isolate wheather SP structure 
+        """
+
+        # init input and activation stores
+        input_hos_list, input_s_list, input_css_list, input_hsp_list, input_p_list, input_cpp_list = [], [], [], [], [], []
+        act_hos_list, act_s_list, act_css_list, act_hsp_list, act_p_list, act_cpp_list = [], [], [], [], [], []
+
+        # Set inputs to 0
+        input_hos_list.append(tf.zeros((1, self.hidden_os_units), dtype=tf.float32))
+        input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
+        input_css_list.append(tf.zeros((1, self.sem_cleanup_units), dtype=tf.float32))
+        input_hsp_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
+        input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
+        input_cpp_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
+
+        # Set activations to 0.5
+        act_hos_list.append(input_hos_list[0] + 0.5)
+        act_s_list.append(input_s_list[0] + 0.5)
+        act_css_list.append(input_css_list[0] + 0.5)
+        act_hsp_list.append(input_hsp_list[0] + 0.5)
+        act_p_list.append(input_p_list[0] + 0.5)
+        act_cpp_list.append(input_cpp_list[0] + 0.5)
+
+        # Division of labor in P
+        hsp_hp_list, pho_pp_list, cpp_cp_list, bias_p_list = [], [], [], []
+
+        # Recurrent structure over time ticks (Time averaged input)
+        for t in range(self.n_timesteps):
+
+            # Inject fresh white noise to weights and biases within pho system in each time step while training
+            w_ss = K.in_train_phase(
+                self._inject_noise(self.w_ss, self.sem_noise_level),
+                self.w_ss,
+                training=training,
+            )
+            w_sc = K.in_train_phase(
+                self._inject_noise(self.w_sc, self.sem_noise_level),
+                self.w_sc,
+                training=training,
+            )
+            w_cs = K.in_train_phase(
+                self._inject_noise(self.w_cs, self.sem_noise_level),
+                self.w_cs,
+                training=training,
+            )
+            bias_css = K.in_train_phase(
+                self._inject_noise(self.bias_css, self.sem_noise_level),
+                self.bias_css,
+                training=training,
+            )
+            bias_s = K.in_train_phase(
+                self._inject_noise(self.bias_s, self.sem_noise_level),
+                self.bias_s,
+                training=training,
+            )
+            w_pp = K.in_train_phase(
+                self._inject_noise(self.w_pp, self.pho_noise_level),
+                self.w_pp,
+                training=training,
+            )
+            w_pc = K.in_train_phase(
+                self._inject_noise(self.w_pc, self.pho_noise_level),
+                self.w_pc,
+                training=training,
+            )
+            w_cp = K.in_train_phase(
+                self._inject_noise(self.w_cp, self.pho_noise_level),
+                self.w_cp,
+                training=training,
+            )
+            bias_cpp = K.in_train_phase(
+                self._inject_noise(self.bias_cpp, self.pho_noise_level),
+                self.bias_cpp,
+                training=training,
+            )
+            bias_p = K.in_train_phase(
+                self._inject_noise(self.bias_p, self.pho_noise_level),
+                self.bias_p,
+                training=training,
+            )
+
+            ##### Hidden layer (OS) #####
+            hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+            hos += (1 - self.tau) * input_hos_list[t]
+
+            ##### Semantic layer #####
+            sem_ss = tf.matmul(act_s_list[t], w_ss)
+            css_cs = tf.matmul(act_css_list[t], w_cs)
+            hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
+
+            s = self.tau * (sem_ss + css_cs + hos_hs + bias_s)
+            s += (1 - self.tau) * input_s_list[t]
+
+            ##### Phonology layer #####
+            hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
+            pho_pp = tf.matmul(act_p_list[t], w_pp)
+            cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
+
+            # Collect division of labor metrics (Before TAI)
+            hsp_hp_list.append(hsp_hp)
+            pho_pp_list.append(pho_pp)
+            cpp_cp_list.append(cpp_cp)
+            bias_p_list.append(bias_p)
+
+            p = self.tau * (hsp_hp + pho_pp + cpp_cp + bias_p)
+            p += (1 - self.tau) * input_p_list[t]
+
+            ##### Hidden layer (SP) #####
+            hsp = self.tau * (tf.matmul(act_s_list[t], self.w_hsp_sh) + self.bias_hsp)
+            hsp += (1 - self.tau) * input_hsp_list[t]
+
+            ##### Semantic Cleanup layer #####
+            css = self.tau * (tf.matmul(act_s_list[t], w_sc) + bias_css)
+            css += (1 - self.tau) * input_css_list[t]
+
+            ##### Phonology Cleanup layer #####
+            cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
+            cpp += (1 - self.tau) * input_cpp_list[t]
+
+            # Record this timestep to list
+            input_hos_list.append(hos)
+            input_s_list.append(s)
+            input_css_list.append(css)
+            input_hsp_list.append(hsp)
+            input_p_list.append(p)
+            input_cpp_list.append(cpp)
+
+            act_hos_list.append(self.activation(hos))
+            act_s_list.append(self.activation(s))
+            act_css_list.append(self.activation(css))
+            act_hsp_list.append(self.activation(hsp))
+            act_p_list.append(self.activation(p))
+            act_cpp_list.append(self.activation(cpp))
+
+
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+
+        # output dictionary with division of labor metrics
+        output_dict = dict()
+        output_dict["hsp_hp"] = hsp_hp_list[-output_ticks :]
+        output_dict["pho_pp"] = pho_pp_list[-output_ticks :]
+        output_dict["cpp_cp"] = cpp_cp_list[-output_ticks :]
+        output_dict["bias_p"] = bias_p_list[-output_ticks :]
+        output_dict["act_s"] = act_s_list[-output_ticks :]
+        output_dict["act_p"] = act_p_list[-output_ticks :]
+
+        return output_dict
 
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""
