@@ -71,6 +71,7 @@ class HS04Model(tf.keras.Model):
             "pho_pho": self.task_pho_pho,
             "sem_sem": self.task_sem_sem,
             "ort_sem": self.task_ort_sem,
+            "ort_pho": self.task_ort_pho,
             "triangle": self.task_triangle,
         }
 
@@ -646,7 +647,83 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
         return act_s_list[-output_ticks :]
        
+    def task_ort_pho(self, inputs, training=None):
+ 
+        # input
+        input_hop_list, input_p_list, input_cpp_list = [], [], []
+        act_hop_list, act_p_list, act_cpp_list = [], [], []
+        
+        # Set inputs to 0
+        input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
+        input_cpp_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
+        input_hop_list.append(tf.zeros((1, self.hidden_op_units), dtype=tf.float32))
 
+        # Set activations to 0.5
+        act_p_list.append(input_p_list[0] + 0.5)
+        act_cpp_list.append(input_cpp_list[0] + 0.5)
+        act_hop_list.append(input_hop_list[0] + 0.5)
+
+        # Recurrent structure over time ticks (Time averaged input)
+        for t in range(self.n_timesteps):
+
+            # Inject fresh white noise to weights and biases within pho system in each time step while training
+            w_pp = K.in_train_phase(
+                self._inject_noise(self.w_pp, self.pho_noise_level),
+                self.w_pp,
+                training=training,
+            )
+            w_pc = K.in_train_phase(
+                self._inject_noise(self.w_pc, self.pho_noise_level),
+                self.w_pc,
+                training=training,
+            )
+            w_cp = K.in_train_phase(
+                self._inject_noise(self.w_cp, self.pho_noise_level),
+                self.w_cp,
+                training=training,
+            )
+            bias_cpp = K.in_train_phase(
+                self._inject_noise(self.bias_cpp, self.pho_noise_level),
+                self.bias_cpp,
+                training=training,
+            )
+            bias_p = K.in_train_phase(
+                self._inject_noise(self.bias_p, self.pho_noise_level),
+                self.bias_p,
+                training=training,
+            )
+
+
+            ##### Hidden layer (OP) #####
+            hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
+            hop += (1 - self.tau) * input_hop_list[t]
+
+            ##### Phonology layer #####
+            pho_pp = tf.matmul(act_p_list[t], w_pp)
+            cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
+            hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp)
+
+            p = self.tau * (pho_pp + cpp_cp + hop_hp + bias_p)
+            p += (1 - self.tau) * input_p_list[t]
+
+            ##### Phonology Cleanup layer #####
+            cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
+            cpp += (1 - self.tau) * input_cpp_list[t]
+
+
+            # Record this timestep to list
+            input_p_list.append(p)
+            input_cpp_list.append(cpp)
+            input_hop_list.append(hop)
+
+            act_p_list.append(self.activation(p))
+            act_cpp_list.append(self.activation(cpp))
+            act_hop_list.append(self.activation(hop))
+
+        # output different number of time ticks depending on training/testing
+        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        return act_p_list[-output_ticks :]
+       
 
     def task_triangle(self, inputs, training=None):
 
