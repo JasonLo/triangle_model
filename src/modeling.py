@@ -35,8 +35,7 @@ WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "w_ss", "w_sc", "w_cs", "bias_hos", "bias_s", "bias_css")
 WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "w_pp", "w_pc", "w_cp", "bias_hop", "bias_p", "bias_cpp")
 
-WEIGHTS_AND_BIASES["exp_osp"] = ("w_hos_oh", "w_hos_hs", "w_ss", "w_sc", "w_cs", "bias_hos", "bias_s", "bias_css",
-    "w_hsp_sh", "w_hsp_hp", "w_pp", "w_pc", "w_cp", "bias_hsp", "bias_p", "bias_cpp")
+WEIGHTS_AND_BIASES["exp_osp"] = ("w_hos_oh", "w_hos_hs", "bias_hos")
 
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
