@@ -61,7 +61,6 @@ class TestSet:
         testitems,
         x_test,
         y_test,
-        output_key = None
     ):
         self.name = name
         self.cfg = cfg
@@ -71,7 +70,6 @@ class TestSet:
         self.testitems = testitems
         self.x_test = x_test
         self.y_test = y_test
-        self.output_key = output_key
 
         self._flat_dict = None
         self.result = None
@@ -129,18 +127,18 @@ class TestSet:
         self.model.load_weights(checkpoint)
 
         pred_y = self.model([self.x_test] * self.cfg.n_timesteps)
-        
-        if self.output_key is not None:
-            pred_y = pred_y[self.output_key]
 
         output = {}
-        if self.task == "triangle":
+        if (self.task in ("triangle")):
             output["pho"] = self._eval_one_y(pred_y[0], self.y_test[0], y_name="pho")
             output["sem"] = self._eval_one_y(pred_y[1], self.y_test[1], y_name="sem")
         elif (self.task in ("pho_sem", "sem_sem", "ort_sem")):
             output["sem"] = self._eval_one_y(pred_y, self.y_test, y_name="sem")
-        elif (self.task in ("sem_pho", "pho_pho", "ort_pho", "exp_osp")):
+        elif (self.task in ("sem_pho", "pho_pho", "ort_pho")):
             output["pho"] = self._eval_one_y(pred_y, self.y_test, y_name="pho")
+        elif (self.task in ("exp_osp")):
+            output["pho"] = self._eval_one_y(pred_y["act_p"], self.y_test[0], y_name="pho")
+            output["sem"] = self._eval_one_y(pred_y["act_s"], self.y_test[1], y_name="sem")
         else:
             print(f"{self.task} task does not exist in evaluator")
 
