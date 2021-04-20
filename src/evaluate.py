@@ -240,7 +240,7 @@ class EvalOral:
             "train": self._eval_train,
             "strain": self._eval_strain,
             "taraban": self._eval_taraban,
-            "cortese_img": self._eval_img 
+            "cortese_img": self._eval_img
         }
 
     def eval(self, testset_name):
@@ -319,7 +319,7 @@ class EvalOral:
     
     def _eval_img(self):
         df = pd.DataFrame()
-        testsets = ("cortese_hi_img", "cortese_low_img")
+        testsets = ("cortese_3gp_high_img", "cortese_3gp_med_img", "cortese_3gp_low_img")
         
         for testset_name in testsets:
             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
