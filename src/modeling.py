@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 # Create dictionary for weight & biases related to each task
-## Important: Due to model complexity, cannot use trainable flag to turn on/off training during a vanilla training loop
+## Important: Due to model complexity, it seems that "trainable" flag cannot be use to turn on/off training during a vanilla training loop
 ## Therefore, it must use custom training loop to control which matrix to perform gradient descent
 ## Since there are 4 sets of hidden layers and 2 sets of cleanup units,
 ## when refering to hidden, we need to state the exact layer in this format: h{from}{to} in weights
@@ -34,9 +34,7 @@ WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "w_ss", "bias_hos", "bias_s")
 WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "w_pp", "bias_hop", "bias_p")
-
 WEIGHTS_AND_BIASES["exp_osp"] = ("w_hos_oh", "w_hos_hs", "bias_hos")
-
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
     "w_hos_hs",
@@ -62,7 +60,7 @@ class HS04Model(tf.keras.Model):
             setattr(self, key, value)
 
         self.activation = tf.keras.activations.get(self.activation)
-        # self.active_task = "triangle" # Cannot set default task, will trigger inf. recursion for some reason
+        # self.active_task = "triangle" # Do not set default task, will trigger inf. recursion for some unknown reason
 
         self.tasks = {
             "pho_sem": self.task_pho_sem,
@@ -72,7 +70,7 @@ class HS04Model(tf.keras.Model):
             "ort_sem": self.task_ort_sem,
             "ort_pho": self.task_ort_pho,
             "triangle": self.task_triangle,
-            "exp_osp": self.experimental_task_osp
+            "exp_osp": self.experimental_task_osp,
         }
 
     def build(self, input_shape=None):
@@ -334,10 +332,11 @@ class HS04Model(tf.keras.Model):
             act_s_list.append(self.activation(s))
             act_css_list.append(self.activation(css))
 
-        
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
-        return act_s_list[-output_ticks :]
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
+        return act_s_list[-output_ticks:]
 
     def task_sem_sem(self, inputs, training=None):
         """
@@ -390,32 +389,33 @@ class HS04Model(tf.keras.Model):
             )
 
             ### Semantic ###
-            
+
             cs = tf.matmul(act_css_list[t], w_cs)
             ss = tf.matmul(act_s_list[t], w_ss)
             s = self.tau * (cs + ss + bias_s)
             #  s = self.tau * (cs + bias_s)
             s += (1 - self.tau) * input_s_list[t]
             input_s_list.append(s)
-            
+
             if t < 8:
                 # Clamp activation to teaching signal
-                act_s_list.append(inputs[t])  
+                act_s_list.append(inputs[t])
             else:
                 act_s_list.append(self.activation(s))
 
             ### Cleanup unit ###
             sc = tf.matmul(act_s_list[t], w_sc)
             css = self.tau * (sc + bias_css) + (1 - self.tau) * input_css_list[t]
-            
+
             # Record this timestep to list
-            input_css_list.append(css)           
+            input_css_list.append(css)
             act_css_list.append(self.activation(css))
 
-
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
-        return act_s_list[-output_ticks :]
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
+        return act_s_list[-output_ticks:]
 
     def task_sem_pho(self, inputs, training=None):
         """
@@ -491,10 +491,12 @@ class HS04Model(tf.keras.Model):
             act_hsp_list.append(self.activation(hsp))
             act_p_list.append(self.activation(p))
             act_cpp_list.append(self.activation(cpp))
-            
+
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
-        return act_p_list[-output_ticks :]
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
+        return act_p_list[-output_ticks:]
 
     def task_pho_pho(self, inputs, training=None):
         """
@@ -542,42 +544,43 @@ class HS04Model(tf.keras.Model):
                 self.bias_p,
                 training=training,
             )
-            
+
             # Phonological unit
             cp = tf.matmul(act_cpp_list[t], w_cp)
             pp = tf.matmul(act_p_list[t], w_pp)
             p = self.tau * (cp + pp + bias_p)
-#           p = self.tau * (cp + bias_p)
+            #           p = self.tau * (cp + bias_p)
             p += (1 - self.tau) * input_p_list[t]
             input_p_list.append(p)
-            
+
             if t < 8:
                 # Clamp activation to teaching signal
-                act_p_list.append(inputs[t])  
-            else:           
+                act_p_list.append(inputs[t])
+            else:
                 act_p_list.append(self.activation(p))
 
             # Clean up unit
             pc = tf.matmul(act_p_list[t], w_pc)
             cpp = self.tau * (pc + bias_cpp) + (1 - self.tau) * input_cpp_list[t]
-            
+
             # Record this timestep to list
-            input_cpp_list.append(cpp)           
+            input_cpp_list.append(cpp)
             act_cpp_list.append(self.activation(cpp))
 
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
-        return act_p_list[-output_ticks :]
-
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
+        return act_p_list[-output_ticks:]
 
     def task_ort_sem(self, inputs, training=None):
- 
+
         # init
 
         # input
         input_hos_list, input_s_list, input_css_list = [], [], []
         act_hos_list, act_s_list, act_css_list = [], [], []
-        
+
         # Set inputs to 0
         input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
         input_css_list.append(tf.zeros((1, self.sem_cleanup_units), dtype=tf.float32))
@@ -644,15 +647,17 @@ class HS04Model(tf.keras.Model):
             act_hos_list.append(self.activation(hos))
 
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
-        return act_s_list[-output_ticks :]
-       
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
+        return act_s_list[-output_ticks:]
+
     def task_ort_pho(self, inputs, training=None):
- 
+
         # input
         input_hop_list, input_p_list, input_cpp_list = [], [], []
         act_hop_list, act_p_list, act_cpp_list = [], [], []
-        
+
         # Set inputs to 0
         input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
         input_cpp_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
@@ -693,7 +698,6 @@ class HS04Model(tf.keras.Model):
                 training=training,
             )
 
-
             ##### Hidden layer (OP) #####
             hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
             hop += (1 - self.tau) * input_hop_list[t]
@@ -710,7 +714,6 @@ class HS04Model(tf.keras.Model):
             cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
             cpp += (1 - self.tau) * input_cpp_list[t]
 
-
             # Record this timestep to list
             input_p_list.append(p)
             input_cpp_list.append(cpp)
@@ -721,9 +724,10 @@ class HS04Model(tf.keras.Model):
             act_hop_list.append(self.activation(hop))
 
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
-        return act_p_list[-output_ticks :]
-       
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
+        return act_p_list[-output_ticks:]
 
     def task_triangle(self, inputs, training=None):
 
@@ -887,18 +891,22 @@ class HS04Model(tf.keras.Model):
             act_hop_list.append(self.activation(hop))
 
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
-        return act_p_list[-output_ticks :], act_s_list[-output_ticks :]
-
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
+        return act_p_list[-output_ticks:], act_s_list[-output_ticks:]
 
     def experimental_task_osp(self, inputs, training=None):
-        """This experimental task is a O to S to P model without any direct connection from O to P. 
-        The purpose of this task is to isolate wheather SP structure 
+        """This experimental task is a O to S to P model without any direct connection from O to P.
+        The purpose of this task is to isolate wheather SP structure
         """
 
         # init input and activation stores
-        input_hos_list, input_s_list, input_css_list, input_hsp_list, input_p_list, input_cpp_list = [], [], [], [], [], []
-        act_hos_list, act_s_list, act_css_list, act_hsp_list, act_p_list, act_cpp_list = [], [], [], [], [], []
+        input_hos_list, input_s_list, input_css_list = [], [], []
+        input_hsp_list, input_p_list, input_cpp_list = [], [], []
+
+        act_hos_list, act_s_list, act_css_list = [], [], []
+        act_hsp_list, act_p_list, act_cpp_list = [], [], []
 
         # Set inputs to 0
         input_hos_list.append(tf.zeros((1, self.hidden_os_units), dtype=tf.float32))
@@ -1027,18 +1035,19 @@ class HS04Model(tf.keras.Model):
             act_p_list.append(self.activation(p))
             act_cpp_list.append(self.activation(cpp))
 
-
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(self.inject_error_ticks, self.output_ticks, training=training)
+        output_ticks = K.in_train_phase(
+            self.inject_error_ticks, self.output_ticks, training=training
+        )
 
         # output dictionary with division of labor metrics
         output_dict = dict()
-        output_dict["hsp_hp"] = hsp_hp_list[-output_ticks :]
-        output_dict["pho_pp"] = pho_pp_list[-output_ticks :]
-        output_dict["cpp_cp"] = cpp_cp_list[-output_ticks :]
-        output_dict["bias_p"] = bias_p_list[-output_ticks :]
-        output_dict["act_s"] = act_s_list[-output_ticks :]
-        output_dict["act_p"] = act_p_list[-output_ticks :]
+        output_dict["hsp_hp"] = hsp_hp_list[-output_ticks:]
+        output_dict["pho_pp"] = pho_pp_list[-output_ticks:]
+        output_dict["cpp_cp"] = cpp_cp_list[-output_ticks:]
+        output_dict["bias_p"] = bias_p_list[-output_ticks:]
+        output_dict["act_s"] = act_s_list[-output_ticks:]
+        output_dict["act_p"] = act_p_list[-output_ticks:]
 
         return output_dict
 
@@ -1046,7 +1055,6 @@ class HS04Model(tf.keras.Model):
         """Inject Gaussian noise if noise_sd > 0"""
         if noise_sd > 0:
             noise = K.random_normal(shape=K.shape(x), mean=0.0, stddev=noise_sd)
-
             return x + noise
         else:
             return x
@@ -1072,5 +1080,3 @@ class HS04Model(tf.keras.Model):
             }
         )
         return cfg
-
-
