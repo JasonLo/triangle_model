@@ -1,7 +1,16 @@
 library(tidyverse)
 library(interactions)
+
+
+clip <- function(x, lower, upper) {
+    pmax(pmin(x, upper), lower)
+}
+
 df <- read.csv("parsed_df_210514r.csv") %>% 
-    mutate(csse = ifelse(acc==1, sse, NA))
+    mutate(csse = ifelse(acc==1, sse, NA)) %>% 
+    mutate(scale_log_wf_wsj = log_wf_wsj/max(df$log_wf_wsj, na.rm =T)) %>% 
+    mutate(p = clip(scale_log_wf_wsj, lower=0.05, upper=1))
+
 
 
 
@@ -156,10 +165,11 @@ qplot(x=log_wf_wsj, y=rstandard, data=tmp) +
 
 ## Just correlation over epoch
 
+
 get_cor <- function(sel_epoch, use_df){
     tmp <- use_df %>% 
-        filter(epoch==sel_epoch) %>% 
-        select(log_wf_wsj, sse) %>% 
+        filter(epoch==sel_epoch) %>%
+        select(p, csse) %>% 
         na.omit() %>% 
         cor()
     
