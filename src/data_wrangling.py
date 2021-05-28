@@ -73,12 +73,12 @@ class Sampling:
                     self.debug_corpus_size.append(
                         sum(wf > 0 for wf in self.debug_wf[-1].values())
                     )
-                    self.debug_sem.append(
-                        {
-                            k: self.semantic_input(v)
-                            for k, v in self.debug_wf[-1].items()
-                        }
-                    )
+                    # self.debug_sem.append(
+                    #     {
+                    #         k: self.semantic_input(v)
+                    #         for k, v in self.debug_wf[-1].items()
+                    #     }
+                    # )
 
                 self.current_epoch += 1
 
