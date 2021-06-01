@@ -1,6 +1,7 @@
 # %% Environment
 import os
 import pandas as pd
+import altair as alt
 from IPython.display import clear_output
 import data_wrangling, meta
 
@@ -43,7 +44,7 @@ def dry_run_sampler(sample_name, cfg, output_folder=working_directory):
 implementations = ["chang_jml", "hs04", "jay", "developmental_rank_frequency"]
 [dry_run_sampler(x, cfg) for x in implementations]
 
-# Combine data
+# %% Combine data
 df = pd.DataFrame()
 for i in implementations:
     tmp_df = pd.read_csv(f"{working_directory}{i}_dynamic_corpus.csv")
@@ -56,10 +57,34 @@ df = df.melt(id_vars=['word', 'sample_name'], var_name='epoch_label', value_name
 df['epoch'] = df.epoch_label.apply(lambda x: int(x[6::]))
 
 # Down-sample epoch
-sel_epoch = [0, 1, 3, 5, 7, 10, 30, 40, 50, 80, 100]
-df = df.loc[df.epoch.isin(sel_epoch), ]
+# sel_epoch = [0, 1, 3, 5, 7, 10, 30, 40, 50, 80, 100]
+# df = df.loc[df.epoch.isin(sel_epoch), ]
 
 # Merge WSJ frequnecy and save
 df_train = pd.read_csv('dataset/df_train.csv')[['word', 'wf']]
 df = df.merge(df_train)
-df.to_csv('sampling_sim.csv')
+
+
+
+
+#%%
+
+df['bin'] = pd.qcut(df.wf, q=5, labels=['lowest', 'low', 'mid', 'high', 'highest'])
+df = df.groupby(['epoch', 'sample_name', 'bin']).mean().reset_index()
+
+
+
+
+#%%
+p = alt.Chart(df).encode(
+    x="epoch", 
+    y="mean(dwf)",
+    color='sample_name:N',
+    column=alt.Column("bin",sort=["lowest", "low", "mid", "high", "highest"]),
+    tooltip=['wf', 'dwf']
+).mark_line().interactive()
+  
+
+p.save(os.path.join(working_directory, "q5_compare_sample.html"))
+
+# %%
