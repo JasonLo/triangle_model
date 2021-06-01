@@ -108,6 +108,18 @@ class Sampling:
                     max_sample=self.cfg.n_mil_sample * 1_000_000,
                 )
 
+            elif self.cfg.sample_name == "flexi_rank":
+                this_p = self.get_sampling_probability(
+                    df_train=self.data.df_train,
+                    implementation=self.cfg.sample_name,
+                    wf_low_clip=self.cfg.wf_low_clip,
+                    wf_high_clip=self.cfg.wf_high_clip,
+                    compression=self.cfg.wf_compression,
+                    sampling_speed=self.cfg.sampling_speed,
+                    ingested_training_sample=self.ingested_training_sample,
+                    max_sample=self.cfg.n_mil_sample * 1_000_000
+                )
+
             else:
                 this_p = self.get_sampling_probability(
                     df_train=self.data.df_train, implementation=self.cfg.sample_name
@@ -170,6 +182,9 @@ class Sampling:
     def get_sampling_probability(
         df_train,
         implementation,
+        wf_low_clip=None,
+        wf_high_clip=None,
+        compression=None,
         sampling_speed=2.0,
         stage=None,
         ingested_training_sample=None,
@@ -193,7 +208,7 @@ class Sampling:
             5. developmental_rank_frequency: continous shifting sample by rank of word frequency (Named as experimental prior to 3.0)
             6. wf_linear_cutoff: continous shifting sample by raw word frequency
         """
-
+        
         assert implementation in [
             "log",
             "hs04",
@@ -201,6 +216,7 @@ class Sampling:
             "chang_jml",
             "chang_ssr",
             "developmental_rank_frequency",
+            "flexi_rank"
         ]
         compressed_wf = None
 
@@ -225,7 +241,7 @@ class Sampling:
                 print(f"Removed words with <= {cutoffs[stage-1]} wpm.")
                 print(f"There are {np.sum(clip>0)} words in the training set")
 
-            compressed_wf = np.log(clip + 1)
+            compressed_wf = np.log(clip + 2)
 
         if implementation == "chang_ssr":
             wf = df_train.wf.copy()
@@ -261,6 +277,20 @@ class Sampling:
 
             # Sqrt compression
             compressed_wf = np.sqrt(clip_wf)
+
+        if implementation == "flexi_rank":
+            """Flexible rank sampler"""
+            clip_wf = df_train.wf.clip(wf_low_clip, wf_high_clip)
+            pct = clip_wf.rank(pct=True, ascending=False)
+            progress = 0.03 + (ingested_training_sample / max_sample)
+            progress *= sampling_speed
+            clip_wf[pct > progress] = 0
+            if compression == "log":
+                compressed_wf=np.log(clip_wf+1)
+                # Must use +1 here, otherwise clip wf = 0 still has chance to get sampled
+            elif compression == "root":
+                compressed_wf = np.sqrt(clip_wf)
+
 
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
 
