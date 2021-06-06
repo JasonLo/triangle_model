@@ -96,16 +96,6 @@ class Sampling:
                     implementation=self.cfg.sample_name,
                     stage=self.current_stage,
                     ingested_training_sample=self.ingested_training_sample,
-                    max_sample=self.cfg.n_mil_sample * 1_000_000,
-                )
-
-            elif self.cfg.sample_name == "developmental_rank_frequency":
-                this_p = self.get_sampling_probability(
-                    df_train=self.data.df_train,
-                    implementation=self.cfg.sample_name,
-                    sampling_speed=self.cfg.sampling_speed,
-                    ingested_training_sample=self.ingested_training_sample,
-                    max_sample=self.cfg.n_mil_sample * 1_000_000,
                 )
 
             elif self.cfg.sample_name == "flexi_rank":
@@ -115,9 +105,8 @@ class Sampling:
                     wf_low_clip=self.cfg.wf_low_clip,
                     wf_high_clip=self.cfg.wf_high_clip,
                     compression=self.cfg.wf_compression,
-                    sampling_speed=self.cfg.sampling_speed,
+                    sampling_plateau=self.cfg.sampling_plateau,
                     ingested_training_sample=self.ingested_training_sample,
-                    max_sample=self.cfg.n_mil_sample * 1_000_000
                 )
 
             else:
@@ -185,10 +174,9 @@ class Sampling:
         wf_low_clip=None,
         wf_high_clip=None,
         compression=None,
-        sampling_speed=2.0,
+        sampling_plateau=None,
         stage=None,
         ingested_training_sample=None,
-        max_sample=None,
         vocab_size=None,
         verbose=False,
     ):
@@ -196,16 +184,19 @@ class Sampling:
         Keyword arguments:
         df_train -- training set in pandas dataframe format, contain WSJ word frequency (wf) and Zeno frequency (gr*)
         implementation -- method of sampling
+        wf_low_clip -- bottom freqeuncy clipping
+        wf_high_clip -- upper frequency clipping
+        compression -- log or square root frequency compression
+        sampling_plateau -- at what number of sample, the corpus will fully open
         stage (Chang implementation only) -- which stage in Chang sampling (default None)
         ingested_training_sample (experimental implementation only) -- the ingested_training_sample
-        max_sample -- maximum sample (for scaling progress)
 
         implementation details:
             1. log: simple log compression
             2. hs04: square root compression with bottom (1500) and top end (30000) clipping
             3. jay: square root compression with top end clipping (10000)
             4. chang_jml: clip depending on stage, log compression
-            5. developmental_rank_frequency: continous shifting sample by rank of word frequency (Named as experimental prior to 3.0)
+            5. flexi_rank: a modifyied smooth rank-based sampler 
             6. wf_linear_cutoff: continous shifting sample by raw word frequency
         """
         
@@ -215,7 +206,6 @@ class Sampling:
             "jay",
             "chang_jml",
             "chang_ssr",
-            "developmental_rank_frequency",
             "flexi_rank"
         ]
         compressed_wf = None
@@ -251,39 +241,11 @@ class Sampling:
             sel = df_train.wf.rank(ascending=False) <= vocab_size
             compressed_wf[~sel] = 0
 
-        if implementation == "developmental_rank_frequency":
-            """Continuous sampling set"""
-            # Top Clipping 30k
-            clip_wf = df_train.wf.clip(0, 30000)
-
-            # Rank percent (Smaller = higher frequnecy)
-            pct = clip_wf.rank(pct=True, ascending=False)
-
-            # Monitor training progress, 0.03 for fast start (since progress = 0 has no word)
-            progress = 0.03 + (ingested_training_sample / max_sample)
-
-            # Speed scaling factor (how fast the training set grow)
-            progress *= sampling_speed
-
-            # Trim continuously
-            clip_wf[pct > progress] = 0
-
-            if verbose:
-                print(f"minimum pct = {pct.min()}, max pct = {pct.max()}")
-                print(f"Current progress: {progress}")
-                print(f"Number of selected item: {sum(clip_wf > 0)}")
-                print(f"Selected words: {df_train.word[clip_wf > 0]}")
-                clear_output(wait=True)
-
-            # Sqrt compression
-            compressed_wf = np.sqrt(clip_wf)
-
         if implementation == "flexi_rank":
             """Flexible rank sampler"""
             clip_wf = df_train.wf.clip(wf_low_clip, wf_high_clip)
             pct = clip_wf.rank(pct=True, ascending=False)
-            progress = 0.03 + (ingested_training_sample / max_sample)
-            progress *= sampling_speed
+            progress = 0.03 + (ingested_training_sample / sampling_plateau)
             clip_wf[pct > progress] = 0
             if compression == "log":
                 compressed_wf=np.log(clip_wf+1)
@@ -389,16 +351,14 @@ class FastSampling:
                     implementation=self.cfg.sample_name,
                     stage=self.current_stage,
                     ingested_training_sample=self.ingested_training_sample,
-                    max_sample=self.cfg.n_mil_sample * 1_000_000,
                 )
 
-            elif self.cfg.sample_name == "developmental_rank_frequency":
+            elif self.cfg.sample_name == "flexi_rank":
                 this_p = Sampling.get_sampling_probability(
                     df_train=self.data.df_train,
                     implementation=self.cfg.sample_name,
-                    sampling_speed=self.cfg.sampling_speed,
+                    sampling_plateau=self.cfg.sampling_plateau,
                     ingested_training_sample=self.ingested_training_sample,
-                    max_sample=self.cfg.n_mil_sample * 1_000_000,
                 )
 
             else:
