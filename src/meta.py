@@ -35,7 +35,7 @@ CORE_CONFIGS = (
 )
 
 OPTIONAL_CONFIGS = (
-    "sampling_speed",
+    "sampling_plateau",
     "batch_name",
     "batch_unique_setting_string",
     "oral_vocab_size",

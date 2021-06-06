@@ -9,7 +9,7 @@ reload(data_wrangling)
 
 os.chdir("/home/jupyter/tf")
 cfg = meta.ModelConfig.from_json('models/boo/model_config.json')
-cfg.sampling_speed = 2
+cfg.sampling_plateau = 500,000
 data = data_wrangling.MyData()
 working_directory = "issues/developmental_sampler/"
 
@@ -44,16 +44,11 @@ def dry_run_sampler(sample_name, file_name, cfg, output_folder):
 
 #%% Brute-force sampler
 
-def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_speed):
-    """ Simulate sampling stragegy
-    Somewhat reasonable range:
-    wf_low_clip in [0, 1500]:
-    for wf_high_clip in [0, 10000, 30000]:
-    for wf_compression in ["log", "root"]:
-    for sampling_speed in [2., 4., 8.]:"""
+def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_plateau):
+    """ Simulate sampling stragegy"""
     
 
-    code_name = f"r_lc{wf_low_clip}_hc{wf_high_clip}_com{wf_compression}_g{sampling_speed}"
+    code_name = f"r_lc{wf_low_clip}_hc{wf_high_clip}_com{wf_compression}_plateau{sampling_plateau}"
 
     def load_data_from_csv(implementations):
         df = pd.DataFrame()
@@ -79,7 +74,7 @@ def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_speed):
         cfg.wf_low_clip = wf_low_clip
         cfg.wf_high_clip = wf_high_clip
         cfg.wf_compression = wf_compression
-        cfg.sampling_speed = sampling_speed
+        cfg.sampling_plateau = sampling_plateau
         dry_run_sampler(cfg.sample_name, code_name, cfg, working_directory)
 
         df, df_corpus_size = load_data_from_csv(["chang_jml", code_name])
@@ -110,9 +105,17 @@ def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_speed):
     return p & p2
 
 #%%
-eq0 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="root", sampling_speed=2.)
+eq0 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="root", sampling_plateau=500_000)
+eq2 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="log", sampling_plateau=500_000)
+
+#%% Failed trash
+
 eq1 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="log", sampling_speed=4.)
-eq2 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="log", sampling_speed=2.)
 eq3 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="root", sampling_speed=4.)
 eq4 = run_and_plot(wf_low_clip=0, wf_high_clip=10000, wf_compression="root", sampling_speed=2.)
 eq5 = run_and_plot(wf_low_clip=0, wf_high_clip=3000, wf_compression="root", sampling_speed=2.)
+
+
+#%% Sponteneous sampling distribution
+
+df = pd.read_csv()
