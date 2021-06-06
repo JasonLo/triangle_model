@@ -3,9 +3,9 @@ import os
 import pandas as pd
 import altair as alt
 from IPython.display import clear_output
-from importlib import reload
+from scipy.stats import pearsonr
 import data_wrangling, meta
-reload(data_wrangling)
+alt.data_transformers.disable_max_rows()
 
 os.chdir("/home/jupyter/tf")
 cfg = meta.ModelConfig.from_json('models/boo/model_config.json')
@@ -118,4 +118,76 @@ eq5 = run_and_plot(wf_low_clip=0, wf_high_clip=3000, wf_compression="root", samp
 
 #%% Sponteneous sampling distribution
 
-df = pd.read_csv()
+
+# Load dry run dynamic corpus
+def load_dynamic_corpus(name):
+
+    df = pd.read_csv(os.path.join(working_directory, f'{name}_dynamic_corpus.csv'))
+    df.rename(columns={'Unnamed: 0': 'word'}, inplace=True)
+
+# Calculate sponteneous freuqncy from cumulative frequency 
+
+    for x in range(1, 101):
+        df[f'delta_{x}'] = df[f'epoch_{x}'] - df[f'epoch_{x-1}']
+        try:
+            df[f'delta_{x}_bin'] = pd.qcut(df[f'delta_{x}'], q=5, labels=['lowest', 'low', 'mid', 'high', 'highest'])
+        except:
+            pass
+
+    return df
+
+chang_df = load_dynamic_corpus('chang_jml')
+my_df = load_dynamic_corpus('r_lc0_hc30000_comlog_plateau500000')
+
+
+# %%
+def plot_sponteneous_density(df, epoch=1):
+    v = f'delta_{epoch}'
+    plot = alt.Chart(df.loc[df[v]>0]).mark_area(
+    ).transform_density(v, as_=['sponteneous_f', 'density']
+    ).encode(
+        x=alt.X('sponteneous_f:Q',scale=alt.Scale(domain=(0,200))),
+        y=alt.Y('density:Q', scale=alt.Scale(domain=(0, 0.1))),
+    ).properties(width=100, height=100, title=f'epoch={epoch}')
+
+    return plot
+
+def plot_10(df):
+    plot=alt.hconcat()
+    for epoch in range(1,11):
+        plot |= plot_sponteneous_density(df, epoch)
+    return plot
+
+# %% 
+
+plot_sponteneous_density(chang_df, epoch =1 )
+
+#%%
+
+chang = plot_10(chang_df)
+mine = plot_10(my_df)
+#%%
+comparison = (chang & mine)
+comparison.save(os.path.join(working_directory, 'density_comparison.html'))
+
+
+# %% Correlation of sampling probability
+
+rs = [pearsonr(my_df[f'delta_{x}'], chang_df[f'delta_{x}'])[0] for x in range(1, 101)]
+
+# %%
+epoch = list(range(1, 101))
+r_plot = alt.Chart(pd.DataFrame({'rs':rs, 'epoch':epoch})).mark_line().encode(
+    y='rs:Q', x='epoch'
+    ).properties(title='Pearson correlation between sponteneous frequency in Chang 2019 and our implementation')
+
+r_plot.save(os.path.join(working_directory, 'correlation_of_sponteneous_f.html'))
+
+
+#%% Point ot point
+rs_delta = [pearsonr(chang_df[f'delta_{x}'], chang_df[f'delta_{x+1}'])[0] for x in range(1, 100)]
+
+alt.Chart(pd.DataFrame({'rs_delta':rs_delta, 'epoch':list(range(1, 100))})).mark_line().encode(
+    y='rs_delta:Q', x='epoch'
+)
+# %%
