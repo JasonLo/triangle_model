@@ -119,11 +119,16 @@ eq5 = run_and_plot(wf_low_clip=0, wf_high_clip=3000, wf_compression="root", samp
 #%% Sponteneous sampling distribution
 
 
+
 # Load dry run dynamic corpus
 def load_dynamic_corpus(name):
 
     df = pd.read_csv(os.path.join(working_directory, f'{name}_dynamic_corpus.csv'))
     df.rename(columns={'Unnamed: 0': 'word'}, inplace=True)
+
+    tmp = data.df_train[['word', 'wf']].copy()
+    tmp['rank_wf'] = tmp.wf.rank(ascending=False)
+    tmp
 
 # Calculate sponteneous freuqncy from cumulative frequency 
 
@@ -134,13 +139,44 @@ def load_dynamic_corpus(name):
         except:
             pass
 
-    return df
+    return df.merge(tmp, how='left', on='word')
 
 chang_df = load_dynamic_corpus('chang_jml')
 my_df = load_dynamic_corpus('r_lc0_hc30000_comlog_plateau500000')
 
 
+
+
 # %%
+def plot_word_rank_density(df, epoch=1):
+    v = f'delta_{epoch}'
+    plot = alt.Chart(df.loc[(df[v]>0) & (df.rank_wf <= 2000)]).mark_bar(
+    ).encode(
+        x=alt.X('rank_wf:Q', scale=alt.Scale(domain=(0, 2000)), bin=alt.Bin(extent=[0, 2000], step=200)),
+        y=alt.Y(f'sum({v})', scale=alt.Scale(domain=(0, 10000))),
+    ).properties(width=100, height=100, title=f'epoch={epoch}')
+
+    return plot
+
+# %%
+
+
+
+plot = alt.hconcat()
+for epoch in range(1, 9):
+    plot |= plot_word_rank_density(chang_df, epoch=epoch)
+
+plot
+#%%
+
+plot = alt.hconcat()
+for epoch in range(1, 9):
+    plot |= plot_word_rank_density(my_df, epoch=epoch)
+
+plot
+
+#%%
+
 def plot_sponteneous_density(df, epoch=1):
     v = f'delta_{epoch}'
     plot = alt.Chart(df.loc[df[v]>0]).mark_area(
