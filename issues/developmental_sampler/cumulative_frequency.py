@@ -15,6 +15,9 @@ working_directory = "issues/developmental_sampler/"
 
 # %% function to run sampling  
 
+from importlib import reload
+reload(data_wrangling)
+
 def dry_run_sampler(sample_name, file_name, cfg, output_folder):
     # Instantiate
     cfg.sample_name = sample_name
@@ -42,6 +45,12 @@ def dry_run_sampler(sample_name, file_name, cfg, output_folder):
     print("All done.")
 
 
+
+#%%
+dry_run_sampler('chang_jml', 'chang_19', cfg, working_directory)
+
+
+
 #%% Brute-force sampler
 
 def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_plateau):
@@ -67,7 +76,7 @@ def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_plateau):
 
     try:
         # Try to read sampling dry run results from disk
-        df, df_corpus_size = load_data_from_csv(["chang_jml", code_name])
+        df, df_corpus_size = load_data_from_csv(["chang_19", code_name])
     except:
         # Or dry run from scratch
         cfg.sample_name = "flexi_rank"
@@ -77,7 +86,7 @@ def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_plateau):
         cfg.sampling_plateau = sampling_plateau
         dry_run_sampler(cfg.sample_name, code_name, cfg, working_directory)
 
-        df, df_corpus_size = load_data_from_csv(["chang_jml", code_name])
+        df, df_corpus_size = load_data_from_csv(["chang_19", code_name])
 
     # Tidying
     df = df.rename({'Unnamed: 0': 'word'}, axis=1)
@@ -106,6 +115,8 @@ def run_and_plot(wf_low_clip, wf_high_clip, wf_compression, sampling_plateau):
 
 #%%
 eq0 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="root", sampling_plateau=500_000)
+
+#%%
 eq2 = run_and_plot(wf_low_clip=0, wf_high_clip=30000, wf_compression="log", sampling_plateau=500_000)
 
 #%% Failed trash
@@ -141,14 +152,25 @@ def load_dynamic_corpus(name):
 
     return df.merge(tmp, how='left', on='word')
 
-chang_df = load_dynamic_corpus('chang_jml')
+chang_df = load_dynamic_corpus('chang_19')
 my_df = load_dynamic_corpus('r_lc0_hc30000_comlog_plateau500000')
 
 
 
 
 # %% This is what Jay wants
-def plot_word_rank_density(df, epoch, x='rank_wf_wsj'):
+
+def plot_word_rank_density_200(df, epoch, x='rank_wf_wsj'):
+    v = f'delta_{epoch}'
+    plot = alt.Chart(df.loc[(df[v]>0) & (df[x] <= 200)]).mark_bar(
+    ).encode(
+        x=alt.X(f'{x}:Q', scale=alt.Scale(domain=(0, 200)), bin=alt.Bin(extent=[0, 200], step=20)),
+        y=alt.Y(f'sum({v})', scale=alt.Scale(domain=(0, 10000))),
+    ).properties(width=100, height=100, title=f'epoch={epoch}')
+
+    return plot
+
+def plot_word_rank_density_2000(df, epoch, x='rank_wf_wsj'):
     v = f'delta_{epoch}'
     plot = alt.Chart(df.loc[(df[v]>0) & (df[x] <= 2000)]).mark_bar(
     ).encode(
@@ -165,11 +187,11 @@ chang_on_wsj_plot = alt.hconcat()
 ours_on_wsj_plot = alt.hconcat()
 ours_on_zeno_plot = alt.hconcat()
 
-for epoch in range(1, 9):
-    chang_on_zeno_plot |= plot_word_rank_density(chang_df, epoch=epoch, x='rank_wf_zeno')
-    ours_on_zeno_plot |= plot_word_rank_density(my_df, epoch=epoch, x='rank_wf_zeno')
-    chang_on_wsj_plot |= plot_word_rank_density(chang_df, epoch=epoch, x='rank_wf_wsj')
-    ours_on_wsj_plot |= plot_word_rank_density(my_df, epoch=epoch, x='rank_wf_wsj')
+for epoch in range(1, 6):
+    chang_on_zeno_plot |= plot_word_rank_density_200(chang_df, epoch=epoch, x='rank_wf_zeno')
+    ours_on_zeno_plot |= plot_word_rank_density_200(my_df, epoch=epoch, x='rank_wf_zeno')
+    chang_on_wsj_plot |= plot_word_rank_density_200(chang_df, epoch=epoch, x='rank_wf_wsj')
+    ours_on_wsj_plot |= plot_word_rank_density_200(my_df, epoch=epoch, x='rank_wf_wsj')
 
 
 combine_plot = (
@@ -179,7 +201,31 @@ combine_plot = (
     ours_on_wsj_plot.properties(title='Ours on WSJ frequency ordering')
 )
 
-combine_plot.save('histogram_compare.html')
+combine_plot.save('histogram_compare_200.html')
+
+#%%
+chang_on_zeno_plot = alt.hconcat()
+chang_on_wsj_plot = alt.hconcat()
+ours_on_wsj_plot = alt.hconcat()
+ours_on_zeno_plot = alt.hconcat()
+
+for epoch in [11]:
+    chang_on_zeno_plot |= plot_word_rank_density_2000(chang_df, epoch=epoch, x='rank_wf_zeno')
+    ours_on_zeno_plot |= plot_word_rank_density_2000(my_df, epoch=epoch, x='rank_wf_zeno')
+    chang_on_wsj_plot |= plot_word_rank_density_2000(chang_df, epoch=epoch, x='rank_wf_wsj')
+    ours_on_wsj_plot |= plot_word_rank_density_2000(my_df, epoch=epoch, x='rank_wf_wsj')
+
+
+combine_plot = (
+    chang_on_zeno_plot.properties(title='Chang on Zeno frequency ordering') &
+    ours_on_zeno_plot.properties(title='Ours on Zeno frequency ordering') &
+    chang_on_wsj_plot.properties(title='Chang on WSJ frequency ordering') &
+    ours_on_wsj_plot.properties(title='Ours on WSJ frequency ordering')
+)
+
+combine_plot
+
+# combine_plot.save('histogram_compare_2000.html')
 
 
 #%% This is not what Jay's want
