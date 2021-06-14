@@ -88,7 +88,7 @@ class Sampling:
             if self.cfg.sample_name == "chang_jml":
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
-                    self.ingested_training_sample, normalize=True
+                    self.ingested_training_sample, normalize=False
                 )
 
                 this_p = self.get_sampling_probability(
@@ -146,19 +146,19 @@ class Sampling:
         """ Get stage of training. See Monaghan & Ellis, 2010 """
         sample_cutoffs = [
             -1,  # because sample can be 0
-            50_000,
             100_000,
-            200_000,
+            150_000,
+            210_000,
+            260_000,
             300_000,
-            400_000,
-            600_000,
-            800_000,
-            1_000_000,
-            1_200_000,
-            1_400_000,
-            1_600_000,
-            2_000_000,
-            2_200_000,
+            380_000,
+            460_000,
+            540_000,
+            620_000,
+            700_000,
+            780_000,
+            860_000,
+            940_000,
         ]
 
         if normalize:
@@ -178,7 +178,7 @@ class Sampling:
         stage=None,
         ingested_training_sample=None,
         vocab_size=None,
-        verbose=False,
+        verbose=True,
     ):
         """Return the sampling probability with different implementation
         Keyword arguments:
@@ -231,7 +231,7 @@ class Sampling:
                 print(f"Removed words with <= {cutoffs[stage-1]} wpm.")
                 print(f"There are {np.sum(clip>0)} words in the training set")
 
-            compressed_wf = np.log(clip + 2)
+            compressed_wf = np.log(clip + 1)
 
         if implementation == "chang_ssr":
             wf = df_train.wf.copy()
