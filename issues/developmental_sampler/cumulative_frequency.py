@@ -181,7 +181,7 @@ def plot_word_rank_density_2000(df, epoch, x='rank_wf_wsj'):
     return plot
 
 
-#%%
+#%% Zoom in (0-200)
 chang_on_zeno_plot = alt.hconcat()
 chang_on_wsj_plot = alt.hconcat()
 ours_on_wsj_plot = alt.hconcat()
@@ -203,13 +203,13 @@ combine_plot = (
 
 combine_plot.save('histogram_compare_200.html')
 
-#%%
+#%% Zoom out (0-2000)
 chang_on_zeno_plot = alt.hconcat()
 chang_on_wsj_plot = alt.hconcat()
 ours_on_wsj_plot = alt.hconcat()
 ours_on_zeno_plot = alt.hconcat()
 
-for epoch in [11]:
+for epoch in range(100,101):
     chang_on_zeno_plot |= plot_word_rank_density_2000(chang_df, epoch=epoch, x='rank_wf_zeno')
     ours_on_zeno_plot |= plot_word_rank_density_2000(my_df, epoch=epoch, x='rank_wf_zeno')
     chang_on_wsj_plot |= plot_word_rank_density_2000(chang_df, epoch=epoch, x='rank_wf_wsj')
@@ -224,6 +224,7 @@ combine_plot = (
 )
 
 combine_plot
+#.save('histogram_compare_2000_20_101.html')
 
 # combine_plot.save('histogram_compare_2000.html')
 
@@ -249,7 +250,7 @@ def plot_10(df):
 
 # %% 
 
-plot_sponteneous_density(chang_df, epoch =1 )
+plot_sponteneous_density(chang_df, epoch =1)
 
 #%%
 
