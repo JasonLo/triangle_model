@@ -89,17 +89,18 @@ class TestSet:
         }
         
         # Create pd df and pivot by metric as column
+        
         df = pd.DataFrame.from_dict(self._flat_dict, orient="index")
         df.index.rename(["epoch", "y", "timetick", "item", "metric"], inplace=True)
-
         df = df.reset_index().pivot(
-            index=["epoch", "timetick", "y", "item"],
-            columns="metric",
-            values="value",
-        ).reset_index()
-        
+                index=["epoch", "timetick", "y", "item"],
+                columns="metric",
+                values="value",
+             ).reset_index()
+
         # automatically convert to best dtype
         return df.convert_dtypes()
+
 
     def eval_all(self, label_dict=None):       
         df = pd.DataFrame()
@@ -213,6 +214,7 @@ class EvalOral:
         self.taraban_mean_df = None
         self.cortese_mean_df = None
         self.cortese_img_mean_df = None
+        self.homophone_mean_df = None
 
         # Load eval results from file
         for _testset_name in self.TESTSETS_NAME:
@@ -239,10 +241,6 @@ class EvalOral:
         """Run eval and push to dat"""
         if getattr(self, f"{testset_name}_mean_df") is None:
             results = self.run_eval[testset_name]()
-            try:
-                results.to_sql(testset_name, self.con, if_exists="append")
-            except:
-                pass
         else:
             print("Evaluation results found, loaded from file.")
                   
@@ -309,7 +307,7 @@ class EvalOral:
 
     def _eval_homophone(self):
         df = pd.DataFrame()
-        testsets = ("homophone", "non_homophone")
+        testsets = ("non_homophone", "homophone")
 
         for testset_name in testsets:
             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
