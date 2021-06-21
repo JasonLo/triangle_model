@@ -245,7 +245,7 @@ class Sampling:
             """Flexible rank sampler"""
             clip_wf = df_train.wf.clip(wf_low_clip, wf_high_clip)
             pct = clip_wf.rank(pct=True, ascending=False)
-            progress = 0.03 + (ingested_training_sample / sampling_plateau)
+            progress = 0.02 + (ingested_training_sample / sampling_plateau)
             clip_wf[pct > progress] = 0
             if compression == "log":
                 compressed_wf=np.log(clip_wf+1)
@@ -394,9 +394,9 @@ class MyData:
     Also calculate sampling_p according to cfg.sample_name setting
     """
 
-    def __init__(self):
+    def __init__(self, input_path="/home/jupyter/tf/dataset/"):
 
-        self.input_path = "/home/jupyter/tf/dataset/"
+        self.input_path = input_path
 
         # init an empty testset dict for new testset format
         # first level: testset name
@@ -420,43 +420,14 @@ class MyData:
         self.df_strain = pd.read_csv(
             os.path.join(self.input_path, "df_strain.csv"), index_col=0
         )
-        # self.ort_strain = np.load(os.path.join(self.input_path, "ort_strain.npz"))[
-        #     "data"
-        # ]
-        # self.ort_strain_wf = np.array(self.df_strain["wf"])
-        # self.ort_strain_img = np.array(self.df_strain["img"])
-        # self.pho_strain = np.load(os.path.join(self.input_path, "pho_strain.npz"))[
-        #     "data"
-        # ]
-        # self.sem_strain = np.load(os.path.join(self.input_path, "sem_strain.npz"))[
-        #     "data"
-        # ]
 
         self.df_grain = pd.read_csv(
             os.path.join(self.input_path, "df_grain.csv"), index_col=0
         )
-        # self.ort_grain = np.load(os.path.join(self.input_path, "ort_grain.npz"))["data"]
-        # self.ort_grain_wf = np.array(self.df_grain["wf"])
-        # self.ort_grain_img = np.array(self.df_grain["img"])
-        # self.pho_large_grain = np.load(
-        #     os.path.join(self.input_path, "pho_large_grain.npz")
-        # )["data"]
-        # self.pho_small_grain = np.load(
-        #     os.path.join(self.input_path, "pho_small_grain.npz")
-        # )["data"]
-
 
         self.df_taraban = pd.read_csv(
             os.path.join(self.input_path, "df_taraban.csv"), index_col=0
         )
-        # self.ort_taraban = np.load(os.path.join(self.input_path, "ort_taraban.npz"))[
-        #     "data"
-        # ]
-        # self.ort_taraban_wf = np.array(self.df_taraban["wf"])
-        # self.ort_taraban_img = np.array(self.df_taraban["img"])
-        # self.pho_taraban = np.load(os.path.join(self.input_path, "pho_taraban.npz"))[
-        #     "data"
-        # ]
 
         self.df_glushko = pd.read_csv(
             os.path.join(self.input_path, "df_glushko.csv"), index_col=0
@@ -475,10 +446,6 @@ class MyData:
 
 
         self.phon_key = gen_pkey()
-
-        # Elevate for easier access
-        # self.wf = np.array(self.df_train["wf"], dtype="float32")
-        # self.img = np.array(self.df_train["img"], dtype="float32")
 
         # print("==========Orthographic representation==========")
         # print("ort_train shape:", self.ort_train.shape)
