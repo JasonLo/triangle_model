@@ -200,7 +200,7 @@ class EvalOral:
     Not finished... only have train strain and taraban cortese img
     """
 
-    TESTSETS_NAME = ("train",  "strain", "taraban")
+    TESTSETS_NAME = ("train",  "strain",  "taraban")
 
     def __init__(self, cfg, model, data):
         self.cfg = cfg
@@ -213,15 +213,6 @@ class EvalOral:
         self.taraban_mean_df = None
         self.cortese_mean_df = None
         self.cortese_img_mean_df = None
-
-        # Setup database
-        if self.cfg.batch_name is not None:
-
-            sqlite_file = os.path.join(
-                self.cfg.path["batch_folder"], "batch_results.sqlite"
-            )
-            self.con = sqlite3.connect(sqlite_file)
-            self.cur = self.con.cursor()
 
         # Load eval results from file
         for _testset_name in self.TESTSETS_NAME:
@@ -240,7 +231,8 @@ class EvalOral:
             "train": self._eval_train,
             "strain": self._eval_strain,
             "taraban": self._eval_taraban,
-            "cortese_img": self._eval_img
+            "cortese_img": self._eval_img,
+            "homophone": self._eval_homophone,
         }
 
     def eval(self, testset_name):
@@ -315,7 +307,30 @@ class EvalOral:
 
         return df
 
+    def _eval_homophone(self):
+        df = pd.DataFrame()
+        testsets = ("homophone", "non_homophone")
 
+        for testset_name in testsets:
+            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
+            
+        df.to_csv(
+            os.path.join(self.cfg.path["model_folder"], "eval", "homophone_item_df.csv")
+        )
+
+        mean_df = (
+            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+            .mean()
+            .reset_index()
+        )
+
+        mean_df.to_csv(
+            os.path.join(
+                self.cfg.path["model_folder"], "eval", "homophone_mean_df.csv"
+            )
+        )
+        
+        return df
     
     def _eval_img(self):
         df = pd.DataFrame()
