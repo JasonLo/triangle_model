@@ -298,6 +298,7 @@ class FastSampling_uniform:
 
             yield (batch_x, batch_y)
 
+                       
 class FastSampling:
     """Performance oriented sample generator
     A simplified version of Sampling() for hs04 model
@@ -308,23 +309,9 @@ class FastSampling:
         self.data = data
         np.random.seed(cfg.rng_seed)
 
-        # Static probability sample_name
-        if self.cfg.sample_name in ("log", "hs04", "jay"):
-            self.static_p = Sampling.get_sampling_probability(
-                df_train=self.data.df_train, implementation=self.cfg.sample_name
-            )
 
-        elif self.cfg.sample_name == "chang_ssr":
-            self.static_p = Sampling.get_sampling_probability(
-                df_train=self.data.df_train,
-                implementation=self.cfg.sample_name,
-                vocab_size=self.cfg.oral_vocab_size,
-            )
 
-        else:
-            self.static_p = None
-
-    def sample_generator(self, x, y, x_ticks=None, y_ticks=None):
+    def sample_generator(self, x, y, x_ticks=None, y_ticks=None, training_set=None, implementation=None):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
         y: output str ("ort" / "pho" / "sem") can be a list
@@ -336,33 +323,54 @@ class FastSampling:
 
         if y_ticks is None:
             y_ticks = self.cfg.inject_error_ticks
+            
+        if training_set is None:
+            training_set = self.data.df_train
+            
+        if implementation is None:
+            implementation = self.cfg.sample_name
 
         while True:
 
             # Get master sampling stage if using Chang's implementation
-            if self.cfg.sample_name == "chang_jml":
+            if implementation == "chang_jml":
                 # Need to minus batch_size, because the sample is
                 self.current_stage = self.get_stage(
-                    self.ingested_training_sample, normalize=True
+                    self.ingested_training_sample, normalize=False
                 )
 
                 this_p = Sampling.get_sampling_probability(
-                    df_train=self.data.df_train,
-                    implementation=self.cfg.sample_name,
+                    df_train=training_set,
+                    implementation=implementation,
                     stage=self.current_stage,
                     ingested_training_sample=self.ingested_training_sample,
                 )
 
-            elif self.cfg.sample_name == "flexi_rank":
+            elif implementation == "flexi_rank":
                 this_p = Sampling.get_sampling_probability(
-                    df_train=self.data.df_train,
-                    implementation=self.cfg.sample_name,
+                    df_train=training_set,
+                    implementation=implementation,
                     sampling_plateau=self.cfg.sampling_plateau,
                     ingested_training_sample=self.ingested_training_sample,
                 )
 
+            elif implementation in ("log", "hs04", "jay"):
+                this_p = Sampling.get_sampling_probability(
+                    df_train=training_set, 
+                    implementation=implementation
+                )
+
+            elif implementation == "chang_ssr":
+                this_p = Sampling.get_sampling_probability(
+                    df_train=training_set,
+                    implementation=implementation,
+                    vocab_size=self.cfg.oral_vocab_size,
+                )
+
             else:
-                this_p = self.static_p
+                this_p = None
+                
+
 
             # Sample
             idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
