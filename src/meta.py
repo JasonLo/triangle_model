@@ -40,6 +40,8 @@ OPTIONAL_CONFIGS = (
     "batch_unique_setting_string",
     "oral_vocab_size",
     "pretrained_checkpoint",
+    "tasks",
+    "tasks_probability"
 )
 
 
