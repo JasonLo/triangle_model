@@ -133,7 +133,8 @@ class Sampling:
 
                 if type(y) is list:
                     batch_y = [
-                        [self.data.np_representations[yi][idx]] * self.cfg.inject_error_ticks
+                        [self.data.np_representations[yi][idx]]
+                        * self.cfg.inject_error_ticks
                         for yi in y
                     ]
                 else:
@@ -143,7 +144,7 @@ class Sampling:
                 yield (batch_x, batch_y)
 
     def get_stage(self, sample, normalize=False):
-        """ Get stage of training. See Monaghan & Ellis, 2010 """
+        """Get stage of training. See Monaghan & Ellis, 2010"""
         sample_cutoffs = [
             -1,  # because sample can be 0
             100_000,
@@ -196,17 +197,17 @@ class Sampling:
             2. hs04: square root compression with bottom (1500) and top end (30000) clipping
             3. jay: square root compression with top end clipping (10000)
             4. chang_jml: clip depending on stage, log compression
-            5. flexi_rank: a modifyied smooth rank-based sampler 
+            5. flexi_rank: a modifyied smooth rank-based sampler
             6. wf_linear_cutoff: continous shifting sample by raw word frequency
         """
-        
+
         assert implementation in [
             "log",
             "hs04",
             "jay",
             "chang_jml",
             "chang_ssr",
-            "flexi_rank"
+            "flexi_rank",
         ]
         compressed_wf = None
 
@@ -243,18 +244,18 @@ class Sampling:
 
         if implementation == "flexi_rank":
             """Flexible rank sampler"""
-            clip_wf = df_train.wf.clip(wf_low_clip, wf_high_clip)
+            clip_wf = df_train.wf.clip(wf_low_clip, wf_high_clip).copy()
             pct = clip_wf.rank(pct=True, ascending=False)
             progress = 0.02 + (ingested_training_sample / sampling_plateau)
             clip_wf[pct > progress] = 0
             if compression == "log":
-                compressed_wf=np.log(clip_wf+1)
+                compressed_wf = np.log(clip_wf + 1)
                 # Must use +1 here, otherwise clip wf = 0 still has chance to get sampled
             elif compression == "root":
                 compressed_wf = np.sqrt(clip_wf)
 
-
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
+
 
 class FastSampling_uniform:
     """Performance oriented sample generator
@@ -298,7 +299,7 @@ class FastSampling_uniform:
 
             yield (batch_x, batch_y)
 
-                       
+
 class FastSampling:
     """Performance oriented sample generator
     A simplified version of Sampling() for hs04 model
@@ -307,11 +308,12 @@ class FastSampling:
     def __init__(self, cfg, data):
         self.cfg = cfg
         self.data = data
+        self.ingested_training_sample = 0
         np.random.seed(cfg.rng_seed)
 
-
-
-    def sample_generator(self, x, y, x_ticks=None, y_ticks=None, training_set=None, implementation=None):
+    def sample_generator(
+        self, x, y, x_ticks=None, y_ticks=None, training_set=None, implementation=None
+    ):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
         y: output str ("ort" / "pho" / "sem") can be a list
@@ -323,10 +325,10 @@ class FastSampling:
 
         if y_ticks is None:
             y_ticks = self.cfg.inject_error_ticks
-            
+
         if training_set is None:
             training_set = self.data.df_train
-            
+
         if implementation is None:
             implementation = self.cfg.sample_name
 
@@ -350,14 +352,16 @@ class FastSampling:
                 this_p = Sampling.get_sampling_probability(
                     df_train=training_set,
                     implementation=implementation,
+                    wf_low_clip=self.cfg.wf_low_clip,
+                    wf_high_clip=self.cfg.wf_high_clip,
+                    compression=self.cfg.wf_compression,
                     sampling_plateau=self.cfg.sampling_plateau,
                     ingested_training_sample=self.ingested_training_sample,
                 )
 
             elif implementation in ("log", "hs04", "jay"):
                 this_p = Sampling.get_sampling_probability(
-                    df_train=training_set, 
-                    implementation=implementation
+                    df_train=training_set, implementation=implementation
                 )
 
             elif implementation == "chang_ssr":
@@ -369,8 +373,6 @@ class FastSampling:
 
             else:
                 this_p = None
-                
-
 
             # Sample
             idx = np.random.choice(training_set.index, self.cfg.batch_size, p=this_p)
@@ -385,6 +387,8 @@ class FastSampling:
             else:
                 # Single output
                 batch_y = [self.data.np_representations[y][idx]] * y_ticks
+
+            self.ingested_training_sample += self.cfg.batch_size
 
             yield (batch_x, batch_y)
 
@@ -439,12 +443,11 @@ class MyData:
         self.x_glushko_wf = np.array(self.df_glushko["wf"])
         self.x_glushko_img = np.array(self.df_glushko["img"])
 
-        with open(self.input_path + 'y_glushko.pkl', "rb") as f:
+        with open(self.input_path + "y_glushko.pkl", "rb") as f:
             self.y_glushko = pickle.load(f)
 
         with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
-
 
         self.phon_key = gen_pkey()
 
@@ -475,9 +478,15 @@ class MyData:
     def create_testset_from_train_idx(self, idx):
         """Return a test set representation dictionary with word, ort, pho, sem"""
         item = list(self.df_train.loc[idx, "word"].astype("str"))
-        ort = self.ort_train[idx,]
-        pho = self.pho_train[idx,]
-        sem = self.sem_train[idx,]
+        ort = self.ort_train[
+            idx,
+        ]
+        pho = self.pho_train[
+            idx,
+        ]
+        sem = self.sem_train[
+            idx,
+        ]
         return {"item": item, "ort": ort, "pho": pho, "sem": sem}
 
     def load_all_testsets(self):
@@ -496,7 +505,7 @@ class MyData:
             "strain_lf_inc_li",
             "grain_unambiguous",
             "grain_ambiguous",
-            "cortese_hi_img", 
+            "cortese_hi_img",
             "cortese_low_img",
             "cortese_3gp_high_img",
             "cortese_3gp_med_img",
