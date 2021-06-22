@@ -67,6 +67,7 @@ class TestSet:
         self.model = model
         self.task = task
         self.model.set_active_task(self.task)
+
         self.testitems = testitems
         self.x_test = x_test
         self.y_test = y_test
@@ -101,7 +102,7 @@ class TestSet:
         # automatically convert to best dtype
         return df.convert_dtypes()
 
-
+    
     def eval_all(self, label_dict=None):       
         df = pd.DataFrame()
         for epoch in tqdm(self.cfg.saved_epoches, desc=f"Evaluating {self.name}"):
@@ -150,7 +151,10 @@ class TestSet:
         if type(pred_y) is list:
             # Model with multi time ticks
             for i, pred_y_at_this_time in enumerate(pred_y):
-                tick = self.cfg.n_timesteps - self.cfg.output_ticks + i + 1
+                # re-indexing start_tick = n_timesteps - output_ticks + 1
+                # new index tick = start_tick + i
+                # therefore: new index tick = n_timesteps - output_ticks + 1 + i
+                tick = self.cfg.n_timesteps - self.cfg.output_ticks + 1 + i
                 output[tick] = self._eval_one_timetick(
                     pred_y_at_this_time, true_y, y_name
                 )
