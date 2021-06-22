@@ -230,11 +230,13 @@ class OutputOfZeroTarget(tf.keras.metrics.Metric):
         self.out = self.add_weight(name="out0", initializer="zeros")
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        self.out.assign(tf.reduce_sum(y_pred * (1-y_true))/tf.reduce_sum(1-y_true))
-        
+        self.out.assign(
+            tf.reduce_sum(y_pred * (1 - y_true)) / tf.reduce_sum(1 - y_true)
+        )
+
     def item_metric(self, y_true, y_pred):
-        numer = tf.reduce_sum((y_pred * (1-y_true)), axis=-1)
-        denom = tf.cast(tf.reduce_sum((1-y_true), axis=-1), tf.float32)
+        numer = tf.reduce_sum((y_pred * (1 - y_true)), axis=-1)
+        denom = tf.cast(tf.reduce_sum((1 - y_true), axis=-1), tf.float32)
         act0 = numer / denom
         return act0.numpy()
 
@@ -254,13 +256,12 @@ class OutputOfOneTarget(tf.keras.metrics.Metric):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         self.out.assign(tf.reduce_sum(y_pred * y_true) / tf.reduce_sum(y_true))
-        
+
     def item_metric(self, y_true, y_pred):
         numer = tf.reduce_sum((y_pred * y_true), axis=-1)
         denom = tf.cast(tf.reduce_sum(y_true, axis=-1), tf.float32)
         act1 = numer / denom
         return act1.numpy()
-
 
     def result(self):
         return self.out
@@ -292,6 +293,17 @@ class CustomBCE(tf.keras.losses.Loss):
     def __init__(self, radius=0.1, name="bce_with_ZER"):
         super().__init__(name=name)
         self.radius = radius
+        self.sample_weights = None
+
+    def set_sample_weights(self, sample_weights):
+        """Method to set sample_weights for scaling losses
+        Cannot pass as an argument in call(), this is a work around
+        call will automatically scale losses if sample_weight exists
+        """
+        self.sample_weights = tf.convert_to_tensor(sample_weights, dtype=tf.float32)
+
+    def disable_losses_scaling(self):
+        self.sample_weights = None
 
     @staticmethod
     def zer_replace(target, output, zero_error_radius):
@@ -301,12 +313,24 @@ class CustomBCE(tf.keras.losses.Loss):
         )
         return tf.where(within_zer, target, output)
 
+    @staticmethod
+    def scale_losses(losses, sample_weights):
+        """Multiply sample weights on losses"""
+        timetick_dim = losses.shape[0]
+        output_dim = losses.shape[2]
+
+        expanded_sample_weights = tf.tile(
+            sample_weights[tf.newaxis, :, tf.newaxis], [timetick_dim, 1, output_dim]
+        )
+
+        return losses * expanded_sample_weights
+
     def call(self, y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
 
         # Replace output by target if value within zero error radius
-        zer_output = CustomBCE.zer_replace(y_true, y_pred, self.radius)
+        zer_output = self.zer_replace(y_true, y_pred, self.radius)
 
         # Clip with a tiny constant to avoid zero division
         epsilon_ = tf.convert_to_tensor(K.epsilon(), y_pred.dtype)
@@ -315,4 +339,11 @@ class CustomBCE(tf.keras.losses.Loss):
         # Compute cross entropy from probabilities.
         bce = y_true * tf.math.log(zer_output + K.epsilon())
         bce += (1 - y_true) * tf.math.log(1 - zer_output + K.epsilon())
-        return -bce
+        bce *= -1
+
+        # Scale losses
+        if self.sample_weights is not None:
+            print(f"I have scaled sample weight by {self.sample_weights}")
+            bce = self.scale_losses(bce, self.sample_weights)
+
+        return bce
