@@ -300,6 +300,63 @@ class FastSampling_uniform:
             yield (batch_x, batch_y)
 
 
+class BatchSampling:
+    """ A slim sampler for batch training
+    """
+    def __init__(self, cfg, data):
+        self.cfg = cfg
+        self.data = data
+        self.ingested_training_sample = 0
+        self.current_epoch = 0
+        self.current_sample = 0
+        self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
+        np.random.seed(cfg.rng_seed)
+        assert self.cfg.sample_name == "flexi_rank"
+
+        self.x_ticks = self.cfg.n_timesteps
+        self.y_ticks = self.cfg.inject_error_ticks
+
+    def sample_generator(self, x, y):
+        while True:
+            sample_weights = Sampling.get_sampling_probability(
+                    df_train=self.data.df_train,
+                    implementation=self.cfg.sample_name,
+                    wf_low_clip=self.cfg.wf_low_clip,
+                    wf_high_clip=self.cfg.wf_high_clip,
+                    compression=self.cfg.wf_compression,
+                    sampling_plateau=self.cfg.sampling_plateau,
+                    ingested_training_sample=self.ingested_training_sample,
+                )
+
+            idx = self.data.df_train.index[sample_weights>0]
+
+            batch_x = [self.data.np_representations[x]] * self.x_ticks
+
+            if type(y) is list:
+                # Multi output as a list
+                batch_y = [
+                    [self.data.np_representations[yi]] * self.y_ticks for yi in y
+                ]
+            else:
+                # Single output
+                batch_y = [self.data.np_representations[y]] * self.y_ticks
+
+            # Update dynamic corpus with actual exposure
+            words = self.data.df_train.word.loc[idx]
+            for word in words:
+                self.dynamic_corpus[word] += 1
+
+            self.ingested_training_sample += len(idx)
+
+            yield (batch_x, batch_y, sample_weights)
+
+
+
+
+        
+
+
+
 class FastSampling:
     """Performance oriented sample generator
     A simplified version of Sampling() for hs04 model
