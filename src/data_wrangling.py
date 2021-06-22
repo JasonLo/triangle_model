@@ -373,7 +373,8 @@ class FastSampling:
 
 
             # Sample
-            idx = np.random.choice(range(len(this_p)), self.cfg.batch_size, p=this_p)
+            idx = np.random.choice(training_set.index, self.cfg.batch_size, p=this_p)
+            # print(idx)
             batch_x = [self.data.np_representations[x][idx]] * x_ticks
 
             if type(y) is list:
@@ -402,7 +403,7 @@ class MyData:
         # first level: testset name
         # second level (in each testset): word, ort, pho, sem
         self.testsets = {}
-        self.load_testsets()
+        self.load_all_testsets()
 
         self.df_train = pd.read_csv(
             os.path.join(self.input_path, "df_train.csv"), index_col=0
@@ -479,7 +480,7 @@ class MyData:
         sem = self.sem_train[idx,]
         return {"item": item, "ort": ort, "pho": pho, "sem": sem}
 
-    def load_testsets(self):
+    def load_all_testsets(self):
 
         all_testsets = (
             "homophone",
@@ -511,7 +512,11 @@ class MyData:
         )
 
         for testset in all_testsets:
-            with gzip.open(
-                os.path.join(self.input_path, "testsets", testset + ".pkl.gz"), "rb"
-            ) as f:
-                self.testsets[testset] = pickle.load(f)
+            file = os.path.join(self.input_path, "testsets", testset + ".pkl.gz")
+            self.testsets[testset] = self.load_testset(file)
+
+    @staticmethod
+    def load_testset(file):
+        with gzip.open(file, "rb") as f:
+            testset = pickle.load(f)
+        return testset
