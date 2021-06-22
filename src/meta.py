@@ -41,8 +41,11 @@ OPTIONAL_CONFIGS = (
     "oral_vocab_size",
     "pretrained_checkpoint",
     "tasks",
-    "tasks_probability"
-)
+    "tasks_probability",
+    "wf_low_clip",
+    "wf_high_clip",
+    "wf_compression",
+    "sampling_plateau")
 
 
 class ModelConfig:
