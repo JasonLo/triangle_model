@@ -301,8 +301,8 @@ class FastSampling_uniform:
 
 
 class BatchSampling:
-    """ A slim sampler for batch training
-    """
+    """A slim sampler for batch training"""
+
     def __init__(self, cfg, data):
         self.cfg = cfg
         self.data = data
@@ -319,16 +319,16 @@ class BatchSampling:
     def sample_generator(self, x, y):
         while True:
             sample_weights = Sampling.get_sampling_probability(
-                    df_train=self.data.df_train,
-                    implementation=self.cfg.sample_name,
-                    wf_low_clip=self.cfg.wf_low_clip,
-                    wf_high_clip=self.cfg.wf_high_clip,
-                    compression=self.cfg.wf_compression,
-                    sampling_plateau=self.cfg.sampling_plateau,
-                    ingested_training_sample=self.ingested_training_sample,
-                )
+                df_train=self.data.df_train,
+                implementation=self.cfg.sample_name,
+                wf_low_clip=self.cfg.wf_low_clip,
+                wf_high_clip=self.cfg.wf_high_clip,
+                compression=self.cfg.wf_compression,
+                sampling_plateau=self.cfg.sampling_plateau,
+                ingested_training_sample=self.ingested_training_sample,
+            )
 
-            idx = self.data.df_train.index[sample_weights>0]
+            idx = self.data.df_train.index[sample_weights > 0]
 
             batch_x = [self.data.np_representations[x]] * self.x_ticks
 
@@ -349,12 +349,6 @@ class BatchSampling:
             self.ingested_training_sample += len(idx)
 
             yield (batch_x, batch_y, sample_weights)
-
-
-
-
-        
-
 
 
 class FastSampling:
