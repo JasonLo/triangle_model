@@ -285,6 +285,7 @@ class FastSampling:
 
         if self.current_batch % self.cfg.steps_per_epoch == 0:
             # At the end of each epoch snapshot dynamic corpus
+            self.current_epoch += 1
             self.corpus_snapshots[f'epoch_{self.current_epoch:04d}'] = 0
 
             for key, value in self.dynamic_corpus.items():
