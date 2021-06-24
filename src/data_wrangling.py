@@ -19,6 +19,7 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
 class Sampling:
     """Full function sampling class, can be quite slow, but contain a dynamic logging function,
     mainly for model v3.x (using equation to manage semantic input)
+    Kind of slow... and many experimental features
     """
 
     def __init__(self, cfg, data, debugging=False):
@@ -104,7 +105,7 @@ class Sampling:
                     implementation=self.cfg.sample_name,
                     wf_low_clip=self.cfg.wf_low_clip,
                     wf_high_clip=self.cfg.wf_high_clip,
-                    compression=self.cfg.wf_compression,
+                    wf_compression=self.cfg.wf_compression,
                     sampling_plateau=self.cfg.sampling_plateau,
                     ingested_training_sample=self.ingested_training_sample,
                 )
@@ -174,7 +175,7 @@ class Sampling:
         implementation,
         wf_low_clip=None,
         wf_high_clip=None,
-        compression=None,
+        wf_compression=None,
         sampling_plateau=None,
         stage=None,
         ingested_training_sample=None,
@@ -187,7 +188,7 @@ class Sampling:
         implementation -- method of sampling
         wf_low_clip -- bottom freqeuncy clipping
         wf_high_clip -- upper frequency clipping
-        compression -- log or square root frequency compression
+        wf_compression -- log or square root frequency compression
         sampling_plateau -- at what number of sample, the corpus will fully open
         stage (Chang implementation only) -- which stage in Chang sampling (default None)
         ingested_training_sample (experimental implementation only) -- the ingested_training_sample
@@ -248,108 +249,13 @@ class Sampling:
             pct = clip_wf.rank(pct=True, ascending=False)
             progress = 0.02 + (ingested_training_sample / sampling_plateau)
             clip_wf[pct > progress] = 0
-            if compression == "log":
+            if wf_compression == "log":
                 compressed_wf = np.log(clip_wf + 1)
                 # Must use +1 here, otherwise clip wf = 0 still has chance to get sampled
-            elif compression == "root":
+            elif wf_compression == "root":
                 compressed_wf = np.sqrt(clip_wf)
 
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
-
-
-class FastSampling_uniform:
-    """Performance oriented sample generator
-    A simplified version of Sampling() with uniform p
-    """
-
-    def __init__(self, cfg, data):
-        self.cfg = cfg
-        self.data = data
-        np.random.seed(cfg.rng_seed)
-
-    def sample_generator(self, x, y, x_ticks=None, y_ticks=None):
-        """Generator for training data
-        x: input str ("ort" / "pho" / "sem")
-        y: output str ("ort" / "pho" / "sem") can be a list
-        representation dimension guide: (batch_size, timesteps, output_nodes)
-        """
-
-        if x_ticks is None:
-            x_ticks = self.cfg.n_timesteps
-
-        if y_ticks is None:
-            y_ticks = self.cfg.inject_error_ticks
-
-        while True:
-
-            # Sample
-            idx = np.random.choice(
-                len(self.data.np_representations[x]), self.cfg.batch_size
-            )
-            batch_x = [self.data.np_representations[x][idx]] * x_ticks
-
-            if type(y) is list:
-                # Multi output as a list
-                batch_y = [
-                    [self.data.np_representations[yi][idx]] * y_ticks for yi in y
-                ]
-            else:
-                # Single output
-                batch_y = [self.data.np_representations[y][idx]] * y_ticks
-
-            yield (batch_x, batch_y)
-
-
-class BatchSampling:
-    """A slim sampler for batch training"""
-
-    def __init__(self, cfg, data):
-        self.cfg = cfg
-        self.data = data
-        self.ingested_training_sample = 0
-        self.current_epoch = 0
-        self.current_sample = 0
-        self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
-        np.random.seed(cfg.rng_seed)
-        assert self.cfg.sample_name == "flexi_rank"
-
-        self.x_ticks = self.cfg.n_timesteps
-        self.y_ticks = self.cfg.inject_error_ticks
-
-    def sample_generator(self, x, y):
-        while True:
-            sample_weights = Sampling.get_sampling_probability(
-                df_train=self.data.df_train,
-                implementation=self.cfg.sample_name,
-                wf_low_clip=self.cfg.wf_low_clip,
-                wf_high_clip=self.cfg.wf_high_clip,
-                compression=self.cfg.wf_compression,
-                sampling_plateau=self.cfg.sampling_plateau,
-                ingested_training_sample=self.ingested_training_sample,
-            )
-
-            idx = self.data.df_train.index[sample_weights > 0]
-
-            batch_x = [self.data.np_representations[x]] * self.x_ticks
-
-            if type(y) is list:
-                # Multi output as a list
-                batch_y = [
-                    [self.data.np_representations[yi]] * self.y_ticks for yi in y
-                ]
-            else:
-                # Single output
-                batch_y = [self.data.np_representations[y]] * self.y_ticks
-
-            # Update dynamic corpus with actual exposure
-            words = self.data.df_train.word.loc[idx]
-            for word in words:
-                self.dynamic_corpus[word] += 1
-
-            self.ingested_training_sample += len(idx)
-
-            yield (batch_x, batch_y, sample_weights)
-
 
 class FastSampling:
     """Performance oriented sample generator
@@ -360,22 +266,36 @@ class FastSampling:
         self.cfg = cfg
         self.data = data
         self.ingested_training_sample = 0
+        self.current_sample = 0
+        self.current_batch = 0
+        self.current_epoch = 0
+        self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
+        self.corpus_snapshots = pd.DataFrame(index=self.data.df_train.word)
         np.random.seed(cfg.rng_seed)
+    
+    def _update_metadata(self, idx):
+        """Update dynamic corpus, corpus_snapshot, injested training sample with actual exposure"""
+        exposed_words = self.data.df_train.word.loc[idx]
+        
+        for word in exposed_words:
+            self.dynamic_corpus[word] += 1
+            
+        self.ingested_training_sample += len(idx)
+        self.current_batch += 1
 
-    def sample_generator(
-        self, x, y, x_ticks=None, y_ticks=None, training_set=None, implementation=None
-    ):
+        if self.current_batch % self.cfg.steps_per_epoch == 0:
+            # At the end of each epoch snapshot dynamic corpus
+            self.corpus_snapshots[f'epoch_{self.current_epoch:04d}'] = 0
+
+            for key, value in self.dynamic_corpus.items():
+                self.corpus_snapshots[f'epoch_{self.current_epoch:04d}'][key] = value
+
+    def sample_generator(self, x, y, training_set=None, implementation=None):
         """Generator for training data
         x: input str ("ort" / "pho" / "sem")
         y: output str ("ort" / "pho" / "sem") can be a list
         representation dimension guide: (batch_size, timesteps, output_nodes)
         """
-
-        if x_ticks is None:
-            x_ticks = self.cfg.n_timesteps
-
-        if y_ticks is None:
-            y_ticks = self.cfg.inject_error_ticks
 
         if training_set is None:
             training_set = self.data.df_train
@@ -383,64 +303,36 @@ class FastSampling:
         if implementation is None:
             implementation = self.cfg.sample_name
 
+        # fail safe
+        assert implementation in ("flexi_rank", "log", "hs04", "jay")
+
         while True:
 
-            # Get master sampling stage if using Chang's implementation
-            if implementation == "chang_jml":
-                # Need to minus batch_size, because the sample is
-                self.current_stage = self.get_stage(
-                    self.ingested_training_sample, normalize=False
-                )
-
-                this_p = Sampling.get_sampling_probability(
-                    df_train=training_set,
-                    implementation=implementation,
-                    stage=self.current_stage,
-                    ingested_training_sample=self.ingested_training_sample,
-                )
-
-            elif implementation == "flexi_rank":
-                this_p = Sampling.get_sampling_probability(
-                    df_train=training_set,
-                    implementation=implementation,
-                    wf_low_clip=self.cfg.wf_low_clip,
-                    wf_high_clip=self.cfg.wf_high_clip,
-                    compression=self.cfg.wf_compression,
-                    sampling_plateau=self.cfg.sampling_plateau,
-                    ingested_training_sample=self.ingested_training_sample,
-                )
-
-            elif implementation in ("log", "hs04", "jay"):
-                this_p = Sampling.get_sampling_probability(
-                    df_train=training_set, implementation=implementation
-                )
-
-            elif implementation == "chang_ssr":
-                this_p = Sampling.get_sampling_probability(
-                    df_train=training_set,
-                    implementation=implementation,
-                    vocab_size=self.cfg.oral_vocab_size,
-                )
-
-            else:
-                this_p = None
+            this_p = Sampling.get_sampling_probability(
+                df_train=training_set,
+                implementation=implementation,
+                wf_low_clip=self.cfg.wf_low_clip,
+                wf_high_clip=self.cfg.wf_high_clip,
+                wf_compression=self.cfg.wf_compression,
+                sampling_plateau=self.cfg.sampling_plateau,
+                ingested_training_sample=self.ingested_training_sample,
+            )
 
             # Sample
             idx = np.random.choice(training_set.index, self.cfg.batch_size, p=this_p)
-            # print(idx)
-            batch_x = [self.data.np_representations[x][idx]] * x_ticks
+            batch_x = [self.data.np_representations[x][idx]] * self.cfg.n_timesteps
 
             if type(y) is list:
                 # Multi output as a list
                 batch_y = [
-                    [self.data.np_representations[yi][idx]] * y_ticks for yi in y
+                    [self.data.np_representations[yi][idx]] * self.cfg.inject_error_ticks for yi in y
                 ]
             else:
                 # Single output
-                batch_y = [self.data.np_representations[y][idx]] * y_ticks
+                batch_y = [self.data.np_representations[y][idx]] * self.cfg.inject_error_ticks
 
-            self.ingested_training_sample += self.cfg.batch_size
-
+            self._update_metadata(idx)
+ 
             yield (batch_x, batch_y)
 
 
@@ -580,3 +472,96 @@ class MyData:
         with gzip.open(file, "rb") as f:
             testset = pickle.load(f)
         return testset
+
+##### Experimentals #####
+class FastSampling_uniform:
+    """Performance oriented sample generator
+    A simplified version of Sampling() with uniform p
+    """
+
+    def __init__(self, cfg, data):
+        self.cfg = cfg
+        self.data = data
+        np.random.seed(cfg.rng_seed)
+
+    def sample_generator(self, x, y, x_ticks=None, y_ticks=None):
+        """Generator for training data
+        x: input str ("ort" / "pho" / "sem")
+        y: output str ("ort" / "pho" / "sem") can be a list
+        representation dimension guide: (batch_size, timesteps, output_nodes)
+        """
+
+        if x_ticks is None:
+            x_ticks = self.cfg.n_timesteps
+
+        if y_ticks is None:
+            y_ticks = self.cfg.inject_error_ticks
+
+        while True:
+
+            # Sample
+            idx = np.random.choice(
+                len(self.data.np_representations[x]), self.cfg.batch_size
+            )
+            batch_x = [self.data.np_representations[x][idx]] * x_ticks
+
+            if type(y) is list:
+                # Multi output as a list
+                batch_y = [
+                    [self.data.np_representations[yi][idx]] * y_ticks for yi in y
+                ]
+            else:
+                # Single output
+                batch_y = [self.data.np_representations[y][idx]] * y_ticks
+
+            yield (batch_x, batch_y)
+
+class BatchSampling:
+    """A slim sampler for batch training"""
+
+    def __init__(self, cfg, data):
+        self.cfg = cfg
+        self.data = data
+        self.ingested_training_sample = 0
+        self.current_epoch = 0
+        self.current_sample = 0
+        self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
+        np.random.seed(cfg.rng_seed)
+        assert self.cfg.sample_name == "flexi_rank"
+
+        self.x_ticks = self.cfg.n_timesteps
+        self.y_ticks = self.cfg.inject_error_ticks
+
+    def sample_generator(self, x, y):
+        while True:
+            sample_weights = Sampling.get_sampling_probability(
+                df_train=self.data.df_train,
+                implementation=self.cfg.sample_name,
+                wf_low_clip=self.cfg.wf_low_clip,
+                wf_high_clip=self.cfg.wf_high_clip,
+                wf_compression=self.cfg.wf_compression,
+                sampling_plateau=self.cfg.sampling_plateau,
+                ingested_training_sample=self.ingested_training_sample,
+            )
+
+            idx = self.data.df_train.index[sample_weights > 0]
+
+            batch_x = [self.data.np_representations[x]] * self.x_ticks
+
+            if type(y) is list:
+                # Multi output as a list
+                batch_y = [
+                    [self.data.np_representations[yi]] * self.y_ticks for yi in y
+                ]
+            else:
+                # Single output
+                batch_y = [self.data.np_representations[y]] * self.y_ticks
+
+            # Update dynamic corpus with actual exposure
+            words = self.data.df_train.word.loc[idx]
+            for word in words:
+                self.dynamic_corpus[word] += 1
+
+            self.ingested_training_sample += len(idx)
+
+            yield (batch_x, batch_y, sample_weights)
