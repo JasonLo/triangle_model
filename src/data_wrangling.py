@@ -3,7 +3,6 @@
 import pickle, gzip, os
 import numpy as np
 import pandas as pd
-from IPython.display import clear_output
 
 
 def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
@@ -257,6 +256,7 @@ class Sampling:
 
         return np.array(compressed_wf / np.sum(compressed_wf), dtype="float32")
 
+
 class FastSampling:
     """Performance oriented sample generator
     A simplified version of Sampling() for hs04 model
@@ -272,24 +272,23 @@ class FastSampling:
         self.dynamic_corpus = dict.fromkeys(self.data.df_train.word, 0)
         self.corpus_snapshots = pd.DataFrame(index=self.data.df_train.word)
         np.random.seed(cfg.rng_seed)
-    
+
     def _update_metadata(self, idx):
         """Update dynamic corpus, corpus_snapshot, injested training sample with actual exposure"""
         exposed_words = self.data.df_train.word.loc[idx]
-        
+
         for word in exposed_words:
             self.dynamic_corpus[word] += 1
-            
+
         self.ingested_training_sample += len(idx)
         self.current_batch += 1
 
         if self.current_batch % self.cfg.steps_per_epoch == 0:
             # At the end of each epoch snapshot dynamic corpus
             self.current_epoch += 1
-            self.corpus_snapshots[f'epoch_{self.current_epoch:04d}'] = 0
-
-            for key, value in self.dynamic_corpus.items():
-                self.corpus_snapshots[f'epoch_{self.current_epoch:04d}'][key] = value
+            self.corpus_snapshots[f"epoch_{self.current_epoch:04d}"] = [
+                self.dynamic_corpus[k] for k in self.corpus_snapshots.index
+            ]
 
     def sample_generator(self, x, y, training_set=None, implementation=None):
         """Generator for training data
@@ -326,14 +325,18 @@ class FastSampling:
             if type(y) is list:
                 # Multi output as a list
                 batch_y = [
-                    [self.data.np_representations[yi][idx]] * self.cfg.inject_error_ticks for yi in y
+                    [self.data.np_representations[yi][idx]]
+                    * self.cfg.inject_error_ticks
+                    for yi in y
                 ]
             else:
                 # Single output
-                batch_y = [self.data.np_representations[y][idx]] * self.cfg.inject_error_ticks
+                batch_y = [
+                    self.data.np_representations[y][idx]
+                ] * self.cfg.inject_error_ticks
 
             self._update_metadata(idx)
- 
+
             yield (batch_x, batch_y)
 
 
@@ -353,18 +356,15 @@ class MyData:
         self.testsets = {}
         self.load_all_testsets()
 
+        self.np_representations = {
+            "ort": np.load(os.path.join(self.input_path, "ort_train.npz"))["data"],
+            "pho": np.load(os.path.join(self.input_path, "pho_train.npz"))["data"],
+            "sem": np.load(os.path.join(self.input_path, "sem_train.npz"))["data"],
+        }
+
         self.df_train = pd.read_csv(
             os.path.join(self.input_path, "df_train.csv"), index_col=0
         )
-        self.ort_train = np.load(os.path.join(self.input_path, "ort_train.npz"))["data"]
-        self.pho_train = np.load(os.path.join(self.input_path, "pho_train.npz"))["data"]
-        self.sem_train = np.load(os.path.join(self.input_path, "sem_train.npz"))["data"]
-
-        self.np_representations = {
-            "ort": self.ort_train,
-            "pho": self.pho_train,
-            "sem": self.sem_train,
-        }
 
         self.df_strain = pd.read_csv(
             os.path.join(self.input_path, "df_strain.csv"), index_col=0
@@ -395,43 +395,14 @@ class MyData:
 
         self.phon_key = gen_pkey()
 
-        # print("==========Orthographic representation==========")
-        # print("ort_train shape:", self.ort_train.shape)
-        # print("ort_strain shape:", self.ort_strain.shape)
-        # print("ort_grain shape:", self.ort_grain.shape)
-        # print("ort_taraban shape:", self.ort_taraban.shape)
-        # print("ort_glushko shape:", self.ort_glushko.shape)
-
-        # print("\n==========Phonological representation==========")
-        # print(len(self.phon_key), " phonemes: ", self.phon_key.keys())
-        # print("pho_train shape:", self.pho_train.shape)
-        # print("pho_strain shape:", self.pho_strain.shape)
-        # print("pho_large_grain shape:", self.pho_large_grain.shape)
-        # print("pho_small_grain shape:", self.pho_small_grain.shape)
-        # print("pho_taraban shape:", self.pho_taraban.shape)
-        # print(
-        #     "pho_glushko shape: ({}, {})".format(
-        #         len(self.pho_glushko.items()), len(self.pho_glushko["beed"][0])
-        #     )
-        # )
-
-        # print("\n==========Semantic representation==========")
-        # print("sem_train shape:", self.sem_train.shape)
-        # print("sem_strain shape:", self.sem_strain.shape)
-
     def create_testset_from_train_idx(self, idx):
         """Return a test set representation dictionary with word, ort, pho, sem"""
-        item = list(self.df_train.loc[idx, "word"].astype("str"))
-        ort = self.ort_train[
-            idx,
-        ]
-        pho = self.pho_train[
-            idx,
-        ]
-        sem = self.sem_train[
-            idx,
-        ]
-        return {"item": item, "ort": ort, "pho": pho, "sem": sem}
+        return {
+            "item": list(self.df_train.loc[idx, "word"].astype("str")),
+            "ort": self.np_representations["ort"][idx],
+            "pho": self.np_representations["pho"][idx],
+            "sem": self.np_representations["sem"][idx],
+        }
 
     def load_all_testsets(self):
 
@@ -473,6 +444,7 @@ class MyData:
         with gzip.open(file, "rb") as f:
             testset = pickle.load(f)
         return testset
+
 
 ##### Experimentals #####
 class FastSampling_uniform:
@@ -516,6 +488,7 @@ class FastSampling_uniform:
                 batch_y = [self.data.np_representations[y][idx]] * y_ticks
 
             yield (batch_x, batch_y)
+
 
 class BatchSampling:
     """A slim sampler for batch training"""
