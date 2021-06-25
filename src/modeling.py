@@ -44,6 +44,14 @@ WEIGHTS_AND_BIASES["triangle"] = (
     "bias_hop",
 )
 
+IN_OUT = {}
+IN_OUT['triangle'] = ('ort', ['pho', 'sem'])
+IN_OUT['pho_pho'] = ('pho', 'pho')
+IN_OUT['pho_sem'] = ('pho', 'sem')
+IN_OUT['sem_pho'] = ('sem', 'pho')
+IN_OUT['sem_sem'] = ('sem', 'sem')
+IN_OUT['ort_pho'] = ('ort', 'pho')
+
 
 class HS04Model(tf.keras.Model):
     """
