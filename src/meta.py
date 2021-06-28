@@ -25,27 +25,32 @@ CORE_CONFIGS = (
     "max_unit_time",
     "inject_error_ticks",
     "output_ticks",
-    "sample_name",
-    "rng_seed",
     "learning_rate",
     "zero_error_radius",
-    "n_mil_sample",
-    "batch_size",
     "save_freq",
 )
 
+ENV_CONFIGS = (
+    "tasks",
+    "wf_clipping_edges",
+    "wf_compression",
+    "wf_clip_low",
+    "wf_clip_high",
+    "oral_start_pct",
+    "oral_end_pct",
+    "oral_sample",
+    "oral_tasks_ps",
+    "transition_sample",
+    "reading_sample",
+    "reading_tasks_ps",
+    "batch_size",
+    "rng_seed",
+)
+
 OPTIONAL_CONFIGS = (
-    "sampling_plateau",
     "batch_name",
     "batch_unique_setting_string",
-    "oral_vocab_size",
-    "pretrained_checkpoint",
-    "tasks",
-    "tasks_probability",
-    "wf_low_clip",
-    "wf_high_clip",
-    "wf_compression",
-    "sampling_plateau")
+    "pretrained_checkpoint")
 
 
 class ModelConfig:
@@ -78,24 +83,22 @@ class ModelConfig:
 
     def _init_from_scratch(self):
 
-        self._pho_noise_level_backup = self.pho_noise_level
-
         # Unique identifier
         self.uuid = uuid.uuid4().hex
 
         # Additional convienient attributes
         self.n_timesteps = int(self.max_unit_time * (1 / self.tau))
-        self.total_number_of_epoch = int(self.n_mil_sample * 1e2)
-        self.steps_per_epoch = int(10000 / self.batch_size)
+#         self.total_number_of_epoch = int(self.n_mil_sample * 1e2)
+#        self.steps_per_epoch = int(10000 / self.batch_size)
 
-        self.save_freq_sample = (
-            self.save_freq * self.batch_size * self.steps_per_epoch
-        )  # For TF 2.1
-        self.eval_freq = self.save_freq
+#         self.save_freq_sample = (
+#             self.save_freq * self.batch_size * self.steps_per_epoch
+#         )  # For TF 2.1
+#         self.eval_freq = self.save_freq
 
-        self.saved_epoches = list(range(1, 11)) + list(
-            range(10 + self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
-        )
+#         self.saved_epoches = list(range(1, 11)) + list(
+#             range(10 + self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
+#         )
         self.path = self._make_path()
 
     def _make_path(self):
@@ -124,10 +127,10 @@ class ModelConfig:
         path_dict["history_pickle"] = os.path.join(
             path_dict["model_folder"], "history.pkl"
         )
-        path_dict["weights_list"] = [
-            os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
-            for epoch in self.saved_epoches
-        ]
+#         path_dict["weights_list"] = [
+#             os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
+#             for epoch in self.saved_epoches
+#         ]
         
 
 
@@ -137,16 +140,9 @@ class ModelConfig:
         os.makedirs(path_dict["save_model_folder"], exist_ok=True)
         return path_dict
 
-    def noise_on(self):
-        # Noise is on by default
-        self.pho_noise_level = self._pho_noise_level_backup
-
-    def noise_off(self):
-        self.pho_noise_level = 0.0
 
     def save(self, json_file=None):
-        self.noise_on()
-
+        
         if json_file is None:
             json_file = os.path.join(self.path["model_folder"], "model_config.json")
 

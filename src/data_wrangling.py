@@ -3,6 +3,7 @@
 import pickle, gzip, os
 import numpy as np
 import pandas as pd
+import modeling
 
 
 def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
@@ -13,6 +14,151 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
     m_dict = mapping.set_index(0).T.to_dict("list")
     return m_dict
+
+class Sampler:
+    """v2 Sampler"""
+
+    def __init__(self, cfg, data):
+
+        # Get necessary environment config from cfg object
+        self.tasks = cfg.tasks
+        self.wf_clip_low = cfg.wf_clip_low
+        self.wf_clip_high = cfg.wf_clip_high
+        self.wf_compression = cfg.wf_compression
+        self.oral_start_pct = cfg.oral_start_pct
+        self.oral_end_pct = cfg.oral_end_pct 
+        self.oral_sample = cfg.oral_sample
+        self.oral_tasks_ps = cfg.oral_tasks_ps
+        self.transition_sample = cfg.transition_sample
+        self.reading_sample = cfg.reading_sample
+        self.reading_tasks_ps = cfg.reading_tasks_ps
+        self.batch_size = cfg.batch_size
+        self.n_timesteps = cfg.n_timesteps
+        self.inject_error_ticks = cfg.inject_error_ticks
+        
+        np.random.seed(cfg.rng_seed)
+        
+        self.data = data
+        self.current_sample = 0
+
+        # Basic convienient variables
+        self._calculate_aux_variables()
+
+        # Task probability dictionary (batch, ps)
+        self.ps = {}
+        self._calculate_task_ps()
+
+        # Progress dictionary 
+        self.progress = {}
+        self._calculate_progress_dict()
+
+    def _calculate_aux_variables(self):
+        self.total_sample = self.oral_sample + self.reading_sample
+
+        self.total_batches = self.sample_to_batch(self.total_sample)
+        self.oral_batches = self.sample_to_batch(self.oral_sample)
+        self.transition_batches = self.sample_to_batch(self.transition_sample)
+        self.remaining_batches = self.total_batches - self.oral_batches - self.transition_batches
+
+        # Word frequency related
+        if self.wf_clip_low is None:
+            self.wf_clip_low = 0
+        
+        if self.wf_clip_high is None:
+            self.wf_clip_high = 999999999            
+            
+        clip_wf = self.data.df_train.wf.clip(self.wf_clip_low, self.wf_clip_high).copy()
+        self.rank_pct_wf = clip_wf.rank(pct=True, ascending=False)
+
+        assert self.wf_compression in ('log', 'root')
+        self.compressed_wf = np.log(clip_wf + 1) if self.wf_compression == 'log' else np.sqrt(clip_wf)
+
+    def _calculate_task_ps(self):
+        """Task probabililty store all task probabilities in a single dictionary (epoch, ps) """
+
+        # Oral
+        self.task_ps = {i:self.oral_tasks_ps for i in range(self.oral_batches)}
+
+        # Transition
+        tps = np.linspace(self.oral_tasks_ps, self.reading_tasks_ps, self.transition_batches)
+        tran_ps = {i + self.oral_batches: tuple(tps[i]) for i in range(self.transition_batches)}
+        self.task_ps.update(tran_ps)
+
+        # Remaining
+        remain_ps = {i + self.oral_batches + self.transition_batches: self.reading_tasks_ps for i in range(self.remaining_batches)}
+        self.task_ps.update(remain_ps)
+
+    def _calculate_progress_dict(self):
+        """Progress dictionary storing all %max progress at each epoch in oral and reading stage"""
+        # Oral progress
+        opg = np.linspace(self.oral_start_pct, self.oral_end_pct, self.oral_batches)
+        self.progress['oral'] = self._extrapolate_ps(opg)
+
+        # Reading progress
+        self.progress['reading'] = self._right_shift_ps(self.progress['oral'])         
+
+    def _extrapolate_ps(self, array):
+        """Extrapolate an array to the number of batches long"""
+        d = array[1] - array[0]
+        e = array[-1]
+        n = len(array)
+        ex_array = [array[i] if i < n  else e + (i-n) * d for i in range(self.total_batches)]
+        return np.clip(ex_array, 0, 1)
+
+    def _right_shift_ps(self, oral_progress):
+        """Convert oral ps to reading ps
+        Since reading lag behide oral task by a constant, we just need to shift oral progress to the right
+        to get reading progress
+        """
+        n = self.oral_batches
+        beginning = np.zeros(n)
+        return np.concatenate([beginning, oral_progress[:-n]])
+
+    def wf_to_ps(self, wf):
+        """convert squashed compressed word frequncy to probabilty"""
+        return np.array(wf/np.sum(wf), dtype="float32")
+
+    def sample_to_batch(self, sample):
+        """Convert sample to batch in 0-indexing format"""
+        return int(sample/self.batch_size)
+
+    def get_sampling_p(self, current_sample, task):
+        current_batch = self.sample_to_batch(current_sample)
+
+        if task == 'triangle':
+            progress = self.progress['reading'][current_batch]
+        else:
+            progress = self.progress['oral'][current_batch]
+
+        # Create selection mask
+        mask = self.rank_pct_wf < progress
+    
+        return self.wf_to_ps(self.compressed_wf * mask)
+
+    def generator(self):
+        """ Generator that draw task and sample idx 
+        """
+        x_ticks = self.n_timesteps
+        y_ticks = self.inject_error_ticks
+        
+        while True:
+            current_batch = self.sample_to_batch(self.current_sample)
+            task = np.random.choice(self.tasks, p=self.task_ps[current_batch])
+            idx = np.random.choice(self.data.df_train.index, self.batch_size, p=self.get_sampling_p(self.current_sample, task))
+            
+            x, y = modeling.IN_OUT[task]
+            batch_x = [self.data.np_representations[x][idx]] * x_ticks
+
+            if type(y) is list:
+                    batch_y = [[self.data.np_representations[yi][idx]] * y_ticks for yi in y]
+            else:
+                # Single output
+                batch_y = [self.data.np_representations[y][idx]] * y_ticks
+            
+            
+            self.current_sample += self.batch_size
+            yield task, idx, batch_x, batch_y
+     
 
 
 class Sampling:
