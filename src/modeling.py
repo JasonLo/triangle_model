@@ -42,6 +42,10 @@ WEIGHTS_AND_BIASES["triangle"] = (
     "w_hop_oh",
     "w_hop_hp",
     "bias_hop",
+    "w_pc", "w_cp", "w_pp", "bias_p", "bias_cpp",
+    "w_sc", "w_cs", "w_ss", "bias_s", "bias_css",
+    "w_hps_ph", "w_hps_hs", "bias_hps",  
+    "w_hsp_sh", "w_hsp_hp", "bias_hsp"
 )
 
 IN_OUT = {}
