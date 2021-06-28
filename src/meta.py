@@ -88,17 +88,18 @@ class ModelConfig:
 
         # Additional convienient attributes
         self.n_timesteps = int(self.max_unit_time * (1 / self.tau))
-#         self.total_number_of_epoch = int(self.n_mil_sample * 1e2)
-#        self.steps_per_epoch = int(10000 / self.batch_size)
+        self.total_sample = self.oral_sample + self.reading_sample
+        self.total_number_of_epoch = int(self.total_sample / 1e4)
+        self.steps_per_epoch = int(10000 / self.batch_size)
 
-#         self.save_freq_sample = (
-#             self.save_freq * self.batch_size * self.steps_per_epoch
-#         )  # For TF 2.1
-#         self.eval_freq = self.save_freq
+        self.save_freq_sample = (
+            self.save_freq * self.batch_size * self.steps_per_epoch
+        )  # For TF 2.1
+        self.eval_freq = self.save_freq
 
-#         self.saved_epoches = list(range(1, 11)) + list(
-#             range(10 + self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
-#         )
+        self.saved_epoches = list(range(1, 11)) + list(
+            range(10 + self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
+        )
         self.path = self._make_path()
 
     def _make_path(self):
