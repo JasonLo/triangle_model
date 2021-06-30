@@ -58,7 +58,7 @@ class Sampler:
         plt.plot(self.progress['oral'], label='oral corpus')
         plt.plot(self.progress['reading'], label='reading corpus')
 
-        reading_p = [self.task_ps[i][-1] if type(self.task_ps[i]) is list else self.task_ps[i] for i in range(self.total_batches)]
+        reading_p = [self.task_ps[i][-1] if type(self.task_ps[i]) is tuple else self.task_ps[i] for i in range(self.total_batches)]
         plt.plot(reading_p, label='reading_p', linestyle='dashdot', color='black')
 
         plt.axvline(x=self.oral_batches, ymin=0, ymax=1, linestyle = 'dotted', color='red', label='transition start')
@@ -131,8 +131,7 @@ class Sampler:
         """
         n = self.oral_batches
         beginning = np.zeros(n)
-        remaining = np.clip(oral_progress[:-n] + 0.02, 0., 1.)
-        return np.concatenate([beginning, remaining])
+        return np.concatenate([beginning, oral_progress[:-n]])
 
     def wf_to_ps(self, wf):
         """convert squashed compressed word frequncy to probabilty"""
