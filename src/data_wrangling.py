@@ -473,7 +473,7 @@ class FastSampling:
 
         while True:
 
-            this_p = Sampling.get_sampling_probability(
+            this_p = OldSampling.get_sampling_probability(
                 df_train=training_set,
                 implementation=implementation,
                 wf_low_clip=self.cfg.wf_low_clip,
@@ -569,36 +569,10 @@ class MyData:
             "sem": self.np_representations["sem"][idx],
         }
 
+
     def load_all_testsets(self):
 
-        all_testsets = (
-            "homophone",
-            "non_homophone",
-            "train",
-            "strain_hf_con_hi",
-            "strain_hf_inc_hi",
-            "strain_hf_con_li",
-            "strain_hf_inc_li",
-            "strain_lf_con_hi",
-            "strain_lf_inc_hi",
-            "strain_lf_con_li",
-            "strain_lf_inc_li",
-            "grain_unambiguous",
-            "grain_ambiguous",
-            "cortese_hi_img",
-            "cortese_low_img",
-            "cortese_3gp_high_img",
-            "cortese_3gp_med_img",
-            "cortese_3gp_low_img",
-            "taraban_hf-exc",
-            "taraban_hf-reg-inc",
-            "taraban_lf-exc",
-            "taraban_lf-reg-inc",
-            "taraban_ctrl-hf-exc",
-            "taraban_ctrl-hf-reg-inc",
-            "taraban_ctrl-lf-exc",
-            "taraban_ctrl-lf-reg-inc",
-        )
+        all_testsets = ("strain", "grain")
 
         for testset in all_testsets:
             file = os.path.join(self.input_path, "testsets", testset + ".pkl.gz")
@@ -673,7 +647,7 @@ class BatchSampling:
 
     def sample_generator(self, x, y):
         while True:
-            sample_weights = Sampling.get_sampling_probability(
+            sample_weights = OldSampling.get_sampling_probability(
                 df_train=self.data.df_train,
                 implementation=self.cfg.sample_name,
                 wf_low_clip=self.cfg.wf_low_clip,
