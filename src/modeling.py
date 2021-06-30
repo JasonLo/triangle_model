@@ -1095,3 +1095,47 @@ class HS04Model(tf.keras.Model):
             }
         )
         return cfg
+
+
+def get_train_step():
+
+    @tf.function
+    def train_step(
+        x,
+        y,
+        model,
+        task,
+        loss_fn,
+        optimizer,
+        train_metrics,
+        train_losses,
+    ):
+
+        train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
+        train_weights = [x for x in model.weights if x.name in train_weights_name]
+
+        if task == "triangle":
+            with tf.GradientTape() as tape:
+                y_pred = model(x, training=True)
+                loss_value_pho = loss_fn(y[0], y_pred[0])  # Caution order matter
+                loss_value_sem = loss_fn(y[1], y_pred[1])
+                loss_value = loss_value_pho + loss_value_sem
+        else:
+            with tf.GradientTape() as tape:
+                y_pred = model(x, training=True)
+                loss_value = loss_fn(y, y_pred)
+
+        grads = tape.gradient(loss_value, train_weights)
+        optimizer.apply_gradients(zip(grads, train_weights))
+
+        # Mean loss for Tensorboard
+        train_losses.update_state(loss_value)
+
+        # Metric for last time step (output first dimension is time ticks, from -cfg.output_ticks to end) for live results
+        if type(train_metrics) is list:
+            for i, x in enumerate(train_metrics):
+                x.update_state(tf.cast(y[i][-1], tf.float32), y_pred[i][-1])
+        else:
+            train_metrics.update_state(tf.cast(y[-1], tf.float32), y_pred[-1])
+
+    return train_step
