@@ -1,6 +1,7 @@
 # This script contain a set of custom functions for managing representations
 
 import pickle, gzip, os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import modeling
@@ -51,6 +52,24 @@ class Sampler:
         # Progress dictionary 
         self.progress = {}
         self._calculate_progress_dict()
+
+    def plot(self):
+        """Plot an easy to understand environment progression figure"""
+        plt.plot(self.progress['oral'], label='oral corpus')
+        plt.plot(self.progress['reading'], label='reading corpus')
+
+        reading_p = [self.task_ps[i][4] for i in range(self.total_batches)]
+        plt.plot(reading_p, label='reading_p', linestyle='dashdot', color='black')
+
+        plt.axvline(x=self.oral_batches, ymin=0, ymax=1, linestyle = 'dotted', color='red', label='transition start')
+        plt.axvline(x=self.oral_batches + self.transition_batches, ymin=0, ymax=1, linestyle = 'dotted', color='green', label = 'transition end')
+        plt.text(x=10, y=0.8, s=f"oral phase task ps \n{self.oral_tasks_ps}")
+        plt.text(x=self.total_batches*0.5, y=0.8, s=f"reading phase task ps \n(after transition) \n{self.reading_tasks_ps}")
+        plt.xlabel('batch')
+
+        plt.legend()
+        plt.title('Designed corpus opening progression (%)')
+        plt.show()
 
     def _calculate_aux_variables(self):
         self.total_sample = self.oral_sample + self.reading_sample
@@ -112,7 +131,8 @@ class Sampler:
         """
         n = self.oral_batches
         beginning = np.zeros(n)
-        return np.concatenate([beginning, oral_progress[:-n]])
+        remaining = np.clip(oral_progress[:-n] + 0.02, 0., 1.)
+        return np.concatenate([beginning, remaining])
 
     def wf_to_ps(self, wf):
         """convert squashed compressed word frequncy to probabilty"""
@@ -161,7 +181,7 @@ class Sampler:
      
 
 
-class Sampling:
+class OldSampling:
     """Full function sampling class, can be quite slow, but contain a dynamic logging function,
     mainly for model v3.x (using equation to manage semantic input)
     Kind of slow... and many experimental features
