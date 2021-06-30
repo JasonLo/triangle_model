@@ -55,6 +55,8 @@ IN_OUT['pho_sem'] = ('pho', 'sem')
 IN_OUT['sem_pho'] = ('sem', 'pho')
 IN_OUT['sem_sem'] = ('sem', 'sem')
 IN_OUT['ort_pho'] = ('ort', 'pho')
+IN_OUT['ort_sem'] = ('ort', 'sem')
+
 
 
 class HS04Model(tf.keras.Model):
