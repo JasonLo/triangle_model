@@ -56,7 +56,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
     def get_pho_idx_slot(self, act):
@@ -91,7 +91,7 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
         super(RightSideAccuracy, self).__init__(name=name, **kwargs)
         self.out = self.add_weight(name="right_side_accuracy", initializer="zeros")
 
-    def update_state(self, y_true, y_pred):
+    def update_state(self, y_true, y_pred, sample_weight=None):
         self.out.assign(
             tf.reduce_mean(
                 tf.cast(
@@ -113,7 +113,7 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
@@ -146,7 +146,7 @@ class SumSquaredError(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
@@ -170,7 +170,7 @@ class NodeCounter(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
@@ -194,7 +194,7 @@ class ZERCount(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
@@ -218,7 +218,7 @@ class ZERWrongSideCount(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
@@ -243,7 +243,7 @@ class OutputOfZeroTarget(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
@@ -266,7 +266,7 @@ class OutputOfOneTarget(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
@@ -283,7 +283,7 @@ class InputOfOneTarget(tf.keras.metrics.Metric):
     def result(self):
         return self.out
 
-    def reset_states(self):
+    def reset_state(self):
         self.out.assign(0.0)
 
 
