@@ -8,7 +8,6 @@ import tensorflow.keras.backend as K
 ## when refering to hidden, we need to state the exact layer in this format: h{from}{to} in weights
 ## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
 
-
 WEIGHTS_AND_BIASES = {}
 WEIGHTS_AND_BIASES["pho_sem"] = (
     "w_hps_ph",
@@ -42,21 +41,32 @@ WEIGHTS_AND_BIASES["triangle"] = (
     "w_hop_oh",
     "w_hop_hp",
     "bias_hop",
-    "w_pc", "w_cp", "w_pp", "bias_p", "bias_cpp",
-    "w_sc", "w_cs", "w_ss", "bias_s", "bias_css",
-    "w_hps_ph", "w_hps_hs", "bias_hps",  
-    "w_hsp_sh", "w_hsp_hp", "bias_hsp"
+    "w_pc",
+    "w_cp",
+    "w_pp",
+    "bias_p",
+    "bias_cpp",
+    "w_sc",
+    "w_cs",
+    "w_ss",
+    "bias_s",
+    "bias_css",
+    "w_hps_ph",
+    "w_hps_hs",
+    "bias_hps",
+    "w_hsp_sh",
+    "w_hsp_hp",
+    "bias_hsp",
 )
 
 IN_OUT = {}
-IN_OUT['triangle'] = ('ort', ['pho', 'sem'])
-IN_OUT['pho_pho'] = ('pho', 'pho')
-IN_OUT['pho_sem'] = ('pho', 'sem')
-IN_OUT['sem_pho'] = ('sem', 'pho')
-IN_OUT['sem_sem'] = ('sem', 'sem')
-IN_OUT['ort_pho'] = ('ort', 'pho')
-IN_OUT['ort_sem'] = ('ort', 'sem')
-
+IN_OUT["triangle"] = ("ort", ["pho", "sem"])
+IN_OUT["pho_pho"] = ("pho", "pho")
+IN_OUT["pho_sem"] = ("pho", "sem")
+IN_OUT["sem_pho"] = ("sem", "pho")
+IN_OUT["sem_sem"] = ("sem", "sem")
+IN_OUT["ort_pho"] = ("ort", "pho")
+IN_OUT["ort_sem"] = ("ort", "sem")
 
 
 class HS04Model(tf.keras.Model):
@@ -1097,45 +1107,63 @@ class HS04Model(tf.keras.Model):
         return cfg
 
 
-def get_train_step():
+def get_train_step(task):
+    if task == 'triangle':
+        @tf.function
+        def train_step(x, y, model, task, loss_fn, optimizer, train_metrics, train_losses):
+            """Train a batch, log loss and metrics (last time step only)"""
 
-    @tf.function
-    def train_step(
-        x,
-        y,
-        model,
-        task,
-        loss_fn,
-        optimizer,
-        train_metrics,
-        train_losses,
-    ):
+            train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
+            train_weights = [x for x in model.weights if x.name in train_weights_name]
 
-        train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
-        train_weights = [x for x in model.weights if x.name in train_weights_name]
-
-        if task == "triangle":
+            # TF Automatic differentiation
             with tf.GradientTape() as tape:
                 y_pred = model(x, training=True)
-                loss_value_pho = loss_fn(y[0], y_pred[0])  # Caution order matter
+                # training flag can be access within model by K.in_train_phase()
+                # it can change the behavior in model() (e.g., turn on/off noise)
+
+                loss_value_pho = loss_fn(y[0], y_pred[0])  
                 loss_value_sem = loss_fn(y[1], y_pred[1])
                 loss_value = loss_value_pho + loss_value_sem
-        else:
+
+            grads = tape.gradient(loss_value, train_weights)
+
+            # Weight update
+            optimizer.apply_gradients(zip(grads, train_weights))
+
+            # Calculate mean loss and metrics for tensorboard
+            # Metrics update (Only last time step)
+            for y_name, metrics in train_metrics.items():
+                if y_name == "pho":
+                    # y[0] is pho, y[0][-1] is last time step in pho
+                    [
+                        m.update_state(tf.cast(y[0][-1], tf.float32), y_pred[0][-1])
+                        for m in metrics
+                    ]
+                else:
+                    # y[1] is sem, y[0][-1] is last time step in sem
+                    [
+                        m.update_state(tf.cast(y[1][-1], tf.float32), y_pred[1][-1])
+                        for m in metrics
+                    ]
+
+            # Mean loss
+            train_losses.update_state(loss_value)
+
+    else: # Single output tasks
+        @tf.function
+        def train_step(x, y, model, task, loss_fn, optimizer, train_metrics, train_losses):
+            train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
+            train_weights = [x for x in model.weights if x.name in train_weights_name]
+
             with tf.GradientTape() as tape:
                 y_pred = model(x, training=True)
                 loss_value = loss_fn(y, y_pred)
 
-        grads = tape.gradient(loss_value, train_weights)
-        optimizer.apply_gradients(zip(grads, train_weights))
+            grads = tape.gradient(loss_value, train_weights)
+            optimizer.apply_gradients(zip(grads, train_weights))
 
-        # Mean loss for Tensorboard
-        train_losses.update_state(loss_value)
-
-        # Metric for last time step (output first dimension is time ticks, from -cfg.output_ticks to end) for live results
-        if type(train_metrics) is list:
-            for m in train_metrics:
-                m.update_state(tf.cast(y, tf.float32), y_pred)
-        else:
-            train_metrics.update_state(tf.cast(y[-1], tf.float32), y_pred[-1])
+            [m.update_state(tf.cast(y[-1], tf.float32), y_pred[-1]) for m in train_metrics]
+            train_losses.update_state(loss_value)
 
     return train_step
