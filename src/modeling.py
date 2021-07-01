@@ -1133,8 +1133,8 @@ def get_train_step():
 
         # Metric for last time step (output first dimension is time ticks, from -cfg.output_ticks to end) for live results
         if type(train_metrics) is list:
-            for i, x in enumerate(train_metrics):
-                x.update_state(tf.cast(y[i][-1], tf.float32), y_pred[i][-1])
+            for m in train_metrics:
+                m.update_state(tf.cast(y, tf.float32), y_pred)
         else:
             train_metrics.update_state(tf.cast(y[-1], tf.float32), y_pred[-1])
 
