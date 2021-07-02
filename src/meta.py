@@ -32,7 +32,6 @@ CORE_CONFIGS = (
 
 ENV_CONFIGS = (
     "tasks",
-    "wf_clipping_edges",
     "wf_compression",
     "wf_clip_low",
     "wf_clip_high",
