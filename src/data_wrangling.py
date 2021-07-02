@@ -576,13 +576,13 @@ class MyData:
 
         for testset in all_testsets:
             file = os.path.join(self.input_path, "testsets", testset + ".pkl.gz")
-            self.testsets[testset] = self.load_testset(file)
+            self.testsets[testset] = load_testset(file)
 
-    @staticmethod
-    def load_testset(file):
-        with gzip.open(file, "rb") as f:
-            testset = pickle.load(f)
-        return testset
+
+def load_testset(file):
+    with gzip.open(file, "rb") as f:
+        testset = pickle.load(f)
+    return testset
 
 
 ##### Experimentals #####
