@@ -89,7 +89,9 @@ class ModelConfig:
         # Additional convienient attributes
         self.n_timesteps = int(self.max_unit_time * (1 / self.tau))
         self.total_sample = self.oral_sample + self.reading_sample
-        self.total_number_of_epoch = int(self.total_sample / 1e4)
+
+        # Epoch = 10000 sample by definition
+        self.total_number_of_epoch = int(self.total_sample / 10000)
         self.steps_per_epoch = int(10000 / self.batch_size)
 
         self.save_freq_sample = (
