@@ -959,35 +959,43 @@ class MyModel(tf.keras.Model):
         return output_dict
 
     def experimental_task_osp(self, inputs, training=None):
-        """This experimental task is a O to S to P model without any direct connection from O to P.
-        The purpose of this task is to isolate SP structure
-        """
+        """Lesion model with HOP damaged"""
+        # init
+        # Ort related
+        input_hos_list, input_hop_list = [], []
+        act_hos_list, act_hop_list = [], []
 
-        # init input and activation stores
-        input_hos_list, input_s_list, input_css_list = [], [], []
+        # P-to-S related
+        input_hps_list, input_s_list, input_css_list = [], [], []
+        act_hps_list, act_s_list, act_css_list = [], [], []
+
+        # S-to-P related
         input_hsp_list, input_p_list, input_cpp_list = [], [], []
-
-        act_hos_list, act_s_list, act_css_list = [], [], []
         act_hsp_list, act_p_list, act_cpp_list = [], [], []
 
         # Set inputs to 0
-        input_hos_list.append(tf.zeros((1, self.hidden_os_units), dtype=tf.float32))
+        input_hps_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
         input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
         input_css_list.append(tf.zeros((1, self.sem_cleanup_units), dtype=tf.float32))
+
         input_hsp_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
         input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
         input_cpp_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
 
+        input_hos_list.append(tf.zeros((1, self.hidden_os_units), dtype=tf.float32))
+        input_hop_list.append(tf.zeros((1, self.hidden_op_units), dtype=tf.float32))
+
         # Set activations to 0.5
-        act_hos_list.append(input_hos_list[0] + 0.5)
+        act_hps_list.append(input_hps_list[0] + 0.5)
         act_s_list.append(input_s_list[0] + 0.5)
         act_css_list.append(input_css_list[0] + 0.5)
+
         act_hsp_list.append(input_hsp_list[0] + 0.5)
         act_p_list.append(input_p_list[0] + 0.5)
         act_cpp_list.append(input_cpp_list[0] + 0.5)
 
-        # Division of labor in P
-        hsp_hp_list, pho_pp_list, cpp_cp_list, bias_p_list = [], [], [], []
+        act_hos_list.append(input_hos_list[0] + 0.5)
+        act_hop_list.append(input_hop_list[0] + 0.5)
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1048,27 +1056,34 @@ class MyModel(tf.keras.Model):
             hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
             hos += (1 - self.tau) * input_hos_list[t]
 
+            ##### Hidden layer (OP) #####
+            # hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop) [LESION]
+            # hop += (1 - self.tau) * input_hop_list[t] [LESION]
+ 
             ##### Semantic layer #####
+            hps_hs = tf.matmul(act_hps_list[t], self.w_hps_hs)
             sem_ss = tf.matmul(act_s_list[t], w_ss)
             css_cs = tf.matmul(act_css_list[t], w_cs)
             hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
+            # ort_os = tf.matmul(inputs[t], self.w_os) [No direct path]
 
-            s = self.tau * (sem_ss + css_cs + hos_hs + bias_s)
+            s = self.tau * (hps_hs + sem_ss + css_cs + hos_hs + bias_s)
             s += (1 - self.tau) * input_s_list[t]
 
             ##### Phonology layer #####
             hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
             pho_pp = tf.matmul(act_p_list[t], w_pp)
             cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
+            # hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp) [LESION]
+            # ort_op = tf.matmul(inputs[t], self.w_op) [No direct path]
 
-            # Collect division of labor metrics (Before TAI)
-            hsp_hp_list.append(hsp_hp)
-            pho_pp_list.append(pho_pp)
-            cpp_cp_list.append(cpp_cp)
-            bias_p_list.append(bias_p)
-
-            p = self.tau * (hsp_hp + pho_pp + cpp_cp + bias_p)
+            # p = self.tau * (hsp_hp + pho_pp + cpp_cp + hop_hp + bias_p) [LESION]
+            p = self.tau * (hsp_hp + pho_pp + cpp_cp + bias_p) 
             p += (1 - self.tau) * input_p_list[t]
+
+            ##### Hidden layer (PS) #####
+            hps = self.tau * (tf.matmul(act_p_list[t], self.w_hps_ph) + self.bias_hps)
+            hps += (1 - self.tau) * input_hps_list[t]
 
             ##### Hidden layer (SP) #####
             hsp = self.tau * (tf.matmul(act_s_list[t], self.w_hsp_sh) + self.bias_hsp)
@@ -1083,33 +1098,51 @@ class MyModel(tf.keras.Model):
             cpp += (1 - self.tau) * input_cpp_list[t]
 
             # Record this timestep to list
-            input_hos_list.append(hos)
+            input_hps_list.append(hps)
             input_s_list.append(s)
             input_css_list.append(css)
+
             input_hsp_list.append(hsp)
             input_p_list.append(p)
             input_cpp_list.append(cpp)
 
-            act_hos_list.append(self.activation(hos))
+            input_hos_list.append(hos)
+            # input_hop_list.append(hop) [LESION]
+
+            act_hps_list.append(self.activation(hps))
             act_s_list.append(self.activation(s))
             act_css_list.append(self.activation(css))
+
             act_hsp_list.append(self.activation(hsp))
             act_p_list.append(self.activation(p))
             act_cpp_list.append(self.activation(cpp))
+
+            act_hos_list.append(self.activation(hos))
+            # act_hop_list.append(self.activation(hop)) [LESION]
 
         # output different number of time ticks depending on training/testing
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
 
-        # output dictionary with division of labor metrics
         output_dict = {}
-        output_dict["hsp_hp"] = hsp_hp_list[-output_ticks:]
-        output_dict["pho_pp"] = pho_pp_list[-output_ticks:]
-        output_dict["cpp_cp"] = cpp_cp_list[-output_ticks:]
-        output_dict["bias_p"] = bias_p_list[-output_ticks:]
-        output_dict["act_s"] = act_s_list[-output_ticks:]
-        output_dict["act_p"] = act_p_list[-output_ticks:]
+        output_dict["input_hos"] = input_hos_list[-output_ticks:]
+        # output_dict["input_hop"] = input_hop_list[-output_ticks:] [LESION]
+        output_dict["input_hps"] = input_hps_list[-output_ticks:]
+        output_dict["input_s"] = input_s_list[-output_ticks:]
+        output_dict["input_css"] = input_css_list[-output_ticks:]
+        output_dict["input_hsp"] = input_hsp_list[-output_ticks:]
+        output_dict["input_p"] = input_p_list[-output_ticks:]
+        output_dict["input_cpp"] = input_cpp_list[-output_ticks:]
+
+        output_dict["hos"] = act_hos_list[-output_ticks:]
+        # output_dict["hop"] = act_hop_list[-output_ticks:] [LESION]
+        output_dict["hps"] = act_hps_list[-output_ticks:]
+        output_dict["css"] = act_css_list[-output_ticks:]
+        output_dict["sem"] = act_s_list[-output_ticks:]
+        output_dict["hsp"] = act_hsp_list[-output_ticks:]
+        output_dict["cpp"] = act_cpp_list[-output_ticks:]
+        output_dict["pho"] = act_p_list[-output_ticks:]
 
         return output_dict
 
@@ -1145,8 +1178,10 @@ class MyModel(tf.keras.Model):
 
 
 def get_train_step(task):
-    if task == "triangle":
+    input_name, output_name = IN_OUT[task]
 
+    if task == "triangle":
+        
         @tf.function
         def train_step(
             x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
@@ -1156,14 +1191,15 @@ def get_train_step(task):
             train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
             train_weights = [x for x in model.weights if x.name in train_weights_name]
 
+            
             # TF Automatic differentiation
             with tf.GradientTape() as tape:
                 y_pred = model(x, training=True)
                 # training flag can be access within model by K.in_train_phase()
                 # it can change the behavior in model() (e.g., turn on/off noise)
 
-                loss_value_pho = loss_fn(y[0], y_pred[0])
-                loss_value_sem = loss_fn(y[1], y_pred[1])
+                loss_value_pho = loss_fn(y['pho'], y_pred['pho'])
+                loss_value_sem = loss_fn(y['sem'], y_pred['sem'])
                 loss_value = loss_value_pho + loss_value_sem
 
             grads = tape.gradient(loss_value, train_weights)
@@ -1177,13 +1213,13 @@ def get_train_step(task):
                 if y_name == "pho":
                     # y[0] is pho, y[0][-1] is last time step in pho
                     [
-                        m.update_state(tf.cast(y[0][-1], tf.float32), y_pred[0][-1])
+                        m.update_state(tf.cast(y['pho'][-1], tf.float32), y_pred['pho'][-1])
                         for m in metrics
                     ]
                 else:
                     # y[1] is sem, y[0][-1] is last time step in sem
                     [
-                        m.update_state(tf.cast(y[1][-1], tf.float32), y_pred[1][-1])
+                        m.update_state(tf.cast(y['sem'][-1], tf.float32), y_pred['sem'][-1])
                         for m in metrics
                     ]
 
@@ -1201,13 +1237,13 @@ def get_train_step(task):
 
             with tf.GradientTape() as tape:
                 y_pred = model(x, training=True)
-                loss_value = loss_fn(y, y_pred)
+                loss_value = loss_fn(y, y_pred[output_name])
 
             grads = tape.gradient(loss_value, train_weights)
             optimizer.apply_gradients(zip(grads, train_weights))
 
             [
-                m.update_state(tf.cast(y[-1], tf.float32), y_pred[-1])
+                m.update_state(tf.cast(y[-1], tf.float32), y_pred[output_name][-1])
                 for m in train_metrics
             ]
             train_losses.update_state(loss_value)
