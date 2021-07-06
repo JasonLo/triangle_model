@@ -169,7 +169,7 @@ class Sampler:
             batch_x = [self.data.np_representations[x][idx]] * x_ticks
 
             if type(y) is list:
-                    batch_y = [[self.data.np_representations[yi][idx]] * y_ticks for yi in y]
+                    batch_y = {yi: [self.data.np_representations[yi][idx]] * y_ticks for yi in y}
             else:
                 # Single output
                 batch_y = [self.data.np_representations[y][idx]] * y_ticks
