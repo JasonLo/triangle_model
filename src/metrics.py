@@ -161,6 +161,47 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         return tf.vectorized_map(self.get_pho_idx_item, act)
 
 
+class PhoMultiAnsAccuracy(PhoAccuracy):
+    def __init__(self, name="pho_multi_accuracy", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.out = self.add_weight(name="pho_accuracy", initializer="zeros")
+
+        # Load pho key
+        pho_key_file = "/home/jupyter/tf/dataset/mappingv2.txt"
+        mapping = pd.read_table(pho_key_file, header=None, delim_whitespace=True)
+        pho_key = mapping.set_index(0).T.to_dict("list")
+
+        self.pho_map_keys = tf.constant(list(pho_key.keys()))
+        self.pho_map_values = tf.constant([v for v in pho_key.values()], tf.float32)
+
+    def update_state(self, y_true, y_pred):
+        """Batch level averaged metric
+        TODO: Perhaps can vectorize answer dimension for speed (but this verison is easier to read)
+        """
+
+        acc_i = []
+        for y_true_i in y_true:
+            # For each answer (axis 0), eval, then sum
+
+            acc_i.append(
+                tf.reduce_mean(
+                    tf.cast(
+                        tf.math.reduce_all(
+                            tf.math.equal(
+                                self.get_pho_idx_batch(y_pred),
+                                self.get_pho_idx_batch(y_true_i),
+                            ),
+                            axis=-1,
+                        ),
+                        tf.float32,
+                    ),
+                    axis=-1,
+                )
+            )
+
+        self.out.assign(tf.reduce_sum(acc_i, axis=-1))
+
+
 class RightSideAccuracy(tf.keras.metrics.Metric):
     """Accuracy based on all output nodes falls within the right half
     i.e. max(abs(true-pred)) < 0.5 is correct
