@@ -69,15 +69,10 @@ IN_OUT["ort_pho"] = ("ort", "pho")
 IN_OUT["ort_sem"] = ("ort", "sem")
 
 
-class HS04Model(tf.keras.Model):
-    """
-    HS04 Phase 1: Oral stage (P/S) pretraining
-    HS04 Phase 2: Reading stage (O to P/S simuteneously, freeze all phase 1 matrices)
-    Changes to orginal HS04:
-    - No direct connection from O to S / P
-    """
+class MyModel(tf.keras.Model):
+    """Model object with full output in dictionary format"""
 
-    def __init__(self, cfg, name="hs04r", **kwargs):
+    def __init__(self, cfg, name="my_model", **kwargs):
         super().__init__(**kwargs)
 
         for key, value in cfg.__dict__.items():
@@ -277,16 +272,12 @@ class HS04Model(tf.keras.Model):
         """
         call active task when running model()
         inputs: model input
-        return: prediction
+        input dimension: [timestep (input should be identical across timestep), item_in_batch, input_unit]
+        return: a dictionary of input and activation depending on task
         """
         return self.tasks[self.active_task](inputs, training)
 
     def task_pho_sem(self, inputs, training=None):
-        """
-        Dimension note: (batch, timestep, input_dim)
-        Hack for complying keras.layers.concatenate() format
-        Spliting input_dim below (index = 2)
-        """
 
         # init
         input_hps_list, input_s_list, input_css_list = [], [], []
@@ -361,15 +352,19 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
-        return act_s_list[-output_ticks:]
+
+        output_dict = {}
+        output_dict["input_hps"] = input_hps_list[-output_ticks:]
+        output_dict["input_s"] = input_s_list[-output_ticks:]
+        output_dict["input_css"] = input_css_list[-output_ticks:]
+
+        output_dict["hps"] = act_hps_list[-output_ticks:]
+        output_dict["sem"] = act_s_list[-output_ticks:]
+        output_dict["css"] = act_css_list[-output_ticks:]
+
+        return output_dict
 
     def task_sem_sem(self, inputs, training=None):
-        """
-        Dimension note: (batch, timestep, input_dim)
-        Hack for complying keras.layers.concatenate() format
-        Spliting input_dim below (index = 2)
-        """
-
         # init
         input_s_list, input_css_list = [], []
         act_s_list, act_css_list = [], []
@@ -440,15 +435,16 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
-        return act_s_list[-output_ticks:]
+
+        output_dict = {}
+        output_dict["input_s"] = input_s_list[-output_ticks:]
+        output_dict["input_css"] = input_css_list[-output_ticks:]
+        output_dict["sem"] = act_s_list[-output_ticks:]
+        output_dict["css"] = act_css_list[-output_ticks:]
+
+        return output_dict
 
     def task_sem_pho(self, inputs, training=None):
-        """
-        Dimension note: (batch, timestep, input_dim)
-        Hack for complying keras.layers.concatenate() format
-        Spliting input_dim below (index = 2)
-        """
-
         # init
         input_hsp_list, input_p_list, input_cpp_list = [], [], []
         act_hsp_list, act_p_list, act_cpp_list = [], [], []
@@ -521,15 +517,18 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
-        return act_p_list[-output_ticks:]
+
+        output_dict = {}
+        output_dict["input_hsp"] = input_hsp_list[-output_ticks:]
+        output_dict["input_p"] = input_p_list[-output_ticks:]
+        output_dict["input_cpp"] = input_cpp_list[-output_ticks:]
+        output_dict["hsp"] = act_hsp_list[-output_ticks:]
+        output_dict["pho"] = act_p_list[-output_ticks:]
+        output_dict["cpp"] = act_cpp_list[-output_ticks:]
+
+        return output_dict
 
     def task_pho_pho(self, inputs, training=None):
-        """
-        Dimension note: (batch, timestep, input_dim)
-        Hack for complying keras.layers.concatenate() format
-        Spliting input_dim below (index = 2)
-        """
-
         # init
         input_p_list, input_cpp_list = [], []
         act_p_list, act_cpp_list = [], []
@@ -596,13 +595,17 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
-        return act_p_list[-output_ticks:]
+
+        output_dict = {}
+        output_dict["input_p"] = input_p_list[-output_ticks:]
+        output_dict["input_cpp"] = input_cpp_list[-output_ticks:]
+        output_dict["pho"] = act_p_list[-output_ticks:]
+        output_dict["cpp"] = act_cpp_list[-output_ticks:]
+
+        return output_dict
 
     def task_ort_sem(self, inputs, training=None):
-
         # init
-
-        # input
         input_hos_list, input_s_list, input_css_list = [], [], []
         act_hos_list, act_s_list, act_css_list = [], [], []
 
@@ -675,10 +678,17 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
-        return act_s_list[-output_ticks:]
+
+        output_dict = {}
+        output_dict["input_hos"] = input_hos_list[-output_ticks:]
+        output_dict["input_s"] = input_s_list[-output_ticks:]
+        output_dict["input_css"] = input_css_list[-output_ticks:]
+        output_dict["hos"] = act_hos_list[-output_ticks:]
+        output_dict["sem"] = act_s_list[-output_ticks:]
+        output_dict["css"] = act_css_list[-output_ticks:]
+        return output_dict
 
     def task_ort_pho(self, inputs, training=None):
-
         # input
         input_hop_list, input_p_list, input_cpp_list = [], [], []
         act_hop_list, act_p_list, act_cpp_list = [], [], []
@@ -752,10 +762,17 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
-        return act_p_list[-output_ticks:]
+
+        output_dict = {}
+        output_dict["input_hop"] = input_hop_list[-output_ticks:]
+        output_dict["input_p"] = input_p_list[-output_ticks:]
+        output_dict["input_cpp"] = input_cpp_list[-output_ticks:]
+        output_dict["hop"] = act_hop_list[-output_ticks:]
+        output_dict["pho"] = act_p_list[-output_ticks:]
+        output_dict["cpp"] = act_cpp_list[-output_ticks:]
+        return output_dict
 
     def task_triangle(self, inputs, training=None):
-
         # init
         # Ort related
         input_hos_list, input_hop_list = [], []
@@ -919,11 +936,31 @@ class HS04Model(tf.keras.Model):
         output_ticks = K.in_train_phase(
             self.inject_error_ticks, self.output_ticks, training=training
         )
-        return act_p_list[-output_ticks:], act_s_list[-output_ticks:]
+
+        output_dict = {}
+        output_dict["input_hos"] = input_hos_list[-output_ticks:]
+        output_dict["input_hop"] = input_hop_list[-output_ticks:]
+        output_dict["input_hps"] = input_hps_list[-output_ticks:]
+        output_dict["input_s"] = input_s_list[-output_ticks:]
+        output_dict["input_css"] = input_css_list[-output_ticks:]
+        output_dict["input_hsp"] = input_hsp_list[-output_ticks:]
+        output_dict["input_p"] = input_p_list[-output_ticks:]
+        output_dict["input_cpp"] = input_cpp_list[-output_ticks:]
+
+        output_dict["hos"] = act_hos_list[-output_ticks:]
+        output_dict["hop"] = act_hop_list[-output_ticks:]
+        output_dict["hps"] = act_hps_list[-output_ticks:]
+        output_dict["css"] = act_css_list[-output_ticks:]
+        output_dict["sem"] = act_s_list[-output_ticks:]
+        output_dict["hsp"] = act_hsp_list[-output_ticks:]
+        output_dict["cpp"] = act_cpp_list[-output_ticks:]
+        output_dict["pho"] = act_p_list[-output_ticks:]
+
+        return output_dict
 
     def experimental_task_osp(self, inputs, training=None):
         """This experimental task is a O to S to P model without any direct connection from O to P.
-        The purpose of this task is to isolate wheather SP structure
+        The purpose of this task is to isolate SP structure
         """
 
         # init input and activation stores
@@ -1066,7 +1103,7 @@ class HS04Model(tf.keras.Model):
         )
 
         # output dictionary with division of labor metrics
-        output_dict = dict()
+        output_dict = {}
         output_dict["hsp_hp"] = hsp_hp_list[-output_ticks:]
         output_dict["pho_pp"] = pho_pp_list[-output_ticks:]
         output_dict["cpp_cp"] = cpp_cp_list[-output_ticks:]
@@ -1108,9 +1145,12 @@ class HS04Model(tf.keras.Model):
 
 
 def get_train_step(task):
-    if task == 'triangle':
+    if task == "triangle":
+
         @tf.function
-        def train_step(x, y, model, task, loss_fn, optimizer, train_metrics, train_losses):
+        def train_step(
+            x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
+        ):
             """Train a batch, log loss and metrics (last time step only)"""
 
             train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
@@ -1122,7 +1162,7 @@ def get_train_step(task):
                 # training flag can be access within model by K.in_train_phase()
                 # it can change the behavior in model() (e.g., turn on/off noise)
 
-                loss_value_pho = loss_fn(y[0], y_pred[0])  
+                loss_value_pho = loss_fn(y[0], y_pred[0])
                 loss_value_sem = loss_fn(y[1], y_pred[1])
                 loss_value = loss_value_pho + loss_value_sem
 
@@ -1150,9 +1190,12 @@ def get_train_step(task):
             # Mean loss
             train_losses.update_state(loss_value)
 
-    else: # Single output tasks
+    else:  # Single output tasks
+
         @tf.function
-        def train_step(x, y, model, task, loss_fn, optimizer, train_metrics, train_losses):
+        def train_step(
+            x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
+        ):
             train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
             train_weights = [x for x in model.weights if x.name in train_weights_name]
 
@@ -1163,7 +1206,10 @@ def get_train_step(task):
             grads = tape.gradient(loss_value, train_weights)
             optimizer.apply_gradients(zip(grads, train_weights))
 
-            [m.update_state(tf.cast(y[-1], tf.float32), y_pred[-1]) for m in train_metrics]
+            [
+                m.update_state(tf.cast(y[-1], tf.float32), y_pred[-1])
+                for m in train_metrics
+            ]
             train_losses.update_state(loss_value)
 
     return train_step
