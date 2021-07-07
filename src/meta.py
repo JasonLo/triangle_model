@@ -129,10 +129,10 @@ class ModelConfig:
         path_dict["history_pickle"] = os.path.join(
             path_dict["model_folder"], "history.pkl"
         )
-#         path_dict["weights_list"] = [
-#             os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
-#             for epoch in self.saved_epoches
-#         ]
+        path_dict["weights_list"] = [
+            os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
+            for epoch in self.saved_epoches
+        ]
         
 
 
