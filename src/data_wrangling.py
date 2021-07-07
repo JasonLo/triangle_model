@@ -568,14 +568,14 @@ class MyData:
         if (len(idx) == 1) or (not skip_duplicates):
             return idx.to_list()[0], cond
 
-    def words_to_idx(self, words):
-        xs = list(map(self.word_to_idx, words))
+    def words_to_idx(self, words, conds):
+        xs = list(map(self.word_to_idx, words, conds))
         idx = [x[0] for x in xs if x is not None]
         cond = [x[1] for x in xs if x is not None]
         return idx, cond
 
-    def create_testset_from_word(self, words):
-        idx, cond = self.words_to_idx(words)
+    def create_testset_from_words(self, words, conds):
+        idx, cond = self.words_to_idx(words, conds)
         return self.create_testset_from_train_idx(idx, cond)
 
     def create_testset_from_train_idx(self, idx, cond=None):
