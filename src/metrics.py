@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.python.keras.metrics import MeanMetricWrapper
 import pandas as pd
+import numpy as np
 
 # Loss
 class CustomBCE(tf.keras.losses.Loss):
@@ -147,6 +148,33 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         y_pred_idx = self.get_pho_idx_batch(y_pred)
         eq = tf.vectorized_map(lambda x: tf.equal(y_pred_idx, x), y_true_idx_t)
         return tf.cast(tf.reduce_all(tf.reduce_any(eq, axis=0), axis=-1), tf.float32).numpy()
+
+    def item_metric_multi_ans_ragged(self, y_trues_ragged, y_pred):
+        """ Calculate acc with variable length answer keys in ragged tensor format"""
+        y_pred_idx = self.get_pho_idx_batch(y_pred)
+        output = np.empty(shape=(y_pred.shape[0],))
+        # output = [self._ragged_eval_item(y_trues_ragged[i], y_pred_idx[i]) for i in range(y_pred_idx.shape[0])]
+
+        for i, this_y_pred in enumerate(y_pred_idx):
+            this_y_trues_idx = tf.map_fn(self.get_pho_idx_item, y_trues_ragged[i], fn_output_signature=tf.int64)
+            eq = tf.vectorized_map(lambda x: tf.equal(this_y_pred, x), this_y_trues_idx)
+            eq_item = tf.reduce_all(eq, axis=-1)
+            acc = tf.reduce_any(eq_item, axis=0)
+            output[i] = acc.numpy()
+
+            # print(this_y_pred)
+            # print(this_y_trues_idx)
+            # print(eq)
+            # print(eq_item)
+            # print(acc)
+        return output           
+
+    # def _ragged_eval_item(self, y_trues, y_pred):
+    #     y_trues_idx = tf.map_fn(self.get_pho_idx_item, y_trues, fn_output_signature=tf.int64)
+    #     eq = tf.map_fn(lambda x: tf.equal(y_pred, x), y_trues_idx, fn_output_signature=tf.bool)
+    #     eq_item = tf.reduce_all(eq, axis=-1)
+    #     acc = tf.reduce_any(eq_item, axis=0)
+    #     return acc.numpy()
 
     def result(self):
         return self.out
