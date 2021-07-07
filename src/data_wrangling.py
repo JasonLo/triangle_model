@@ -4,6 +4,7 @@ import pickle, gzip, os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import modeling
 
 
@@ -560,13 +561,31 @@ class MyData:
 
         self.phon_key = gen_pkey()
 
-    def create_testset_from_train_idx(self, idx):
+    def word_to_idx(self, word, cond=None, skip_duplicates=True):
+        # TODO: Handle duplicate later
+
+        idx = self.df_train.word.loc[self.df_train.word == word].index
+        if (len(idx) == 1) or (not skip_duplicates):
+            return idx.to_list()[0], cond
+
+    def words_to_idx(self, words):
+        xs = list(map(self.word_to_idx, words))
+        idx = [x[0] for x in xs if x is not None]
+        cond = [x[1] for x in xs if x is not None]
+        return idx, cond
+
+    def create_testset_from_word(self, words):
+        idx, cond = self.words_to_idx(words)
+        return self.create_testset_from_train_idx(idx, cond)
+
+    def create_testset_from_train_idx(self, idx, cond=None):
         """Return a test set representation dictionary with word, ort, pho, sem"""
         return {
             "item": list(self.df_train.loc[idx, "word"].astype("str")),
-            "ort": self.np_representations["ort"][idx],
-            "pho": self.np_representations["pho"][idx],
-            "sem": self.np_representations["sem"][idx],
+            "cond": cond,
+            "ort": tf.constant(self.np_representations["ort"][idx], dtype=tf.float32),
+            "pho": tf.constant(self.np_representations["pho"][idx], dtype=tf.float32),
+            "sem": tf.constant(self.np_representations["sem"][idx], dtype=tf.float32),
         }
 
 
@@ -584,6 +603,10 @@ def load_testset(file):
         testset = pickle.load(f)
     return testset
 
+
+def save_testset(testset, file):
+    with gzip.open(file, "wb") as f:
+        pickle.dump(testset, f)
 
 ##### Experimentals #####
 class FastSampling_uniform:
