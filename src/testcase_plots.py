@@ -4,7 +4,14 @@ import numpy as np
 import altair as alt
 
 def make_mean_df(df):
+    """Aggregate on items axis to one value"""
     gp_vars = ['code_name', 'epoch', 'testset', 'task', 'output_name', 'timetick']
+    df = df.groupby(gp_vars).mean().reset_index()
+    return df
+
+def make_cond_mean_df(df):
+    """Aggregate on items axis with condition"""
+    gp_vars = ['code_name', 'epoch', 'testset', 'task', 'output_name', 'timetick', 'cond']
     df = df.groupby(gp_vars).mean().reset_index()
     return df
 
@@ -22,3 +29,18 @@ def plot_hs04_fig9(mean_df):
         y=alt.Y('acc:Q', scale=alt.Scale(domain=(0,1))),
         color='output_name:N'
     ).add_selection(timetick_selection).transform_filter(timetick_selection)
+
+def plot_hs04_fig10(mean_df):
+    epoch_selection = alt.selection_single(
+        bind=alt.binding_range(min=0, max=291, step=10),
+        fields=["epoch"],
+        init={"epoch": 290},
+        name="epoch",
+    )
+    sdf = mean_df.loc[mean_df.timetick >= 4]
+    
+    return alt.Chart(sdf).mark_line().encode(
+        x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
+        y="mean(sse):Q",
+        color="reg:N"
+    ).add_selection(epoch_selection).transform_filter(epoch_selection).properties(width=200, height=200)
