@@ -121,7 +121,11 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         )
 
     def item_metric(self, y_true, y_pred):
-        """Item level calculation for evaluator"""
+        """Item level calculation for evaluator
+        y_true dims: (n items, pho dims)
+        y_pred dims: (n items, pho dims)
+        output: accuracy in each items, dim: (n items)
+        """
         return tf.cast(
             tf.math.reduce_all(
                 tf.math.equal(
@@ -133,6 +137,17 @@ class PhoAccuracy(tf.keras.metrics.Metric):
             tf.float32,
         ).numpy()
 
+    def item_metric_multi_ans(self, y_trues, y_pred):
+        """Check a predition match with any y_true pattern
+        y_trues dims: (n items, n ans, pho dims)
+        output dims: items
+        """
+        y_trues_idx = tf.vectorized_map(self.get_pho_idx_batch, y_trues)
+        y_true_idx_t = tf.transpose(y_trues_idx, [1, 0, 2])
+        y_pred_idx = self.get_pho_idx_batch(y_pred)
+        eq = tf.vectorized_map(lambda x: tf.equal(y_pred_idx, x), y_true_idx_t)
+        return tf.cast(tf.reduce_all(tf.reduce_any(eq, axis=0), axis=-1), tf.float32).numpy()
+
     def result(self):
         return self.out
 
@@ -142,6 +157,8 @@ class PhoAccuracy(tf.keras.metrics.Metric):
     def get_pho_idx_slot(self, act):
         """Trio function for getting phoneme 1 (Slot):
         Get cloest distance pho idx in a slot
+        Input shape expectation: (25 pho dims) i.e., one slot
+        Output dim: (1)
         """
         slot_distance = tf.math.squared_difference(self.pho_map_values, act)
         sum_distance = tf.reduce_sum(slot_distance, -1)
@@ -150,6 +167,8 @@ class PhoAccuracy(tf.keras.metrics.Metric):
     def get_pho_idx_item(self, act):
         """Trio function for getting phoneme 2 (Item):
         Get cloest distance pho idx in an item
+        Input shape expectation: (250 pho dims) i.e., one item
+        Output dim: (10 slots)
         """
         act_2d = tf.reshape(tf.cast(act, tf.float32), shape=(10, 25))
         return tf.vectorized_map(self.get_pho_idx_slot, act_2d)
@@ -157,49 +176,11 @@ class PhoAccuracy(tf.keras.metrics.Metric):
     def get_pho_idx_batch(self, act):
         """Trio function for getting phoneme 3 (Batch):
         Get cloest distance pho idx in a batch
+        Input shape expectation: (items, 250 pho dims)
+        Output: (items, 10 slots)
         """
         return tf.vectorized_map(self.get_pho_idx_item, act)
 
-
-class PhoMultiAnsAccuracy(PhoAccuracy):
-    def __init__(self, name="pho_multi_accuracy", **kwargs):
-        super().__init__(name=name, **kwargs)
-        self.out = self.add_weight(name="pho_accuracy", initializer="zeros")
-
-        # Load pho key
-        pho_key_file = "/home/jupyter/tf/dataset/mappingv2.txt"
-        mapping = pd.read_table(pho_key_file, header=None, delim_whitespace=True)
-        pho_key = mapping.set_index(0).T.to_dict("list")
-
-        self.pho_map_keys = tf.constant(list(pho_key.keys()))
-        self.pho_map_values = tf.constant([v for v in pho_key.values()], tf.float32)
-
-    def update_state(self, y_true, y_pred):
-        """Batch level averaged metric
-        TODO: Perhaps can vectorize answer dimension for speed (but this verison is easier to read)
-        """
-
-        acc_i = []
-        for y_true_i in y_true:
-            # For each answer (axis 0), eval, then sum
-
-            acc_i.append(
-                tf.reduce_mean(
-                    tf.cast(
-                        tf.math.reduce_all(
-                            tf.math.equal(
-                                self.get_pho_idx_batch(y_pred),
-                                self.get_pho_idx_batch(y_true_i),
-                            ),
-                            axis=-1,
-                        ),
-                        tf.float32,
-                    ),
-                    axis=-1,
-                )
-            )
-
-        self.out.assign(tf.reduce_sum(acc_i, axis=-1))
 
 
 class RightSideAccuracy(tf.keras.metrics.Metric):
