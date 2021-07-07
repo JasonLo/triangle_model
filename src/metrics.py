@@ -244,6 +244,29 @@ class SumSquaredError(tf.keras.metrics.Metric):
             tf.float32,
         ).numpy()
 
+
+    def item_metric_multi_ans(self, y_trues, y_pred):
+        """Check a predition match with any y_true pattern
+        y_trues dims: (n items, n ans, pho dims)
+        output dims: items
+        """
+        y_trues_idx = tf.vectorized_map(self.get_pho_idx_batch, y_trues)
+        y_trues_idx_t = tf.transpose(y_trues_idx, [1, 0, 2])
+        y_pred_idx = self.get_pho_idx_batch(y_pred)
+        eq = tf.vectorized_map(lambda x: tf.equal(y_pred_idx, x), y_trues_idx_t)
+        return tf.cast(tf.reduce_all(tf.reduce_any(eq, axis=0), axis=-1), tf.float32).numpy()
+
+
+    def item_metric_multi_ans(self, y_trues, y_pred):
+        # rearrange dims from (item, ans, node) to (ans, item, node)
+        y_trues_t = tf.transpose(y_trues, [1, 0, 2])  
+        sse = tf.vectorized_map(lambda x: tf.reduce_sum(tf.square(y_pred - x), axis=-1), y_trues_t)
+        
+        # Min SSE to all possible answers in each item
+        return tf.cast(tf.reduce_min(sse, axis=0), tf.float32).numpy()
+
+
+
     def result(self):
         return self.out
 
