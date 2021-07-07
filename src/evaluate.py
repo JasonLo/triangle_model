@@ -3,8 +3,8 @@
 
 from tqdm import tqdm
 import os
-import metrics
-import sqlite3
+import tensorflow as tf
+import metrics, modeling, data_wrangling
 import pandas as pd
 import numpy as np
 import altair as alt
@@ -39,8 +39,12 @@ def get_pronunciation_fast(act, phon_key):
     return out
 
 
-def get_batch_pronunciations_fast(act, phon_key):
+def get_batch_pronunciations_fast(act, phon_key=None):
+    if phon_key is None:
+        phon_key = gen_pkey()
     return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
+
+
 
 
 class TestSet:
@@ -49,11 +53,134 @@ class TestSet:
     2. Model level info should be stored at separate table, and merge it in the end
     """
 
+    METRICS_MAP = {
+            'pho':{'acc': metrics.PhoAccuracy(), 'sse': metrics.SumSquaredError()},
+            'sem':{'acc': metrics.RightSideAccuracy(), 'sse': metrics.SumSquaredError()},
+    }
+
+    def __init__(self, cfg, model):
+        self.cfg = cfg
+        self.model = model
+        
+    def eval(self, testset_name, task):
+        """
+        Inputs
+        testset_name: name of testset, must match testset package (*.pkl.gz) name
+        task: 1 of 9 task option in triangle model
+        output: pandas dataframe with all the evaluation results
+        """
+        try:
+            df = self.load(testset_name, task)
+            print(f"Eval results found, load from saved csv")
+        except (FileNotFoundError, IOError):
+
+            df = pd.DataFrame()
+            ts_path = '/home/jupyter/tf/dataset/testsets'
+            testset_package = data_wrangling.load_testset(os.path.join(ts_path, f"{testset_name}.pkl.gz"))
+            self.model.set_active_task(task)
+
+            for epoch in tqdm(self.cfg.saved_epoches):
+            # for epoch in tqdm(range(250, 291, 10)):
+                w = self.cfg.path['weights_checkpoint_fstring'].format(epoch=epoch)
+                self.model.load_weights(w)
+                y_pred = self.model([testset_package[modeling.IN_OUT[task][0]]] * self.cfg.n_timesteps)
+                
+                for timetick_idx in range(self.cfg.output_ticks):
+                    if task == 'triangle':
+                        for output_name in ('pho', 'sem'):
+                            tag = {
+                                    'code_name': self.cfg.code_name,
+                                    'epoch': epoch,
+                                    'testset': testset_name,
+                                    'task': task,
+                                    'output_name': output_name,
+                                    'timetick_idx': timetick_idx,
+                                    'timetick': self.output_idx_to_timetick(timetick_idx),
+                                    'word': testset_package['item'],
+                                    'cond': testset_package['cond']
+                            }
+
+                            df = df.append(self._eval_one(y_pred, testset_package, tag), ignore_index=True)
+
+                    else:
+                        output_name = modeling.IN_OUT[task][1]
+                        tag = {
+                                'code_name': self.cfg.code_name,
+                                'epoch': epoch,
+                                'testset': testset_name,
+                                'task': task,
+                                'output_name': output_name,
+                                'timetick_idx': timetick_idx,
+                                'timetick': self.output_idx_to_timetick(timetick_idx),
+                                'word': testset_package['item'],
+                                'cond': testset_package['cond']
+                            }
+                        df = df.append(self._eval_one(y_pred, testset_package, tag), ignore_index=True)
+
+            self.save(df, testset_name, task)
+        return df
+    
+
+    def save(self, df, testset_name, task):
+        file = os.path.join(self.cfg.path['eval_folder'], f"{testset_name}_{task}.csv")
+        df.to_csv(file)
+
+    def load(self, testset_name, task):
+        file = os.path.join(self.cfg.path['eval_folder'], f"{testset_name}_{task}.csv")
+        return pd.read_csv(file, index_col=0)
+
+    def output_idx_to_timetick(self, idx):
+        # Zero indexing idx to one indexing step
+        d = self.cfg.n_timesteps - self.cfg.output_ticks
+        return idx + 1 + d 
+
+
+    def _eval_one(self, y_pred, y_true, tag):
+        """
+        y_pred: predition dictionary, e.g., {'pho': (time ticks, items, output nodes)}
+        y_true: label dictionary (time invarying), e.g., {'sem': (items, maybe n ans. output nodes)}
+        """
+        out = pd.DataFrame()
+        this_y_pred = y_pred[tag['output_name']][tag['timetick_idx']]
+        # shape: (time ticks, items, output nodes)
+
+        this_y_true = y_true[tag['output_name']]
+        # shape: (item, *maybe n ans, output nodes)
+
+        acc = self.METRICS_MAP[tag['output_name']]['acc']
+        sse = self.METRICS_MAP[tag['output_name']]['sse']
+
+        if tf.rank(this_y_true) == 3:
+            # Multi ans mode if we have 3 dims
+            out['acc'] = acc.item_metric_multi_ans(this_y_true, this_y_pred)
+            out['sse'] = sse.item_metric_multi_ans(this_y_true, this_y_pred)
+        else:
+            # Single ans mode
+            out['acc'] = acc.item_metric(this_y_true, this_y_pred)
+            out['sse'] = sse.item_metric(this_y_true, this_y_pred)
+
+        # Write prediction if output is pho
+        if tag['output_name'] == 'pho':
+            out['pho_pred'] = get_batch_pronunciations_fast(this_y_pred)
+
+        # Write tag to df
+        for k, v in tag.items():
+            out[k] = v
+
+        return out
+
+
+class TestSet_Old:
+    """Universal test set object for evaluating model results
+    1. Single condition, single metric, single value output for maximum capatibility
+    2. Model level info should be stored at separate table, and merge it in the end
+    """
+
     pho_acc = metrics.PhoAccuracy("acc")
     right_side_acc = metrics.RightSideAccuracy("acc")
     sse = metrics.SumSquaredError("sse")
-    # act1 = metrics.OutputOfOneTarget("act1")
-    # act0 = metrics.OutputOfZeroTarget("act0")
+    act1 = metrics.OutputOfOneTarget("act1")
+    act0 = metrics.OutputOfZeroTarget("act0")
 
     def __init__(
         self,
@@ -206,6 +333,48 @@ class TestSet:
 
         return output
 
+
+class Eval:
+    TESTSETS_NAME = ("strain", "grain")
+
+    def __init__(self, cfg, model, data):
+        self.cfg = cfg
+        self.data = data
+        self.model = model
+
+    def _load_results_from_file(self):
+        for testset_name in self.TESTSETS_NAME:
+            with os.path.join(self.cfg.path["eval_folder"], f"{testset_name}_mean_df.csv") as f:
+                try:
+                    setattr(self, f"{testset_name}_mean_df", pd.read_csv(f))
+                except (FileNotFoundError, IOError):
+                    pass
+
+    def _eval_tasks(self, task, testset_name):
+        """The oral evalution consists of multiple tasks, sp, ps, pp, ss
+        This function will:
+        1. Create the four tasks (TestSet object) based on testset_name
+        2. Evaluate the tasks
+        3. Concatenate all results into output df
+        """
+        df = pd.DataFrame()
+        x, y = modeling.IN_OUT[task]
+        this_test = TestSet(
+            name=testset_name,
+            cfg=self.cfg,
+            model=self.model,
+            task=task,
+            testitems=self.data.testsets[testset_name]["item"],
+            x_test=self.data.testsets[testset_name][x],
+            y_test=self.data.testsets[testset_name][y],
+        )
+
+        this_test.eval_all()
+        df = df.append(this_test.result, ignore_index=True)
+
+        return df
+
+    
 
 class EvalOral:
     """Bundle of testsets for Oral stage
