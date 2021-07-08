@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import modeling
+import helper as H
 
 
 def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
@@ -586,6 +587,7 @@ class MyData:
             "ort": tf.constant(self.np_representations["ort"][idx], dtype=tf.float32),
             "pho": tf.constant(self.np_representations["pho"][idx], dtype=tf.float32),
             "sem": tf.constant(self.np_representations["sem"][idx], dtype=tf.float32),
+            "phoneme": H.get_batch_pronunciations_fast(self.np_representations["pho"][idx])
         }
 
 
