@@ -11,6 +11,7 @@ def make_mean_df(df):
 
 def make_cond_mean_df(df):
     """Aggregate on items axis with condition"""
+    df['csse'] = df.sse.loc[df.acc == 1]
     gp_vars = ['code_name', 'epoch', 'testset', 'task', 'output_name', 'timetick', 'cond']
     df = df.groupby(gp_vars).mean().reset_index()
     return df
@@ -41,7 +42,7 @@ def plot_hs04_fig10(mean_df):
     
     return alt.Chart(sdf).mark_line().encode(
         x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
-        y="mean(sse):Q",
+        y="mean(csse):Q",
         color="reg:N"
     ).add_selection(epoch_selection).transform_filter(epoch_selection).properties(width=200, height=200)
 
@@ -70,7 +71,7 @@ def plot_hs04_fig11(mean_df):
 
     return alt.Chart(sdf).mark_bar().encode(
         x="img:N",
-        y="mean(sse):Q",
+        y="mean(csse):Q",
         color="img:N",
         column="fc:N"
     ).add_selection(epoch_selection).transform_filter(epoch_selection).properties(width=50, height=200)
