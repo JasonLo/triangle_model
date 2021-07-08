@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
+import helper as H
 from tensorflow.python.keras.metrics import MeanMetricWrapper
 import pandas as pd
 import numpy as np
@@ -92,7 +93,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
     """Nearest phoneme based accuracy (HS04)"""
 
     def __init__(self, name="pho_accuracy", **kwargs):
-        super(PhoAccuracy, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
         self.out = self.add_weight(name="pho_accuracy", initializer="zeros")
 
         # Load pho key
@@ -149,32 +150,17 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         eq = tf.vectorized_map(lambda x: tf.equal(y_pred_idx, x), y_true_idx_t)
         return tf.cast(tf.reduce_all(tf.reduce_any(eq, axis=0), axis=-1), tf.float32).numpy()
 
-    def item_metric_multi_ans_ragged(self, y_trues_ragged, y_pred):
-        """ Calculate acc with variable length answer keys in ragged tensor format"""
-        y_pred_idx = self.get_pho_idx_batch(y_pred)
-        output = np.empty(shape=(y_pred.shape[0],))
-        # output = [self._ragged_eval_item(y_trues_ragged[i], y_pred_idx[i]) for i in range(y_pred_idx.shape[0])]
+    def item_metric_multi_list(self, y_trues_phoneme, y_pred):
+        assert type(y_trues_phoneme[0][0]) is str 
+        predicted_phoemes = H.get_batch_pronunciations_fast(y_pred)
 
-        for i, this_y_pred in enumerate(y_pred_idx):
-            this_y_trues_idx = tf.map_fn(self.get_pho_idx_item, y_trues_ragged[i], fn_output_signature=tf.int64)
-            eq = tf.vectorized_map(lambda x: tf.equal(this_y_pred, x), this_y_trues_idx)
-            eq_item = tf.reduce_all(eq, axis=-1)
-            acc = tf.reduce_any(eq_item, axis=0)
-            output[i] = acc.numpy()
+        acc_list = []
+        for i, y in enumerate(predicted_phoemes):
+            answer_keys_in_one_item = y_trues_phoneme[i]
+            acc = 1 * np.max([y == ans for ans in answer_keys_in_one_item])
+            acc_list.append(acc)
 
-            # print(this_y_pred)
-            # print(this_y_trues_idx)
-            # print(eq)
-            # print(eq_item)
-            # print(acc)
-        return output           
-
-    # def _ragged_eval_item(self, y_trues, y_pred):
-    #     y_trues_idx = tf.map_fn(self.get_pho_idx_item, y_trues, fn_output_signature=tf.int64)
-    #     eq = tf.map_fn(lambda x: tf.equal(y_pred, x), y_trues_idx, fn_output_signature=tf.bool)
-    #     eq_item = tf.reduce_all(eq, axis=-1)
-    #     acc = tf.reduce_any(eq_item, axis=0)
-    #     return acc.numpy()
+        return acc_list
 
     def result(self):
         return self.out
@@ -252,7 +238,7 @@ class SumSquaredError(tf.keras.metrics.Metric):
     """
 
     def __init__(self, name="sum_squared_error", **kwargs):
-        super(SumSquaredError, self).__init__(name=name, **kwargs)
+        super().__init__(name=name, **kwargs)
         self.out = self.add_weight(name="sum_squared_error", initializer="zeros")
 
     def update_state(self, y_true, y_pred):
@@ -274,18 +260,6 @@ class SumSquaredError(tf.keras.metrics.Metric):
 
 
     def item_metric_multi_ans(self, y_trues, y_pred):
-        """Check a predition match with any y_true pattern
-        y_trues dims: (n items, n ans, pho dims)
-        output dims: items
-        """
-        y_trues_idx = tf.vectorized_map(self.get_pho_idx_batch, y_trues)
-        y_trues_idx_t = tf.transpose(y_trues_idx, [1, 0, 2])
-        y_pred_idx = self.get_pho_idx_batch(y_pred)
-        eq = tf.vectorized_map(lambda x: tf.equal(y_pred_idx, x), y_trues_idx_t)
-        return tf.cast(tf.reduce_all(tf.reduce_any(eq, axis=0), axis=-1), tf.float32).numpy()
-
-
-    def item_metric_multi_ans(self, y_trues, y_pred):
         # rearrange dims from (item, ans, node) to (ans, item, node)
         y_trues_t = tf.transpose(y_trues, [1, 0, 2])  
         sse = tf.vectorized_map(lambda x: tf.reduce_sum(tf.square(y_pred - x), axis=-1), y_trues_t)
@@ -293,7 +267,16 @@ class SumSquaredError(tf.keras.metrics.Metric):
         # Min SSE to all possible answers in each item
         return tf.cast(tf.reduce_min(sse, axis=0), tf.float32).numpy()
 
+    def item_metric_multi_list(self, y_trues_list, y_pred):
+        sse_list = []
+        for i, y in enumerate(y_pred):
+            y_true_matrix_list = y_trues_list[i]
+            sse = np.min(
+                [np.sum(np.square(y - ans)) for ans in y_true_matrix_list]
+            )
+            sse_list.append(sse)
 
+        return sse_list
 
     def result(self):
         return self.out
