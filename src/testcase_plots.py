@@ -16,11 +16,11 @@ def make_cond_mean_df(df):
     df = df.groupby(gp_vars).mean().reset_index()
     return df
 
-def plot_hs04_fig9(mean_df):
+def plot_hs04_fig9(mean_df, steps=12):
     """test case 1"""
 
     timetick_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=12, step=1),
+        bind=alt.binding_range(min=0, max=steps, step=1),
         fields=["timetick"],
         init={"timetick": 12},
         name="timetick",
