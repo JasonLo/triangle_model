@@ -37,10 +37,41 @@ def plot_hs04_fig10(mean_df):
         init={"epoch": 290},
         name="epoch",
     )
-    sdf = mean_df.loc[mean_df.timetick >= 4]
+    sdf = mean_df.loc[(mean_df.timetick >= 4) & (mean_df.output_name=='pho')]
     
     return alt.Chart(sdf).mark_line().encode(
         x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
         y="mean(sse):Q",
         color="reg:N"
     ).add_selection(epoch_selection).transform_filter(epoch_selection).properties(width=200, height=200)
+
+def plot_conds(mean_df):
+    timetick_selection = alt.selection_single(
+        bind=alt.binding_range(min=0, max=12, step=1),
+        fields=["timetick"],
+        init={"timetick": 12},
+        name="timetick",
+    )
+
+    return alt.Chart(mean_df).mark_line().encode(
+        x='epoch:Q',
+        y=alt.Y('acc:Q', scale=alt.Scale(domain=(0,1))),
+        color='cond:N'
+    ).add_selection(timetick_selection).transform_filter(timetick_selection)
+
+def plot_hs04_fig11(mean_df):
+    epoch_selection = alt.selection_single(
+        bind=alt.binding_range(min=0, max=291, step=10),
+        fields=["epoch"],
+        init={"epoch": 290},
+        name="epoch",
+    )
+    sdf = mean_df.loc[(mean_df.timetick >= 4) & (mean_df.output_name=='pho')]
+
+    return alt.Chart(sdf).mark_bar().encode(
+        x="img:N",
+        y="mean(sse):Q",
+        color="img:N",
+        column="fc:N"
+    ).add_selection(epoch_selection).transform_filter(epoch_selection).properties(width=50, height=200)
+    
