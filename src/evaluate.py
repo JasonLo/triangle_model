@@ -5,46 +5,13 @@ from tqdm import tqdm
 import os
 import tensorflow as tf
 import metrics, modeling, data_wrangling
+import helper as H
 import pandas as pd
 import numpy as np
 import altair as alt
+from IPython.display import clear_output
 
 alt.data_transformers.disable_max_rows()
-
-
-def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
-    """Read phonological patterns from the mapping file
-    See Harm & Seidenberg PDF file
-    """
-
-    mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
-    m_dict = mapping.set_index(0).T.to_dict("list")
-    return m_dict
-
-
-phon_key = gen_pkey()
-
-
-def get_pronunciation_fast(act, phon_key):
-    phonemes = list(phon_key.keys())
-    act10 = np.tile([v for k, v in phon_key.items()], 10)
-
-    d = np.abs(act10 - act)
-    d_mat = np.reshape(d, (38, 10, 25))
-    sumd_mat = np.squeeze(np.sum(d_mat, 2))
-    map_idx = np.argmin(sumd_mat, 0)
-    out = str()
-    for x in map_idx:
-        out += phonemes[x]
-    return out
-
-
-def get_batch_pronunciations_fast(act, phon_key=None):
-    if phon_key is None:
-        phon_key = gen_pkey()
-    return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
-
-
 
 
 class TestSet:
@@ -88,38 +55,39 @@ class TestSet:
                 for timetick_idx in range(self.cfg.output_ticks):
                     if task == 'triangle':
                         for output_name in ('pho', 'sem'):
-                            tag = {
-                                    'code_name': self.cfg.code_name,
-                                    'epoch': epoch,
-                                    'testset': testset_name,
-                                    'task': task,
-                                    'output_name': output_name,
-                                    'timetick_idx': timetick_idx,
-                                    'timetick': self.output_idx_to_timetick(timetick_idx),
-                                    'word': testset_package['item'],
-                                    'cond': testset_package['cond']
-                            }
-
-                            df = df.append(self._eval_one(y_pred, testset_package, tag), ignore_index=True)
-
+                            df = self._try_to_run_eval(
+                                df, y_pred, testset_name, task, epoch, output_name, timetick_idx, testset_package
+                                )
                     else:
                         output_name = modeling.IN_OUT[task][1]
-                        tag = {
-                                'code_name': self.cfg.code_name,
-                                'epoch': epoch,
-                                'testset': testset_name,
-                                'task': task,
-                                'output_name': output_name,
-                                'timetick_idx': timetick_idx,
-                                'timetick': self.output_idx_to_timetick(timetick_idx),
-                                'word': testset_package['item'],
-                                'cond': testset_package['cond']
-                            }
-                        df = df.append(self._eval_one(y_pred, testset_package, tag), ignore_index=True)
+                        df = self._try_to_run_eval(
+                            df, y_pred, testset_name, task, epoch, output_name, timetick_idx, testset_package
+                            )
 
             self.save(df, testset_name, task)
         return df
     
+    def _try_to_run_eval(self, df, y_pred, testset_name, task, epoch, output_name, timetick_idx, testset_package):
+
+        if testset_package[output_name] is not None:
+ 
+            tag = {
+                    'code_name': self.cfg.code_name,
+                    'epoch': epoch,
+                    'testset': testset_name,
+                    'task': task,
+                    'output_name': output_name,
+                    'timetick_idx': timetick_idx,
+                    'timetick': self.output_idx_to_timetick(timetick_idx),
+                    'word': testset_package['item'],
+                    'cond': testset_package['cond']
+            }
+
+            df = df.append(self._eval_one(y_pred, testset_package, tag), ignore_index=True)
+
+        return df
+
+
 
     def save(self, df, testset_name, task):
         file = os.path.join(self.cfg.path['eval_folder'], f"{testset_name}_{task}.csv")
@@ -145,12 +113,23 @@ class TestSet:
         # shape: (time ticks, items, output nodes)
 
         this_y_true = y_true[tag['output_name']]
+
+        try:
+            if tag['output_name'] == 'pho':
+                this_y_true_phoneme = y_true['phoneme']
+        except:
+            print('Cannot find phoneme in y_true dictionary')
         # shape: (item, *maybe n ans, output nodes)
 
         acc = self.METRICS_MAP[tag['output_name']]['acc']
         sse = self.METRICS_MAP[tag['output_name']]['sse']
 
-        if tf.rank(this_y_true) == 3:
+
+        if type(this_y_true) is list:
+            # List mode (for glushko)
+            out['acc'] = acc.item_metric_multi_list(this_y_true_phoneme, this_y_pred)
+            out['sse'] = sse.item_metric_multi_list(this_y_true, this_y_pred)
+        elif tf.rank(this_y_true) == 3:
             # Multi ans mode if we have 3 dims
             out['acc'] = acc.item_metric_multi_ans(this_y_true, this_y_pred)
             out['sse'] = sse.item_metric_multi_ans(this_y_true, this_y_pred)
@@ -161,7 +140,7 @@ class TestSet:
 
         # Write prediction if output is pho
         if tag['output_name'] == 'pho':
-            out['pho_pred'] = get_batch_pronunciations_fast(this_y_pred)
+            out['pho_pred'] = H.get_batch_pronunciations_fast(this_y_pred)
 
         # Write tag to df
         for k, v in tag.items():
@@ -311,7 +290,7 @@ class TestSet_Old:
             acc = self.pho_acc.item_metric(true_y, pred_y)
             output["acc"] = dict(zip(self.testitems, acc))
             output["pho_symbol"] = dict(
-                zip(self.testitems, get_batch_pronunciations_fast(pred_y, phon_key))
+                zip(self.testitems, H.get_batch_pronunciations_fast(pred_y, phon_key))
             )
         elif y_name == "sem":
             acc = self.right_side_acc.item_metric(true_y, pred_y)
