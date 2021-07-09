@@ -46,7 +46,7 @@ class TestSet:
             testset_package = data_wrangling.load_testset(os.path.join(ts_path, f"{testset_name}.pkl.gz"))
             self.model.set_active_task(task)
 
-            for epoch in tqdm(self.cfg.saved_epoches):
+            for epoch in tqdm(self.cfg.saved_epoches, desc=f"Evaluating {testset_name}:{task}"):
             # for epoch in tqdm(range(250, 291, 10)):
                 w = self.cfg.path['weights_checkpoint_fstring'].format(epoch=epoch)
                 self.model.load_weights(w)
