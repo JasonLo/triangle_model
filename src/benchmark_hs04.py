@@ -51,7 +51,7 @@ def run_test2(test):
         lambda x: "Regular" if x.startswith("Regular") else "Exception"
     )
 
-    fig10 =  plot_hs04_fig10(mdf, tick_after=12)
+    fig10 =  plot_hs04_fig10(mdf, max_epoch=test.cfg.total_number_of_epoch, tick_after=12)
     fig10.save(os.path.join(test.cfg.path["plot_folder"], "test2.html"))
     
 
@@ -67,7 +67,7 @@ def run_test4(test):
     mdf =  make_cond_mean_df(df)
     mdf["fc"] = mdf.cond.apply(lambda x: x[:5])
     mdf["img"] = mdf.cond.apply(lambda x: x[-2:])
-    test4 =  plot_hs04_fig11(mdf, tick_after=12)
+    test4 =  plot_hs04_fig11(mdf, max_epoch=test.cfg.total_number_of_epoch, tick_after=12)
     test4.save(os.path.join(test.cfg.path["plot_folder"], "test4.html"))
     
 
@@ -136,11 +136,11 @@ def plot_hs04_fig9(mean_df, steps=12):
         color='output_name:N'
     ).add_selection(timetick_selection).transform_filter(timetick_selection)
 
-def plot_hs04_fig10(mean_df, tick_after=4):
+def plot_hs04_fig10(mean_df, max_epoch, tick_after=4):
     """test case 2"""
 
     epoch_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=291, step=10),
+        bind=alt.binding_range(min=0, max=max_epoch+1, step=10),
         fields=["epoch"],
         init={"epoch": 290},
         name="epoch",
@@ -172,11 +172,11 @@ def plot_conds(mean_df, tick_after=4):
     
     # .add_selection(timetick_selection).transform_filter(timetick_selection)
 
-def plot_hs04_fig11(mean_df, tick_after=4):
+def plot_hs04_fig11(mean_df, max_epoch, tick_after=4, ):
     """test case 4"""
 
     epoch_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=291, step=10),
+        bind=alt.binding_range(min=0, max=max_epoch+1, step=10),
         fields=["epoch"],
         init={"epoch": 290},
         name="epoch",
