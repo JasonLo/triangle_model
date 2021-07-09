@@ -32,7 +32,7 @@ def plot_hs04_fig9(mean_df, steps=12):
         color='output_name:N'
     ).add_selection(timetick_selection).transform_filter(timetick_selection)
 
-def plot_hs04_fig10(mean_df):
+def plot_hs04_fig10(mean_df, tick_after=4):
     """test case 2"""
 
     epoch_selection = alt.selection_single(
@@ -41,7 +41,7 @@ def plot_hs04_fig10(mean_df):
         init={"epoch": 290},
         name="epoch",
     )
-    sdf = mean_df.loc[(mean_df.timetick >= 4) & (mean_df.output_name=='pho')]
+    sdf = mean_df.loc[(mean_df.timetick >= tick_after) & (mean_df.output_name=='pho')]
     
     return alt.Chart(sdf).mark_line().encode(
         x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
@@ -49,7 +49,7 @@ def plot_hs04_fig10(mean_df):
         color="reg:N"
     ).add_selection(epoch_selection).transform_filter(epoch_selection).properties(width=200, height=200)
 
-def plot_conds(mean_df):
+def plot_conds(mean_df, tick_after=4):
     """test case 3"""
 
     # timetick_selection = alt.selection_single(
@@ -58,7 +58,7 @@ def plot_conds(mean_df):
     #     init={"timetick": 12},
     #     name="timetick",
     # )
-    sdf = mean_df.loc[(mean_df.timetick >= 4) & (mean_df.output_name=='pho')]
+    sdf = mean_df.loc[(mean_df.timetick >= tick_after) & (mean_df.output_name=='pho')]
 
     return alt.Chart(sdf).mark_line().encode(
         x='epoch:Q',
@@ -68,7 +68,7 @@ def plot_conds(mean_df):
     
     # .add_selection(timetick_selection).transform_filter(timetick_selection)
 
-def plot_hs04_fig11(mean_df):
+def plot_hs04_fig11(mean_df, tick_after=4):
     """test case 4"""
 
     epoch_selection = alt.selection_single(
@@ -77,7 +77,7 @@ def plot_hs04_fig11(mean_df):
         init={"epoch": 290},
         name="epoch",
     )
-    sdf = mean_df.loc[(mean_df.timetick >= 4) & (mean_df.output_name=='pho')]
+    sdf = mean_df.loc[(mean_df.timetick >= tick_after) & (mean_df.output_name=='pho')]
 
     return alt.Chart(sdf).mark_bar().encode(
         x="img:N",
