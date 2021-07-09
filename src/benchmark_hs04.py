@@ -21,6 +21,7 @@ def init(code_name, tau_override=None):
     if tau_override is not None:
         cfg.tau_original = cfg.tau
         cfg.tau = tau_override
+        cfg.output_ticks = int(round(cfg.output_ticks * (cfg.tau_original / cfg.tau)))
         cfg._init_from_scratch()
 
     model = modeling.MyModel(cfg)
@@ -32,8 +33,27 @@ def run_test1(code_name):
     test = init(code_name)
     df = test.eval("train_r1000", "triangle")
     mdf = make_mean_df(df)
-    fig9 = plot_hs04_fig9(mdf, test.cfg.n_timesteps)
-    fig9.save(os.path.join(test.cfg.path["plot_folder"], "test1.html"))
+    fig9 = plot_hs04_fig9(mdf, metric="acc")
+    fig9_sse = plot_hs04_fig9(mdf, metric="csse")
+    fig9.save(os.path.join(test.cfg.path["plot_folder"], "test1_acc.html"))
+    fig9_sse.save(os.path.join(test.cfg.path["plot_folder"], "test1_sse.html"))
+
+    # Extras Oral tasks
+    mdf_pp = make_mean_df(test.eval("train_r1000", "pho_pho"))
+    mdf_ss = make_mean_df(test.eval("train_r1000", "sem_sem"))
+    mdf_sp = make_mean_df(test.eval("train_r1000", "sem_pho"))
+    mdf_ps = make_mean_df(test.eval("train_r1000", "pho_sem"))
+
+    df_oral = pd.concat([mdf_pp, mdf_ss, mdf_sp, mdf_ps])
+    test1_oral_plot_acc = plot_hs04_fig14(df_oral, metric="acc")
+    test1_oral_plot_sse = plot_hs04_fig14(df_oral, metric="csse")
+
+    test1_oral_plot_acc.save(
+        os.path.join(test.cfg.path["plot_folder"], "test1_oral_acc.html")
+    )
+    test1_oral_plot_sse.save(
+        os.path.join(test.cfg.path["plot_folder"], "test1_oral_sse.html")
+    )
 
 
 def run_test2(code_name):
@@ -88,13 +108,13 @@ def run_test4(code_name):
 
 
 def run_test5(code_name):
-    tau = 1./12.
+    tau = 1.0 / 12.0
     test = init(code_name, tau_override=tau)
 
     # SEM (same as HS04)
-    df_intact = test.eval("train_r1000", "triangle")
-    df_os_lesion = test.eval("train_r1000", "exp_ops")
-    df_ops_lesion = test.eval("train_r1000", "ort_sem")
+    df_intact = test.eval("train_r1000", "triangle", save_file_prefix="hi_res")
+    df_os_lesion = test.eval("train_r1000", "exp_ops", save_file_prefix="hi_res")
+    df_ops_lesion = test.eval("train_r1000", "ort_sem", save_file_prefix="hi_res")
 
     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion])
     mdf_sem = make_mean_df(df_sem)
@@ -102,8 +122,8 @@ def run_test5(code_name):
     test5a.save(os.path.join(test.cfg.path["plot_folder"], "test5_sem.html"))
 
     # PHO (extra)
-    df_op_lesion = test.eval("train_r1000", "exp_osp")
-    df_osp_lesion = test.eval("train_r1000", "ort_pho")
+    df_op_lesion = test.eval("train_r1000", "exp_osp", save_file_prefix="hi_res")
+    df_osp_lesion = test.eval("train_r1000", "ort_pho", save_file_prefix="hi_res")
 
     df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion])
     mdf_pho = make_mean_df(df_pho)
@@ -124,9 +144,9 @@ def print_unique(df):
 
 def make_mean_df(df):
     """Aggregate on items axis to one value"""
+    df["csse"] = df.sse.loc[df.acc == 1]
     gp_vars = ["code_name", "epoch", "testset", "task", "output_name", "timetick"]
-    df = df.groupby(gp_vars).mean().reset_index()
-    return df
+    return df.groupby(gp_vars).mean().reset_index()
 
 
 def make_cond_mean_df(df):
@@ -141,31 +161,35 @@ def make_cond_mean_df(df):
         "timetick",
         "cond",
     ]
-    df = df.groupby(gp_vars).mean().reset_index()
-    return df
+    return df.groupby(gp_vars).mean().reset_index()
 
 
-def plot_hs04_fig9(mean_df, steps=12):
+def plot_hs04_fig9(mean_df, metric="acc"):
     """test case 1"""
 
-    timetick_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=steps, step=1),
-        fields=["timetick"],
-        init={"timetick": 12},
-        name="timetick",
-    )
+    interval = alt.selection_interval()
 
-    return (
+    metric_domain = (0, 1) if metric == "acc" else (0, mean_df.csse.max())
+
+    timetick_sel = (
         alt.Chart(mean_df)
-        .mark_line()
+        .mark_rect()
+        .encode(x="timetick:O", color=f"mean({metric}):Q")
+        .add_selection(interval)
+    ).properties(width=400)
+
+    main = (
+        alt.Chart(mean_df)
+        .mark_line(point=True)
         .encode(
             x="epoch:Q",
-            y=alt.Y("acc:Q", scale=alt.Scale(domain=(0, 1))),
+            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
             color="output_name:N",
         )
-        .add_selection(timetick_selection)
-        .transform_filter(timetick_selection)
+        .transform_filter(interval)
     )
+
+    return timetick_sel & main
 
 
 def plot_hs04_fig10(mean_df, max_epoch, tick_after=4):
@@ -174,7 +198,7 @@ def plot_hs04_fig10(mean_df, max_epoch, tick_after=4):
     epoch_selection = alt.selection_single(
         bind=alt.binding_range(min=0, max=max_epoch + 1, step=10),
         fields=["epoch"],
-        init={"epoch": 290},
+        init={"epoch": max_epoch + 1},
         name="epoch",
     )
     sdf = mean_df.loc[(mean_df.timetick >= tick_after) & (mean_df.output_name == "pho")]
@@ -242,16 +266,18 @@ def plot_hs04_fig11(
     )
 
 
-def plot_hs04_fig14(mean_df, output):
+def plot_hs04_fig14(mean_df, output=None, metric="acc"):
 
-    mean_df = mean_df.loc[(mean_df.output_name == output)]
+    if output is not None:
+        mean_df = mean_df.loc[(mean_df.output_name == output)]
 
+    metric_domain = (0, 1) if metric == "acc" else (0, mean_df.csse.max())
     interval = alt.selection_interval()
 
     timetick_sel = (
         alt.Chart(mean_df)
         .mark_rect()
-        .encode(x="timetick:O", color="mean(acc):Q")
+        .encode(x="timetick:O", color=f"mean({metric}):Q")
         .add_selection(interval)
     ).properties(width=400)
 
@@ -260,8 +286,9 @@ def plot_hs04_fig14(mean_df, output):
         .mark_line(point=True)
         .encode(
             x="epoch:Q",
-            y=alt.Y("mean(acc):Q", scale=alt.Scale(domain=(0, 1))),
+            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
             color="task:N",
+            column="output_name:N",
         )
         .transform_filter(interval)
     )
