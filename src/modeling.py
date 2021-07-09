@@ -1,12 +1,14 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-# Create dictionary for weight & biases related to each task
+# Create dictionary for trainable weight & biases related to each task (only affect weight update step)
 ## Important: Due to model complexity, it seems that "trainable" flag cannot be use to turn on/off training during a vanilla training loop
 ## Therefore, it must use custom training loop to control which matrix to perform gradient descent
 ## Since there are 4 sets of hidden layers and 2 sets of cleanup units,
 ## when refering to hidden, we need to state the exact layer in this format: h{from}{to} in weights
 ## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
+
+
 
 WEIGHTS_AND_BIASES = {}
 WEIGHTS_AND_BIASES["pho_sem"] = (
@@ -33,7 +35,6 @@ WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "w_ss", "bias_hos", "bias_s")
 WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "w_pp", "bias_hop", "bias_p")
-WEIGHTS_AND_BIASES["exp_osp"] = ("w_hos_oh", "w_hos_hs", "bias_hos")
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
     "w_hos_hs",
@@ -65,9 +66,12 @@ IN_OUT["pho_pho"] = ("pho", "pho")
 IN_OUT["pho_sem"] = ("pho", "sem")
 IN_OUT["sem_pho"] = ("sem", "pho")
 IN_OUT["sem_sem"] = ("sem", "sem")
+
 IN_OUT["ort_pho"] = ("ort", "pho")
 IN_OUT["ort_sem"] = ("ort", "sem")
 
+IN_OUT["exp_osp"] = ("ort", "pho")
+IN_OUT["exp_ops"] = ("ort", "sem")
 
 class MyModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
@@ -82,7 +86,9 @@ class MyModel(tf.keras.Model):
             setattr(self, key, value)
 
         self.activation = tf.keras.activations.get(self.activation)
-        # self.active_task = "triangle" # Do not set default task, will trigger inf. recursion for some unknown reason
+        
+        # self.active_task = "triangle" # Do not set default task here, 
+        # will trigger inf. recursion for some unknown reason
 
         self.tasks = {
             "pho_sem": self.task_pho_sem,
