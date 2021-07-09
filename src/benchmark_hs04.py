@@ -3,10 +3,14 @@ import pandas as pd
 import altair as alt
 import meta, modeling, evaluate
 
-def main(code_name, testcase):
+def main(code_name, testcase=None):
     """Command line entry point"""
     test_obj = init(code_name)
-    TEST_MAP[testcase](test_obj)
+    
+    if testcase is None:
+        [TEST_MAP[i+1](test_obj) for i in range(5)]
+    else:
+        TEST_MAP[testcase](test_obj)
     
 def init(code_name):
     cfg = meta.ModelConfig.from_json(
