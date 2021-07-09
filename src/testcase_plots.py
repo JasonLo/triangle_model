@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
+def print_unique(df):
+    for x in ("testset", "task", "output_name", "timetick", "cond"):
+        print(f"{x}: unique entry: {df[x].unique()}")
+
 def make_mean_df(df):
     """Aggregate on items axis to one value"""
     gp_vars = ['code_name', 'epoch', 'testset', 'task', 'output_name', 'timetick']
@@ -86,3 +90,30 @@ def plot_hs04_fig11(mean_df, tick_after=4):
         column="fc:N"
     ).add_selection(epoch_selection).transform_filter(epoch_selection).properties(width=50, height=200)
     
+
+def plot_hs04_fig14(mean_df, output):
+
+    mean_df = mean_df.loc[(mean_df.output_name == output)]
+    print_unique(mean_df)
+
+    interval = alt.selection_interval()
+
+    timetick_sel = (
+        alt.Chart(mean_df).mark_rect().encode(
+            x="timetick:O",
+            color="mean(acc):Q"
+        ).add_selection(interval)
+    ).properties(width=400)
+
+    line = (
+        alt.Chart(mean_df)
+        .mark_line(point=True)
+        .encode(
+            x="epoch:Q",
+            y=alt.Y("mean(acc):Q", scale=alt.Scale(domain=(0, 1))),
+            color="task:N"
+        )
+        .transform_filter(interval)
+    )
+
+    return timetick_sel & line
