@@ -85,6 +85,9 @@ class MyModel(tf.keras.Model):
         for key, value in cfg.__dict__.items():
             setattr(self, key, value)
 
+        # Infered variable need to pass manually
+        self.n_timesteps = cfg.n_timesteps 
+
         self.activation = tf.keras.activations.get(self.activation)
         
         # self.active_task = "triangle" # Do not set default task here, 
