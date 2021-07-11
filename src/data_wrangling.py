@@ -60,7 +60,8 @@ class Sampler:
         plt.plot(self.progress['oral'], label='oral corpus')
         plt.plot(self.progress['reading'], label='reading corpus')
 
-        reading_p = [self.task_ps[i][-1] if type(self.task_ps[i]) is tuple else self.task_ps[i] for i in range(self.total_batches)]
+        reading_p = [self.task_ps[i][-1] if type(self.task_ps[i]) is list or tuple else self.task_ps[i] for i in range(self.total_batches)]
+        # print(reading_p)
         plt.plot(reading_p, label='reading_p', linestyle='dashdot', color='black')
 
         plt.axvline(x=self.oral_batches, ymin=0, ymax=1, linestyle = 'dotted', color='red', label='transition start')
@@ -164,7 +165,7 @@ class Sampler:
         
         while True:
             current_batch = self.sample_to_batch(self.current_sample)
-            task = np.random.choice(self.tasks, p=self.task_ps[current_batch]) if type(self.tasks) is tuple else self.tasks
+            task = np.random.choice(self.tasks, p=self.task_ps[current_batch]) if type(self.tasks) is tuple or list else self.tasks
             idx = np.random.choice(self.data.df_train.index, self.batch_size, p=self.get_sampling_p(self.current_sample, task))
             
             x, y = modeling.IN_OUT[task]
