@@ -3,154 +3,199 @@ import json
 import os
 import uuid
 import tensorflow as tf
+from dataclasses import dataclass
+
+# Use dataclass to replace manual config registry.
+# # Parameters registry
+# CORE_CONFIGS = (
+#     "code_name",
+#     "tf_root",
+#     "ort_units",
+#     "pho_units",
+#     "sem_units",
+#     "hidden_os_units",
+#     "hidden_op_units",
+#     "hidden_ps_units",
+#     "hidden_sp_units",
+#     "pho_cleanup_units",
+#     "sem_cleanup_units",
+#     "pho_noise_level",
+#     "sem_noise_level",
+#     "activation",
+#     "tau",
+#     "max_unit_time",
+#     "inject_error_ticks",
+#     "output_ticks",
+#     "learning_rate",
+#     "zero_error_radius",
+#     "save_freq",
+# )
+
+# ENV_CONFIGS = (
+#     "tasks",
+#     "wf_compression",
+#     "wf_clip_low",
+#     "wf_clip_high",
+#     "oral_start_pct",
+#     "oral_end_pct",
+#     "oral_sample",
+#     "oral_tasks_ps",
+#     "transition_sample",
+#     "reading_sample",
+#     "reading_tasks_ps",
+#     "batch_size",
+#     "rng_seed",
+# )
+
+# OPTIONAL_CONFIGS = (
+#     "batch_name",
+#     "batch_unique_setting_string",
+#     "pretrained_checkpoint",
+# )
 
 
-# Parameters registry
-CORE_CONFIGS = (
-    "code_name",
-    "tf_root",
-    "ort_units",
-    "pho_units",
-    "sem_units",
-    "hidden_os_units",
-    "hidden_op_units",
-    "hidden_ps_units",
-    "hidden_sp_units",
-    "pho_cleanup_units",
-    "sem_cleanup_units",
-    "pho_noise_level",
-    "sem_noise_level",
-    "activation",
-    "tau",
-    "max_unit_time",
-    "inject_error_ticks",
-    "output_ticks",
-    "learning_rate",
-    "zero_error_radius",
-    "save_freq",
-)
-
-ENV_CONFIGS = (
-    "tasks",
-    "wf_compression",
-    "wf_clip_low",
-    "wf_clip_high",
-    "oral_start_pct",
-    "oral_end_pct",
-    "oral_sample",
-    "oral_tasks_ps",
-    "transition_sample",
-    "reading_sample",
-    "reading_tasks_ps",
-    "batch_size",
-    "rng_seed",
-)
-
-OPTIONAL_CONFIGS = (
-    "batch_name",
-    "batch_unique_setting_string",
-    "pretrained_checkpoint")
-
-
+@dataclass
 class ModelConfig:
-    """This function keeps all global model configurations
-    It will be use in almost every object downsteam, from modelling, evaluation, and visualization
-    There are two ways to construct this object
-    1) Using a json file path, which contains a cfg dictionary by ModelConfig(json_file)
-    2) Using a dictionary by ModelConfig(**dict)
-    """
+    code_name: str
+    tf_root: str = "/home/jupyter/tf"
+    uuid: str = None
+    batch_name: str = None
+    batch_unique_setting_string: str = None
 
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    # Model configs
+    ort_units: int = 119
+    pho_units: int = 250
+    sem_units: int = 2446
+    hidden_os_units: int = 500
+    hidden_op_units: int = 100
+    hidden_ps_units: int = 500
+    hidden_sp_units: int = 500
+    pho_cleanup_units: int = 50
+    sem_cleanup_units: int = 50
+    pho_noise_level: float = 0.0
+    sem_noise_level: float = 0.0
+    activation: str = "sigmoid"
 
-        if "uuid" not in kwargs.keys():
-            print("init from scratch")
-            self._init_from_scratch()
+    tau: float = 1 / 3
+    max_unit_time: float = 4.0
+    output_ticks: int = 11
+    inject_error_ticks: int = 11
+
+    # Training
+    learning_rate: float = 0.005
+    zero_error_radius: float = None
+    save_freq: int = 10
+
+    # Environment
+    tasks: tuple = ("pho_sem", "sem_pho", "pho_pho", "sem_sem", "triangle")
+    wf_compression: str = "log"
+    wf_clip_low: int = 0
+    wf_clip_high: int = 999_999_999
+    oral_start_pct: float = 0.02
+    oral_end_pct: float = 0.5
+    oral_sample: int = 900_000
+    oral_tasks_ps: tuple = (0.4, 0.4, 0.1, 0.1, 0.0)
+    transition_sample: int = 400_000
+    reading_sample: int = 3_100_000
+    reading_tasks_ps: tuple = (0.2, 0.2, 0.05, 0.05, 0.5)
+    batch_size: int = 100
+    rng_seed: int = 2021
+
+    def __post_init__(self):
+        os.makedirs(self.weight_folder, exist_ok=True)
+        os.makedirs(self.eval_folder, exist_ok=True)
+        os.makedirs(self.plot_folder, exist_ok=True)
+
+        if self.uuid is None:
+            print("UUID not found, regenerating.")
+            self.uuid = uuid.uuid4().hex
+            self.save()
 
     @classmethod
     def from_json(cls, json_file):
         """Create ModelConfig from json file"""
-        print(f"Loading config from {json_file}")
+        print(f"Loaded config from {json_file}")
         with open(json_file) as f:
             config_dict = json.load(f)
 
         return cls(**config_dict)
 
-    def __call__(self):
-        return self.__dict__
-
-    def _init_from_scratch(self):
-
-        # Unique identifier
-        self.uuid = uuid.uuid4().hex
-
-        # Additional convienient attributes
-        self.n_timesteps = int(self.max_unit_time * (1 / self.tau))
-        self.total_sample = self.oral_sample + self.reading_sample
-
-        # Epoch = 10000 sample by definition
-        self.total_number_of_epoch = int(self.total_sample / 10000)
-        self.steps_per_epoch = int(10000 / self.batch_size)
-
-        self.save_freq_sample = (
-            self.save_freq * self.batch_size * self.steps_per_epoch
-        )  # For TF 2.1
-        self.eval_freq = self.save_freq
-
-        self.saved_epoches = list(range(1, 11)) + list(
-            range(10 + self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
-        )
-        self.path = self._make_path()
-
-    def _make_path(self):
-        path_dict = {}
-        path_dict["tf_root"] = self.tf_root
-        
-        if self.batch_name is not None:
-            # Put all stuff under batch folder if running in batch
-            path_dict["batch_folder"] = os.path.join(self.tf_root, "models", "batch_run", self.batch_name)         
-            path_dict["model_folder"] = os.path.join(path_dict["batch_folder"], self.code_name)
-        else:
-            path_dict["model_folder"] = os.path.join(self.tf_root, "models", self.code_name)
-            
-        path_dict["weight_folder"] = os.path.join(path_dict["model_folder"], "weights")
-        path_dict["eval_folder"] = os.path.join(path_dict["model_folder"], "eval")
-        path_dict["save_model_folder"] = os.path.join(
-            path_dict["model_folder"], "saved_model"
-        )
-        path_dict["plot_folder"] = os.path.join(path_dict["model_folder"], "plots")
-        path_dict["tensorboard_folder"] = os.path.join(
-            self.tf_root, "tensorboard_log", self.code_name
-        )
-        path_dict["weights_checkpoint_fstring"] = os.path.join(
-            path_dict["weight_folder"], "ep{epoch:04d}"
-        )
-        path_dict["history_pickle"] = os.path.join(
-            path_dict["model_folder"], "history.pkl"
-        )
-        path_dict["weights_list"] = [
-            os.path.join(path_dict["weight_folder"], f"ep{epoch:04d}")
-            for epoch in self.saved_epoches
-        ]
-        
-
-
-        os.makedirs(path_dict["weight_folder"], exist_ok=True)
-        os.makedirs(path_dict["eval_folder"], exist_ok=True)
-        os.makedirs(path_dict["plot_folder"], exist_ok=True)
-        os.makedirs(path_dict["save_model_folder"], exist_ok=True)
-        return path_dict
-
+    @classmethod
+    def from_global(cls, globals_dict):
+        config_dict = {k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()}
+        return cls(**config_dict)
 
     def save(self, json_file=None):
-        
+        """Save run config to json file"""
         if json_file is None:
-            json_file = os.path.join(self.path["model_folder"], "model_config.json")
+            json_file = os.path.join(self.model_folder, "model_config.json")
 
         with open(json_file, "w") as f:
             json.dump(self.__dict__, f)
+            
         print(f"Saved config json to {json_file}")
+
+    # Inferred training time properties
+    @property
+    def n_timesteps(self) -> int:
+        return int(self.max_unit_time * (1 / self.tau))
+
+    @property
+    def total_sample(self) -> int:
+        return self.oral_sample + self.reading_sample
+
+    @property
+    def total_number_of_epoch(self) -> int:
+        return int(self.total_sample / 10000)
+    
+    @property
+    def steps_per_epoch(self) -> int:
+        return int(10000 / self.batch_size)
+
+    @property
+    def saved_epoches(self) -> list:
+        oral_first_10 = list(range(1, 11))
+        first_read_epoch = int((self.oral_sample / 10000) + 1)
+        read_first_10 = list(range(first_read_epoch, first_read_epoch + 10))
+        other = list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
+        return sorted(list(set(oral_first_10 + read_first_10 + other)))
+
+    # Path related config properties
+    @property
+    def model_folder(self) -> str:
+        if self.batch_name is not None:
+            return os.path.join(self.tf_root, "models", self.batch_name, self.code_name)
+        else:
+            return os.path.join(self.tf_root, "models", self.code_name)
+
+    @property
+    def weight_folder(self) -> str:
+        return os.path.join(self.model_folder, "weights")
+
+    @property
+    def eval_folder(self) -> str:
+        return os.path.join(self.model_folder, "eval")
+
+    @property
+    def plot_folder(self) -> str:
+        return os.path.join(self.model_folder, "plots")
+
+    @property
+    def tensorboard_folder(self) -> str:
+        return os.path.join(self.tf_root, "tensorboard_log", self.code_name)
+
+    @property
+    def saved_weights_fstring(self) -> str:
+        return os.path.join(self.weight_folder, "ep{epoch:04d}")
+
+    @property
+    def saved_weights(self) -> list:
+        return [os.path.join(self.weight_folder, f"ep{epoch:04d}") for epoch in self.saved_epoches]
+
+    @property
+    def config_json(self) -> str:
+        return os.path.join(self.model_folder, 'config.json')
+
 
 
 # %% Batch related functions
@@ -269,13 +314,13 @@ def limit_gpu_memory_use(limit_MB=7168):
     """
     gpus = tf.config.list_physical_devices("GPU")
     cfg = [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=limit_MB)]
-    
+
     try:
         tf.config.experimental.set_virtual_device_configuration(gpus[0], cfg)
     except:
         pass
-    
-    
+
+
 def batch_config_to_bigquery(batch_cfgs_json, dataset_name, table_name):
     from google.cloud import bigquery
     import json, os
@@ -306,8 +351,8 @@ def batch_config_to_bigquery(batch_cfgs_json, dataset_name, table_name):
     job = client.load_table_from_dataframe(df, table_ref)
     job.result()
     print("Loaded dataframe to {}".format(table_ref.path))
-        
-        
+
+
 def csv_to_bigquery(csv_file, dataset_name, table_name):
     from google.cloud import bigquery
     import json, os
