@@ -24,6 +24,7 @@ class Sampler:
     def __init__(self, cfg, data):
 
         # Get necessary environment config from cfg object
+        self.cfg = cfg
         self.tasks = cfg.tasks
         self.wf_clip_low = cfg.wf_clip_low
         self.wf_clip_high = cfg.wf_clip_high
@@ -55,24 +56,98 @@ class Sampler:
         self.progress = {}
         self._calculate_progress_dict()
 
-    def plot(self):
+    def plot_env(self, ax=None):
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(7,5))
+
         """Plot an easy to understand environment progression figure"""
-        plt.plot(self.progress['oral'], label='oral corpus')
-        plt.plot(self.progress['reading'], label='reading corpus')
+        ax.plot(self.progress['oral'], label='oral corpus')
+        ax.plot(self.progress['reading'], label='reading corpus')
 
         reading_p = [self.task_ps[i][-1] if type(self.task_ps[i]) is list or tuple else self.task_ps[i] for i in range(self.total_batches)]
         # print(reading_p)
-        plt.plot(reading_p, label='reading_p', linestyle='dashdot', color='black')
+        ax.plot(reading_p, label='reading_p', linestyle='dashdot', color='black')
 
-        plt.axvline(x=self.oral_batches, ymin=0, ymax=1, linestyle = 'dotted', color='red', label='transition start')
-        plt.axvline(x=self.oral_batches + self.transition_batches, ymin=0, ymax=1, linestyle = 'dotted', color='green', label = 'transition end')
-        plt.text(x=10, y=0.8, s=f"oral phase task ps \n{self.oral_tasks_ps}")
-        plt.text(x=self.total_batches*0.5, y=0.8, s=f"reading phase task ps \n(after transition) \n{self.reading_tasks_ps}")
-        plt.xlabel('batch')
+        ax.axvline(x=self.oral_batches, ymin=0, ymax=1, linestyle = 'dotted', color='red', label='transition start')
+        ax.axvline(x=self.oral_batches + self.transition_batches, ymin=0, ymax=1, linestyle = 'dotted', color='green', label = 'transition end')
+        ax.text(x=10, y=0.8, s=f"oral phase task ps \n{self.oral_tasks_ps}")
+        ax.text(x=self.total_batches*0.5, y=0.8, s=f"reading phase task ps \n(after transition) \n{self.reading_tasks_ps}")
+        ax.set_xlabel('batch')
+        ax.set_ylabel('percetile rank of word frequency')
 
-        plt.legend()
-        plt.title('Corpus opening progression (%)')
-        plt.show()
+        ax.legend(loc="lower right")
+        ax.set_title('Corpus opening progression (%)')
+
+
+    def plot_testset_on_env(self):
+        """Combined env plot to show testset exposure on env"""
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharey=True, gridspec_kw={'width_ratios': [2, 1]})
+        self.plot_env(ax1)
+        self._plot_testset_pct_taraban(ax2)
+
+        
+
+    def _plot_testset_pct_taraban(self, ax = None):
+        """Plot violin pct distribution in Taraban"""
+        df = self._join_testset_pct("taraban")
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(7,5))
+
+        ax.violinplot(dataset = [
+            df.loc[df.cond=='High-frequency exception', 'pct'],
+            df.loc[df.cond=='Regular control for High-frequency exception', 'pct'],
+            df.loc[df.cond=='Low-frequency exception', 'pct'],
+            df.loc[df.cond=='Regular control for Low-frequency exception', 'pct']
+            ], showmeans=True)
+
+        def set_axis_style(ax):
+            labels = ['HF-EXC', 'HF-REG', 'LF-EXC', 'LF-REG']
+            ax.xaxis.set_tick_params(direction='out')
+            ax.xaxis.set_ticks_position('bottom')
+            ax.set_xticks(np.arange(1, len(labels) + 1))
+            ax.set_xticklabels(labels)
+            ax.set_xlim(0.25, len(labels) + 0.75)
+            ax.set_xlabel('conditions')
+            ax.set_title('Taraban')
+
+        set_axis_style(ax)
+
+    def _plot_testset_pct_strain(self, ax = None):
+        """Plot violin pct distribution in Taraban"""
+        df = self._join_testset_pct("strain")
+
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(7,5))
+
+        ax.violinplot(dataset = [
+            df.loc[df.cond=='High-frequency exception', 'pct'],
+            df.loc[df.cond=='Regular control for High-frequency exception', 'pct'],
+            df.loc[df.cond=='Low-frequency exception', 'pct'],
+            df.loc[df.cond=='Regular control for Low-frequency exception', 'pct']
+            ], showmeans=True)
+
+        def set_axis_style(ax):
+            labels = ['HF-EXC', 'HF-REG', 'LF-EXC', 'LF-REG']
+            ax.xaxis.set_tick_params(direction='out')
+            ax.xaxis.set_ticks_position('bottom')
+            ax.set_xticks(np.arange(1, len(labels) + 1))
+            ax.set_xticklabels(labels)
+            ax.set_xlim(0.25, len(labels) + 0.75)
+            ax.set_xlabel('conditions')
+            ax.set_title('Taraban')
+
+        set_axis_style(ax)
+
+
+    def _join_testset_pct(self, testset_name):
+        """Create a temp df for plotting testset on env"""
+        f = os.path.join(self.cfg.tf_root, "dataset", "testsets", f"{testset_name}.pkl.gz")
+        ts = load_testset(f)
+        ts_sel = {key:ts[key] for key in ('item', 'cond')}
+        ts_sel['pct'] = [self.rank_pct_wf_dict[x] for x in ts_sel['item']]
+        return pd.DataFrame(ts_sel)
 
     def _calculate_aux_variables(self):
         self.total_sample = self.oral_sample + self.reading_sample
@@ -91,6 +166,7 @@ class Sampler:
             
         clip_wf = self.data.df_train.wf.clip(self.wf_clip_low, self.wf_clip_high).copy()
         self.rank_pct_wf = clip_wf.rank(pct=True, ascending=False)
+        self.rank_pct_wf_dict = dict(zip(self.data.df_train.word, self.rank_pct_wf))
 
         assert self.wf_compression in ('log', 'root')
         self.compressed_wf = np.log(clip_wf + 1) if self.wf_compression == 'log' else np.sqrt(clip_wf)
