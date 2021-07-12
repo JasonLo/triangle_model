@@ -4,14 +4,6 @@ import altair as alt
 import meta, modeling, evaluate
 
 
-def main(code_name, testcase=None):
-    """Command line entry point"""
-    if testcase is None:
-        [TEST_MAP[i + 1](code_name) for i in range(5)]
-    else:
-        TEST_MAP[testcase](code_name)
-
-
 def init(code_name, tau_override=None):
 
     cfg_json = os.path.join("models", code_name, "model_config.json")
@@ -22,7 +14,6 @@ def init(code_name, tau_override=None):
         cfg.tau_original = cfg.tau
         cfg.tau = tau_override
         cfg.output_ticks = int(round(cfg.output_ticks * (cfg.tau_original / cfg.tau)))
-        cfg._init_from_scratch()
 
     model = modeling.MyModel(cfg)
     test = evaluate.TestSet(cfg, model)
@@ -35,8 +26,8 @@ def run_test1(code_name):
     mdf = make_mean_df(df)
     fig9 = plot_hs04_fig9(mdf, metric="acc")
     fig9_sse = plot_hs04_fig9(mdf, metric="csse")
-    fig9.save(os.path.join(test.cfg.path["plot_folder"], "test1_acc.html"))
-    fig9_sse.save(os.path.join(test.cfg.path["plot_folder"], "test1_sse.html"))
+    fig9.save(os.path.join(test.cfg.plot_folder, "test1_acc.html"))
+    fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1_sse.html"))
 
     # Extras Oral tasks
     mdf_pp = make_mean_df(test.eval("train_r1000", "pho_pho"))
@@ -48,12 +39,8 @@ def run_test1(code_name):
     test1_oral_plot_acc = plot_hs04_fig14(df_oral, metric="acc")
     test1_oral_plot_sse = plot_hs04_fig14(df_oral, metric="csse")
 
-    test1_oral_plot_acc.save(
-        os.path.join(test.cfg.path["plot_folder"], "test1_oral_acc.html")
-    )
-    test1_oral_plot_sse.save(
-        os.path.join(test.cfg.path["plot_folder"], "test1_oral_sse.html")
-    )
+    test1_oral_plot_acc.save(os.path.join(test.cfg.plot_folder, "test1_oral_acc.html"))
+    test1_oral_plot_sse.save(os.path.join(test.cfg.plot_folder, "test1_oral_sse.html"))
 
 
 def run_test2(code_name):
@@ -84,7 +71,7 @@ def run_test2(code_name):
     fig10 = plot_hs04_fig10(
         mdf, max_epoch=test.cfg.total_number_of_epoch, tick_after=12
     )
-    fig10.save(os.path.join(test.cfg.path["plot_folder"], "test2.html"))
+    fig10.save(os.path.join(test.cfg.plot_folder, "test2.html"))
 
 
 def run_test3(code_name):
@@ -92,7 +79,7 @@ def run_test3(code_name):
     df = test.eval("glushko", "triangle")
     mdf = make_cond_mean_df(df)
     test3 = plot_conds(mdf, tick_after=12)
-    test3.save(os.path.join(test.cfg.path["plot_folder"], "test3.html"))
+    test3.save(os.path.join(test.cfg.plot_folder, "test3.html"))
 
 
 def run_test4(code_name):
@@ -104,7 +91,7 @@ def run_test4(code_name):
     test4 = plot_hs04_fig11(
         mdf, max_epoch=test.cfg.total_number_of_epoch, tick_after=12
     )
-    test4.save(os.path.join(test.cfg.path["plot_folder"], "test4.html"))
+    test4.save(os.path.join(test.cfg.plot_folder, "test4.html"))
 
 
 def run_test5(code_name):
@@ -119,7 +106,7 @@ def run_test5(code_name):
     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion])
     mdf_sem = make_mean_df(df_sem)
     test5a = plot_hs04_fig14(mdf_sem, output="sem")
-    test5a.save(os.path.join(test.cfg.path["plot_folder"], "test5_sem.html"))
+    test5a.save(os.path.join(test.cfg.plot_folder, "test5_sem.html"))
 
     # PHO (extra)
     df_op_lesion = test.eval("train_r1000", "exp_osp", save_file_prefix="hi_res")
@@ -129,10 +116,8 @@ def run_test5(code_name):
     mdf_pho = make_mean_df(df_pho)
 
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
-    test5b.save(os.path.join(test.cfg.path["plot_folder"], "test5_pho.html"))
+    test5b.save(os.path.join(test.cfg.plot_folder, "test5_pho.html"))
 
-
-TEST_MAP = {1: run_test1, 2: run_test2, 3: run_test3, 4: run_test4, 5: run_test5}
 
 ########## Support functions ##########
 
@@ -295,16 +280,14 @@ def plot_hs04_fig14(mean_df, output=None, metric="acc"):
 
     return timetick_sel & line
 
-
 ################################################################################
 
+TEST_MAP = {1: run_test1, 2: run_test2, 3: run_test3, 4: run_test4, 5: run_test5}
+
 if __name__ == "__main__":
+    """Command line entry point, take code_name and testcase to run tests"""
     parser = argparse.ArgumentParser(description="Run HS04 test cases")
-    parser.add_argument("code_name")
-    parser.add_argument(
-        "testcase",
-        help="hs04 testcase 1:EoT acc, 2:FxC, 3:NW, 4:IMG, 5:Lesion",
-        type=int,
-    )
+    parser.add_argument("-n", "--code_name", required=True, type=str)
+    parser.add_argument("-t", "--testcase", nargs="+", type=int, help="1:EoT acc, 2:FxC, 3:NW, 4:IMG, 5:Lesion")
     args = parser.parse_args()
-    main(**vars(args))
+    [TEST_MAP[i](args.code_name) for i in args.testcase]

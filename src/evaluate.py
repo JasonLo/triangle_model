@@ -52,7 +52,7 @@ class TestSet:
                 self.cfg.saved_epoches, desc=f"Evaluating {testset_name}:{task}"
             ):
                 # for epoch in tqdm(range(250, 291, 10)):
-                w = self.cfg.path["weights_checkpoint_fstring"].format(epoch=epoch)
+                w = self.cfg.saved_weights_fstring.format(epoch=epoch)
                 self.model.load_weights(w)
                 y_pred = self.model(
                     [testset_package[modeling.IN_OUT[task][0]]] * self.cfg.n_timesteps
@@ -87,12 +87,12 @@ class TestSet:
             # Save evaluation
             if save_file_prefix is not None:
                 csv_name = os.path.join(
-                    self.cfg.path["eval_folder"],
+                    self.cfg.eval_folder,
                     f"{save_file_prefix}_{testset_name}_{task}.csv",
                 )
             else:
                 csv_name = os.path.join(
-                    self.cfg.path["eval_folder"], f"{testset_name}_{task}.csv"
+                    self.cfg.eval_folder, f"{testset_name}_{task}.csv"
                 )
 
             df.to_csv(csv_name)
@@ -132,9 +132,9 @@ class TestSet:
 
     def load(self, testset_name, task, save_file_prefix=None):
         if save_file_prefix is not None:
-            csv_file = os.path.join(self.cfg.path["eval_folder"], f"{save_file_prefix}_{testset_name}_{task}.csv")
+            csv_file = os.path.join(self.cfg.eval_folder, f"{save_file_prefix}_{testset_name}_{task}.csv")
         else:
-            csv_file = os.path.join(self.cfg.path["eval_folder"], f"{testset_name}_{task}.csv")
+            csv_file = os.path.join(self.cfg.eval_folder, f"{testset_name}_{task}.csv")
         return pd.read_csv(csv_file, index_col=0)
 
     def output_idx_to_timetick(self, idx):
@@ -275,7 +275,7 @@ class TestSet_Old:
         self.result = df
 
     def _eval_one_epoch(self, epoch):
-        checkpoint = self.cfg.path["weights_checkpoint_fstring"].format(epoch=epoch)
+        checkpoint = self.cfg.saved_weights_fstring.format(epoch=epoch)
         self.model.load_weights(checkpoint)
 
         pred_y = self.model([self.x_test] * self.cfg.n_timesteps)
@@ -362,7 +362,7 @@ class Eval:
     def _load_results_from_file(self):
         for testset_name in self.TESTSETS_NAME:
             with os.path.join(
-                self.cfg.path["eval_folder"], f"{testset_name}_mean_df.csv"
+                self.cfg.eval_folder, f"{testset_name}_mean_df.csv"
             ) as f:
                 try:
                     setattr(self, f"{testset_name}_mean_df", pd.read_csv(f))
@@ -418,7 +418,7 @@ class EvalOral:
         for _testset_name in self.TESTSETS_NAME:
             try:
                 _file = os.path.join(
-                    self.cfg.path["model_folder"],
+                    self.cfg.model_folder,
                     "eval",
                     f"{_testset_name}_mean_df.csv",
                 )
@@ -481,7 +481,7 @@ class EvalOral:
         # Write item level results
         df.to_csv(
             os.path.join(
-                self.cfg.path["model_folder"], "eval", f"{testset_name}_item_df.csv"
+                self.cfg.model_folder, "eval", f"{testset_name}_item_df.csv"
             )
         )
 
@@ -493,7 +493,7 @@ class EvalOral:
         )
         mean_df.to_csv(
             os.path.join(
-                self.cfg.path["model_folder"], "eval", f"{testset_name}_mean_df.csv"
+                self.cfg.model_folder, "eval", f"{testset_name}_mean_df.csv"
             )
         )
 
@@ -509,7 +509,7 @@ class EvalOral:
             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
 
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "homophone_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "homophone_item_df.csv")
         )
 
         mean_df = (
@@ -519,7 +519,7 @@ class EvalOral:
         )
 
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "homophone_mean_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "homophone_mean_df.csv")
         )
 
         return df
@@ -536,7 +536,7 @@ class EvalOral:
             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
 
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "img_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "img_item_df.csv")
         )
 
         return df
@@ -558,7 +558,7 @@ class EvalOral:
             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
 
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "strain_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "strain_item_df.csv")
         )
 
         # Condition level aggregate
@@ -577,7 +577,7 @@ class EvalOral:
             .reset_index()
         )
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "strain_mean_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "strain_mean_df.csv")
         )
         self.strain_mean_df = mean_df
 
@@ -602,7 +602,7 @@ class EvalOral:
             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
 
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "taraban_item_df.csv")
         )
 
         mean_df = (
@@ -612,7 +612,7 @@ class EvalOral:
         )
 
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_mean_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "taraban_mean_df.csv")
         )
 
         self.taraban_mean_df = mean_df
@@ -637,7 +637,7 @@ class EvalReading:
         for _testset_name in self.TESTSETS_NAME:
             try:
                 _file = os.path.join(
-                    self.cfg.path["model_folder"],
+                    self.cfg.model_folder,
                     "eval",
                     f"{_testset_name}_mean_df.csv",
                 )
@@ -679,7 +679,7 @@ class EvalReading:
         df = t.result
         df.to_csv(
             os.path.join(
-                self.cfg.path["model_folder"], "eval", f"{testset_name}_item_df.csv"
+                self.cfg.model_folder, "eval", f"{testset_name}_item_df.csv"
             )
         )
 
@@ -691,7 +691,7 @@ class EvalReading:
         )
         mean_df.to_csv(
             os.path.join(
-                self.cfg.path["model_folder"], "eval", f"{testset_name}_mean_df.csv"
+                self.cfg.model_folder, "eval", f"{testset_name}_mean_df.csv"
             )
         )
 
@@ -731,7 +731,7 @@ class EvalReading:
             df = pd.concat([df, t.result])
 
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "strain_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "strain_item_df.csv")
         )
 
         # Condition level aggregate
@@ -750,7 +750,7 @@ class EvalReading:
             .reset_index()
         )
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "strain_mean_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "strain_mean_df.csv")
         )
         self.strain_mean_df = mean_df
 
@@ -798,7 +798,7 @@ class EvalReading:
 
         df = pd.concat([pho_df, pho_acc_df, sem_df])
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "grain_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "grain_item_df.csv")
         )
 
         mean_df = (
@@ -809,7 +809,7 @@ class EvalReading:
             .reset_index()
         )
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "grain_mean_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "grain_mean_df.csv")
         )
 
         self.grain_mean_df = mean_df
@@ -850,7 +850,7 @@ class EvalReading:
             df = pd.concat([df, t.result])
 
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "taraban_item_df.csv")
         )
 
         mean_df = (
@@ -860,7 +860,7 @@ class EvalReading:
         )
 
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "taraban_mean_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "taraban_mean_df.csv")
         )
 
         self.taraban_mean_df = mean_df
@@ -888,7 +888,7 @@ class EvalReading:
             df = pd.concat([df, t.result])
 
         df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "cortese_item_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "cortese_item_df.csv")
         )
 
         mean_df = (
@@ -898,7 +898,7 @@ class EvalReading:
         )
 
         mean_df.to_csv(
-            os.path.join(self.cfg.path["model_folder"], "eval", "cortese_mean_df.csv")
+            os.path.join(self.cfg.model_folder, "eval", "cortese_mean_df.csv")
         )
 
         self.cortese_mean_df = mean_df
