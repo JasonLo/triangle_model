@@ -35,7 +35,7 @@ def run_test1(code_name):
     mdf_sp = make_mean_df(test.eval("train_r1000", "sem_pho"))
     mdf_ps = make_mean_df(test.eval("train_r1000", "pho_sem"))
 
-    df_oral = pd.concat([mdf_pp, mdf_ss, mdf_sp, mdf_ps])
+    df_oral = pd.concat([mdf_pp, mdf_ss, mdf_sp, mdf_ps], ignore_index=True)
     test1_oral_plot_acc = plot_hs04_fig14(df_oral, metric="acc")
     test1_oral_plot_sse = plot_hs04_fig14(df_oral, metric="csse")
 
@@ -103,7 +103,7 @@ def run_test5(code_name):
     df_os_lesion = test.eval("train_r1000", "exp_ops", save_file_prefix="hi_res")
     df_ops_lesion = test.eval("train_r1000", "ort_sem", save_file_prefix="hi_res")
 
-    df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion])
+    df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
     mdf_sem = make_mean_df(df_sem)
     test5a = plot_hs04_fig14(mdf_sem, output="sem")
     test5a.save(os.path.join(test.cfg.plot_folder, "test5_sem.html"))
@@ -112,12 +112,35 @@ def run_test5(code_name):
     df_op_lesion = test.eval("train_r1000", "exp_osp", save_file_prefix="hi_res")
     df_osp_lesion = test.eval("train_r1000", "ort_pho", save_file_prefix="hi_res")
 
-    df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion])
+    df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
     mdf_pho = make_mean_df(df_pho)
 
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
     test5b.save(os.path.join(test.cfg.plot_folder, "test5_pho.html"))
 
+def run_test6(code_name):
+    """Test 5 without resizing tau"""
+    test = init(code_name)
+
+    # SEM (same as HS04)
+    df_intact = test.eval("train_r1000", "triangle")
+    df_os_lesion = test.eval("train_r1000", "exp_ops")
+    df_ops_lesion = test.eval("train_r1000", "ort_sem")
+
+    df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
+    mdf_sem = make_mean_df(df_sem)
+    test5a = plot_hs04_fig14(mdf_sem, output="sem")
+    test5a.save(os.path.join(test.cfg.plot_folder, "test6_sem.html"))
+
+    # PHO (extra)
+    df_op_lesion = test.eval("train_r1000", "exp_osp")
+    df_osp_lesion = test.eval("train_r1000", "ort_pho")
+
+    df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
+    mdf_pho = make_mean_df(df_pho)
+
+    test5b = plot_hs04_fig14(mdf_pho, output="pho")
+    test5b.save(os.path.join(test.cfg.plot_folder, "test6_pho.html"))
 
 ########## Support functions ##########
 
@@ -282,7 +305,7 @@ def plot_hs04_fig14(mean_df, output=None, metric="acc"):
 
 ################################################################################
 
-TEST_MAP = {1: run_test1, 2: run_test2, 3: run_test3, 4: run_test4, 5: run_test5}
+TEST_MAP = {1: run_test1, 2: run_test2, 3: run_test3, 4: run_test4, 5: run_test5, 6: run_test6}
 
 if __name__ == "__main__":
     """Command line entry point, take code_name and testcase to run tests"""
