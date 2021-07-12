@@ -1,4 +1,4 @@
-# This script contain a set of custom functions for managing representations
+# This script contain a set of custom functions for managing representations and sampling
 
 import pickle, gzip, os
 import matplotlib.pyplot as plt
@@ -13,13 +13,17 @@ def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
     """Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
     """
-
     mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
     m_dict = mapping.set_index(0).T.to_dict("list")
     return m_dict
 
 class Sampler:
-    """v2 Sampler"""
+    """v2 Sampler for tf model v4
+    Features: 
+    1) Smooth non-stationary environment
+    2) Visualizing enviroment change with plot_env()
+    3) Visualizing relative testset exposure with plot_testset_on_env()
+    """
 
     def __init__(self, cfg, data):
 
@@ -113,33 +117,6 @@ class Sampler:
             ax.set_title('Taraban')
 
         set_axis_style(ax)
-
-    def _plot_testset_pct_strain(self, ax = None):
-        """Plot violin pct distribution in Taraban"""
-        df = self._join_testset_pct("strain")
-
-        if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=(7,5))
-
-        ax.violinplot(dataset = [
-            df.loc[df.cond=='High-frequency exception', 'pct'],
-            df.loc[df.cond=='Regular control for High-frequency exception', 'pct'],
-            df.loc[df.cond=='Low-frequency exception', 'pct'],
-            df.loc[df.cond=='Regular control for Low-frequency exception', 'pct']
-            ], showmeans=True)
-
-        def set_axis_style(ax):
-            labels = ['HF-EXC', 'HF-REG', 'LF-EXC', 'LF-REG']
-            ax.xaxis.set_tick_params(direction='out')
-            ax.xaxis.set_ticks_position('bottom')
-            ax.set_xticks(np.arange(1, len(labels) + 1))
-            ax.set_xticklabels(labels)
-            ax.set_xlim(0.25, len(labels) + 0.75)
-            ax.set_xlabel('conditions')
-            ax.set_title('Taraban')
-
-        set_axis_style(ax)
-
 
     def _join_testset_pct(self, testset_name):
         """Create a temp df for plotting testset on env"""
