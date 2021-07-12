@@ -21,8 +21,10 @@ class TestSet:
     """
 
     METRICS_MAP = {
-        "pho": {"acc": metrics.PhoAccuracy(), "sse": metrics.SumSquaredError()},
-        "sem": {"acc": metrics.RightSideAccuracy(), "sse": metrics.SumSquaredError()},
+        "acc": {'pho': metrics.PhoAccuracy(), 'sem':metrics.RightSideAccuracy()},
+        "sse": metrics.SumSquaredError(),
+        "act0": metrics.OutputOfZeroTarget(),
+        "act1": metrics.OutputOfOneTarget()
     }
 
     def __init__(self, cfg, model):
@@ -148,6 +150,7 @@ class TestSet:
         y_true: label dictionary (time invarying), e.g., {'sem': (items, maybe n ans. output nodes)}
         """
         out = pd.DataFrame()
+
         this_y_pred = y_pred[tag["output_name"]][tag["timetick_idx"]]
         # shape: (time ticks, items, output nodes)
 
@@ -160,21 +163,27 @@ class TestSet:
             print("Cannot find phoneme in y_true dictionary")
         # shape: (item, *maybe n ans, output nodes)
 
-        acc = self.METRICS_MAP[tag["output_name"]]["acc"]
-        sse = self.METRICS_MAP[tag["output_name"]]["sse"]
+        acc = self.METRICS_MAP["acc"][tag["output_name"]]
+        sse = self.METRICS_MAP["sse"]
+        act0 = self.METRICS_MAP["act0"]
+        act1 = self.METRICS_MAP["act1"]
 
         if type(this_y_true) is list:
             # List mode (for glushko)
             out["acc"] = acc.item_metric_multi_list(this_y_true_phoneme, this_y_pred)
             out["sse"] = sse.item_metric_multi_list(this_y_true, this_y_pred)
+            # TODO: add act0 and act1
         elif tf.rank(this_y_true) == 3:
             # Multi ans mode if we have 3 dims
             out["acc"] = acc.item_metric_multi_ans(this_y_true, this_y_pred)
             out["sse"] = sse.item_metric_multi_ans(this_y_true, this_y_pred)
+            # TODO: add act0 and act1
         else:
             # Single ans mode
             out["acc"] = acc.item_metric(this_y_true, this_y_pred)
             out["sse"] = sse.item_metric(this_y_true, this_y_pred)
+            out["act0"] = act0.item_metric(this_y_true, this_y_pred)
+            out["act1"] = act1.item_metric(this_y_true, this_y_pred)
 
         # Write prediction if output is pho
         if tag["output_name"] == "pho":
