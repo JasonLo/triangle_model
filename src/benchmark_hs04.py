@@ -68,10 +68,11 @@ def run_test2(code_name):
         lambda x: "Regular" if x.startswith("Regular") else "Exception"
     )
 
-    fig10 = plot_hs04_fig10(
-        mdf, max_epoch=test.cfg.total_number_of_epoch, tick_after=12
-    )
-    fig10.save(os.path.join(test.cfg.plot_folder, "test2.html"))
+    fig10_acc = plot_hs04_fig10(mdf, metric="acc")
+    fig10_acc.save(os.path.join(test.cfg.plot_folder, "test2_acc.html"))
+
+    fig10_sse = plot_hs04_fig10(mdf, metric="csse")
+    fig10_sse.save(os.path.join(test.cfg.plot_folder, "test2_sse.html"))
 
 
 def run_test3(code_name):
@@ -200,29 +201,46 @@ def plot_hs04_fig9(mean_df, metric="acc"):
     return timetick_sel & main
 
 
-def plot_hs04_fig10(mean_df, max_epoch, tick_after=4):
+def plot_hs04_fig10(mean_df, metric="acc"):
     """test case 2"""
+    # metric_domain = (0, 1) if metric == "acc" else (0, mean_df.csse.max())
+    mean_df = mean_df.loc[mean_df.output_name == "pho"]
 
-    epoch_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=max_epoch + 1, step=10),
-        fields=["epoch"],
-        init={"epoch": max_epoch + 1},
-        name="epoch",
-    )
-    sdf = mean_df.loc[(mean_df.timetick >= tick_after) & (mean_df.output_name == "pho")]
+    interval_epoch = alt.selection_interval(init={"epoch": (310, 320)})
+    interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
 
-    return (
-        alt.Chart(sdf)
+    epoch_selection = (
+        alt.Chart(mean_df)
+        .mark_rect()
+        .encode(x="epoch:Q", color=f"mean({metric}):Q", 
+            opacity=alt.condition(interval_epoch, alt.value(1), alt.value(0.2)))
+        .add_selection(interval_epoch)
+    ).properties(width=400)
+
+    timetick_sel = (
+        alt.Chart(mean_df)
+        .mark_rect()
+        .encode(x="timetick:Q", color=f"mean({metric}):Q", 
+            opacity=alt.condition(interval_timetick, alt.value(1), alt.value(0.2)))
+        .add_selection(interval_timetick)
+    ).properties(width=400)
+
+    plot_fxc_interact = (alt.Chart(mean_df)
         .mark_line()
         .encode(
             x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
-            y="mean(csse):Q",
+            y=f"mean({metric}):Q",
             color="reg:N",
         )
-        .add_selection(epoch_selection)
-        .transform_filter(epoch_selection)
-        .properties(width=200, height=200)
+        .transform_filter(interval_epoch)
+        .transform_filter(interval_timetick)
+        .interactive()
+        .properties(width=400)
     )
+    
+
+    return epoch_selection & timetick_sel & plot_fxc_interact
+        
 
 
 def plot_conds(mean_df, tick_after=4):
