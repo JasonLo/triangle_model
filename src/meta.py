@@ -154,11 +154,12 @@ class ModelConfig:
 
     @property
     def saved_epoches(self) -> list:
-        oral_first_10 = list(range(1, 11))
-        first_read_epoch = int((self.oral_sample / 10000) + 1)
-        read_first_10 = list(range(first_read_epoch, first_read_epoch + 10))
-        other = list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
-        return sorted(list(set(oral_first_10 + read_first_10 + other)))
+        # oral_first_10 = list(range(1, 11))
+        # first_read_epoch = int((self.oral_sample / 10000) + 1)
+        # read_first_10 = list(range(first_read_epoch, first_read_epoch + 10))
+        # other = list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
+        # return sorted(list(set(oral_first_10 + read_first_10 + other)))
+        return list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
 
     # Path related config properties
     @property
