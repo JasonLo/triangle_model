@@ -201,27 +201,26 @@ def plot_hs04_fig9(mean_df, metric="acc"):
     return timetick_sel & main
 
 
+
 def plot_hs04_fig10(mean_df, metric="acc"):
     """test case 2"""
     # metric_domain = (0, 1) if metric == "acc" else (0, mean_df.csse.max())
     mean_df = mean_df.loc[mean_df.output_name == "pho"]
 
-    interval_epoch = alt.selection_interval(init={"epoch": (310, 320)})
+    interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
     interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
 
     epoch_selection = (
         alt.Chart(mean_df)
         .mark_rect()
-        .encode(x="epoch:Q", color=f"mean({metric}):Q", 
-            opacity=alt.condition(interval_epoch, alt.value(1), alt.value(0.2)))
+        .encode(x="epoch:Q")
         .add_selection(interval_epoch)
     ).properties(width=400)
 
     timetick_sel = (
         alt.Chart(mean_df)
         .mark_rect()
-        .encode(x="timetick:Q", color=f"mean({metric}):Q", 
-            opacity=alt.condition(interval_timetick, alt.value(1), alt.value(0.2)))
+        .encode(x="timetick:Q")
         .add_selection(interval_timetick)
     ).properties(width=400)
 
