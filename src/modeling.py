@@ -1757,8 +1757,8 @@ class MyModel(tf.keras.Model):
 
     def _package_output(self, tensor_array_name, training):
         output_dict = K.in_train_phase(
-                {k: getattr(self, k).stack()[self.inject_error_ticks] for k in tensor_array_name},
-                {k: getattr(self, k).stack()[self.output_ticks] for k in tensor_array_name},
+                {k: getattr(self, k).stack()[-self.inject_error_ticks:] for k in tensor_array_name},
+                {k: getattr(self, k).stack()[-self.output_ticks:] for k in tensor_array_name},
                 training=training
             )
         return output_dict
