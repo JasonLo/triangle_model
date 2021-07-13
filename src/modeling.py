@@ -72,6 +72,10 @@ IN_OUT["ort_sem"] = ("ort", "sem")
 IN_OUT["exp_osp"] = ("ort", "pho")
 IN_OUT["exp_ops"] = ("ort", "sem")
 
+IN_OUT["exp_os"] = ("ort", "sem")
+IN_OUT["exp_op"] = ("ort", "pho")
+
+
 
 class MyModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
@@ -107,6 +111,8 @@ class MyModel(tf.keras.Model):
             "triangle": self.task_triangle,
             "exp_osp": self.experimental_task_osp,
             "exp_ops": self.experimental_task_ops,
+            "exp_os": self.experimental_task_os,
+            "exp_op": self.experimental_task_op
         }
 
     def build(self, input_shape=None):
@@ -519,33 +525,64 @@ class MyModel(tf.keras.Model):
             w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
             w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
-            ##### Hidden layer #####
-            sh = tf.matmul(inputs[t], self.w_hsp_sh)
-            hsp = self.tau * (sh + self.bias_hsp)
-            hsp += (1 - self.tau) * input_hsp_list[t]
+            ##### Hidden layer (SP) #####
+            self.input_hsp = self.input_hsp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
+                + (1 - self.tau) * self.input_hsp.read(t),
+            )
 
             ##### Phonology layer #####
-            hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
-            pp = tf.matmul(act_p_list[t], w_pp)
-            cp = tf.matmul(act_cpp_list[t], w_cp)
+            self.input_hsp_hp = self.input_hsp_hp.write(
+                t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            )
+            self.input_pho_pp = self.input_pho_pp.write(
+                t + 1, tf.matmul(self.pho.read(t), w_pp)
+            )
+            self.input_cpp_cp = self.input_cpp_cp.write(
+                t + 1, tf.matmul(self.cpp.read(t), w_cp)
+            )
+            self.input_pho = self.input_pho.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hsp_hp.read(t + 1)
+                    + self.input_pho_pp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
+                    + bias_p
+                )
+                + (1 - self.tau) * self.input_pho.read(t),
+            )
 
-            p = self.tau * (hsp_hp + pp + cp + bias_p)
-            p += (1 - self.tau) * input_p_list[t]
-
-            ##### P Cleanup layer #####
-            pc = tf.matmul(act_p_list[t], w_pc)
-            cpp = self.tau * (pc + bias_cpp) + (1 - self.tau) * input_cpp_list[t]
+            ##### Phonology Cleanup layer #####
+            self.input_cpp = self.input_cpp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
+                + (1 - self.tau) * self.input_cpp.read(t),
+            )
 
             # Record this timestep to list
-            input_hsp_list.append(hsp)
-            input_p_list.append(p)
-            input_cpp_list.append(cpp)
+            self.hsp = self.hsp.write(
+                t + 1, self.activation(self.input_hsp.read(t + 1))
+            )
+            self.pho = self.pho.write(
+                t + 1, self.activation(self.input_pho.read(t + 1))
+            )
+            self.cpp = self.cpp.write(
+                t + 1, self.activation(self.input_cpp.read(t + 1))
+            )
 
-            act_hsp_list.append(self.activation(hsp))
-            act_p_list.append(self.activation(p))
-            act_cpp_list.append(self.activation(cpp))
-
-        output_array_names = ()
+        output_array_names = (
+            "input_hsp",
+            "input_hsp_hp",
+            "input_pho_pp",
+            "input_cpp_cp",
+            "input_pho",
+            "input_cpp",
+            "hsp",
+            "pho",
+            "cpp",
+        )
         return self._package_output(output_array_names)
 
     def task_pho_pho(self, inputs, training=None):
@@ -560,28 +597,51 @@ class MyModel(tf.keras.Model):
             w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             # Phonological unit
-            cp = tf.matmul(act_cpp_list[t], w_cp)
-            pp = tf.matmul(act_p_list[t], w_pp)
-            p = self.tau * (cp + pp + bias_p)
-            #           p = self.tau * (cp + bias_p)
-            p += (1 - self.tau) * input_p_list[t]
-            input_p_list.append(p)
+            self.input_pho_pp = self.input_pho_pp.write(
+                t + 1, tf.matmul(self.pho.read(t), w_pp)
+            )
+            self.input_cpp_cp = self.input_cpp_cp.write(
+                t + 1, tf.matmul(self.cpp.read(t), w_cp)
+            )
+            self.input_pho = self.input_pho.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_pho_pp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
+                    + bias_p
+                )
+                + (1 - self.tau) * self.input_pho.read(t),
+            )
+
+            ##### Phonology Cleanup layer #####
+            self.input_cpp = self.input_cpp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
+                + (1 - self.tau) * self.input_cpp.read(t),
+            )
 
             if t < 8:
                 # Clamp activation to teaching signal
-                act_p_list.append(inputs[t])
+                self.pho = self.pho.write(t + 1, inputs[t])
             else:
-                act_p_list.append(self.activation(p))
-
-            # Clean up unit
-            pc = tf.matmul(act_p_list[t], w_pc)
-            cpp = self.tau * (pc + bias_cpp) + (1 - self.tau) * input_cpp_list[t]
+                self.pho = self.pho.write(
+                    t + 1, self.activation(self.input_pho.read(t + 1))
+                )
 
             # Record this timestep to list
-            input_cpp_list.append(cpp)
-            act_cpp_list.append(self.activation(cpp))
+            self.cpp = self.cpp.write(
+                t + 1, self.activation(self.input_cpp.read(t + 1))
+            )
 
-        output_array_names = ()
+        output_array_names = (
+            "input_pho_pp",
+            "input_cpp_cp",
+            "input_pho",
+            "input_cpp",
+            "pho",
+            "cpp",
+        )
         return self._package_output(output_array_names)
 
     def task_ort_sem(self, inputs, training=None):
@@ -596,31 +656,64 @@ class MyModel(tf.keras.Model):
             w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
-            hos += (1 - self.tau) * input_hos_list[t]
+            self.input_hos = self.input_hos.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+                + (1 - self.tau) * self.input_hos.read(t),
+            )
 
             ##### Semantic layer #####
-            sem_ss = tf.matmul(act_s_list[t], w_ss)
-            css_cs = tf.matmul(act_css_list[t], w_cs)
-            hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
+            self.input_sem_ss = self.input_sem_ss.write(
+                t + 1, tf.matmul(self.sem.read(t), w_ss)
+            )
+            self.input_css_cs = self.input_css_cs.write(
+                t + 1, tf.matmul(self.css.read(t), w_cs)
+            )
+            self.input_hos_hs = self.input_hos_hs.write(
+                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
+            )
 
-            s = self.tau * (sem_ss + css_cs + hos_hs + bias_s)
-            s += (1 - self.tau) * input_s_list[t]
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_sem_ss.read(t + 1)
+                    + self.input_css_cs.read(t + 1)
+                    + self.input_hos_hs.read(t + 1)
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
 
             ##### Semantic Cleanup layer #####
-            css = self.tau * (tf.matmul(act_s_list[t], w_sc) + bias_css)
-            css += (1 - self.tau) * input_css_list[t]
+            self.input_css = self.input_css.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
+                + (1 - self.tau) * self.input_css.read(t),
+            )
 
-            # Record this timestep to list
-            input_s_list.append(s)
-            input_css_list.append(css)
-            input_hos_list.append(hos)
+            # Update activation
+            self.sem = self.sem.write(
+                t + 1, self.activation(self.input_sem.read(t + 1))
+            )
+            self.css = self.css.write(
+                t + 1, self.activation(self.input_css.read(t + 1))
+            )
+            self.hos = self.hos.write(
+                t + 1, self.activation(self.input_hos.read(t + 1))
+            )
 
-            act_s_list.append(self.activation(s))
-            act_css_list.append(self.activation(css))
-            act_hos_list.append(self.activation(hos))
-
-        output_array_names = ()
+        output_array_names = (
+            "input_hos",
+            "input_sem_ss",
+            "input_css_cs",
+            "input_hos_hs",
+            "input_sem",
+            "input_css",
+            "sem",
+            "css",
+            "hos"
+        )
         return self._package_output(output_array_names)
 
     def task_ort_pho(self, inputs, training=None):
@@ -635,31 +728,64 @@ class MyModel(tf.keras.Model):
             w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OP) #####
-            hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
-            hop += (1 - self.tau) * input_hop_list[t]
+            self.input_hop = self.input_hop.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
+                + (1 - self.tau) * self.input_hop.read(t),
+            )
 
             ##### Phonology layer #####
-            pho_pp = tf.matmul(act_p_list[t], w_pp)
-            cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
-            hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp)
+            self.input_pho_pp = self.input_pho_pp.write(
+                t + 1, tf.matmul(self.pho.read(t), w_pp)
+            )
+            self.input_cpp_cp = self.input_cpp_cp.write(
+                t + 1, tf.matmul(self.cpp.read(t), w_cp)
+            )
+            self.input_hop_hp = self.input_hop_hp.write(
+                t + 1, tf.matmul(self.hop.read(t), self.w_hop_hp)
+            )
 
-            p = self.tau * (pho_pp + cpp_cp + hop_hp + bias_p)
-            p += (1 - self.tau) * input_p_list[t]
+            self.input_pho = self.input_pho.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_pho_pp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
+                    + self.input_hop_hp.read(t + 1)
+                    + bias_p
+                )
+                + (1 - self.tau) * self.input_pho.read(t),
+            )
 
             ##### Phonology Cleanup layer #####
-            cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
-            cpp += (1 - self.tau) * input_cpp_list[t]
+            self.input_cpp = self.input_cpp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
+                + (1 - self.tau) * self.input_cpp.read(t),
+            )
 
-            # Record this timestep to list
-            input_p_list.append(p)
-            input_cpp_list.append(cpp)
-            input_hop_list.append(hop)
+            self.pho = self.pho.write(
+                t + 1, self.activation(self.input_pho.read(t + 1))
+            )
+            self.cpp = self.cpp.write(
+                t + 1, self.activation(self.input_cpp.read(t + 1))
+            )
+            self.hop = self.hop.write(
+                t + 1, self.activation(self.input_hop.read(t + 1))
+            )
 
-            act_p_list.append(self.activation(p))
-            act_cpp_list.append(self.activation(cpp))
-            act_hop_list.append(self.activation(hop))
+        output_array_names = (
+            "input_hop",
+            "input_pho_pp",
+            "input_cpp_cp",
+            "input_hop_hp",
+            "input_pho",
+            "input_cpp",
+            "pho",
+            "cpp",
+            "hop"
+        )
 
-        output_array_names = ()
         return self._package_output(output_array_names)
 
     def task_triangle(self, inputs, training=None):
@@ -827,8 +953,175 @@ class MyModel(tf.keras.Model):
 
         return self._package_output(output_array_names)
 
+    def experimental_task_ops(self, inputs, training=None):
+        # init input = 0, activation - 0.5
+        self._reset_all_tensor_arrays()
+
+        # Recurrent structure over time ticks (Time averaged input)
+        for t in range(self.n_timesteps):
+            # Inject fresh white noise in each tick to weights and biases
+            # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
+            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+
+            ##### Hidden layer (OS) #####
+            self.input_hos = self.input_hos.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+                + (1 - self.tau) * self.input_hos.read(t),
+            )
+
+            ##### Hidden layer (OP) #####
+            self.input_hop = self.input_hop.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
+                + (1 - self.tau) * self.input_hop.read(t),
+            )
+
+            ##### Semantic layer #####
+            self.input_hps_hs = self.input_hps_hs.write(
+                t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
+            )
+            self.input_sem_ss = self.input_sem_ss.write(
+                t + 1, tf.matmul(self.sem.read(t), w_ss)
+            )
+            self.input_css_cs = self.input_css_cs.write(
+                t + 1, tf.matmul(self.css.read(t), w_cs)
+            )
+            self.input_hos_hs = self.input_hos_hs.write(
+                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
+            )
+
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hps_hs.read(t + 1)
+                    + self.input_sem_ss.read(t + 1)
+                    + self.input_css_cs.read(t + 1)
+                    # + self.input_hos_hs.read(t + 1) [LESION]
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
+
+            ##### Phonology layer #####
+            self.input_hsp_hp = self.input_hsp_hp.write(
+                t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            )
+            self.input_pho_pp = self.input_pho_pp.write(
+                t + 1, tf.matmul(self.pho.read(t), w_pp)
+            )
+            self.input_cpp_cp = self.input_cpp_cp.write(
+                t + 1, tf.matmul(self.cpp.read(t), w_cp)
+            )
+            self.input_hop_hp = self.input_hop_hp.write(
+                t + 1, tf.matmul(self.hop.read(t), self.w_hop_hp)
+            )
+
+            self.input_pho = self.input_pho.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hsp_hp.read(t + 1)
+                    + self.input_pho_pp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
+                    + self.input_hop_hp.read(t + 1)
+                    + bias_p
+                )
+                + (1 - self.tau) * self.input_pho.read(t),
+            )
+
+            ##### Hidden layer (PS) #####
+            self.input_hps = self.input_hps.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps)
+                + (1 - self.tau) * self.input_hps.read(t),
+            )
+
+            ##### Hidden layer (SP) #####
+            self.input_hsp = self.input_hsp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
+                + (1 - self.tau) * self.input_hsp.read(t),
+            )
+
+            ##### Semantic Cleanup layer #####
+            self.input_css = self.input_css.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
+                + (1 - self.tau) * self.input_css.read(t),
+            )
+
+            ##### Phonology Cleanup layer #####
+            self.input_cpp = self.input_cpp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
+                + (1 - self.tau) * self.input_cpp.read(t),
+            )
+
+            # Update activations
+            self.hps = self.hps.write(
+                t + 1, self.activation(self.input_hps.read(t + 1))
+            )
+            self.sem = self.sem.write(
+                t + 1, self.activation(self.input_sem.read(t + 1))
+            )
+            self.css = self.css.write(
+                t + 1, self.activation(self.input_css.read(t + 1))
+            )
+
+            self.hsp = self.hsp.write(
+                t + 1, self.activation(self.input_hsp.read(t + 1))
+            )
+            self.pho = self.pho.write(
+                t + 1, self.activation(self.input_pho.read(t + 1))
+            )
+            self.cpp = self.cpp.write(
+                t + 1, self.activation(self.input_cpp.read(t + 1))
+            )
+
+            self.hos = self.hos.write(
+                t + 1, self.activation(self.input_hos.read(t + 1))
+            )
+            self.hop = self.hop.write(
+                t + 1, self.activation(self.input_hop.read(t + 1))
+            )
+
+        # Packing everything (all TensorArray) into output dictionary
+        output_array_names = (
+            "input_hos",
+            "input_hop",
+            "input_hps",
+            "input_hsp",
+            "input_css",
+            "input_cpp",
+            "input_sem",
+            "input_pho",
+            "input_hps_hs",
+            "input_sem_ss",
+            "input_css_cs",
+            "input_hos_hs",
+            "input_hsp_hp",
+            "input_pho_pp",
+            "input_cpp_cp",
+            "input_hop_hp",
+            "hos",
+            "hop",
+            "hps",
+            "hsp",
+            "css",
+            "cpp",
+            "sem",
+            "pho",
+        )
+
+        return self._package_output(output_array_names)
+
+
     def experimental_task_osp(self, inputs, training=None):
         """Lesion triangle model with HOP damaged"""
+
         # init input = 0, activation - 0.5
         self._reset_all_tensor_arrays()
 
@@ -840,78 +1133,166 @@ class MyModel(tf.keras.Model):
             w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
-            hos += (1 - self.tau) * input_hos_list[t]
+            self.input_hos = self.input_hos.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+                + (1 - self.tau) * self.input_hos.read(t),
+            )
 
             ##### Hidden layer (OP) #####
-            # hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop) [LESION]
-            # hop += (1 - self.tau) * input_hop_list[t] [LESION]
+            self.input_hop = self.input_hop.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
+                + (1 - self.tau) * self.input_hop.read(t),
+            )
 
             ##### Semantic layer #####
-            hps_hs = tf.matmul(act_hps_list[t], self.w_hps_hs)
-            sem_ss = tf.matmul(act_s_list[t], w_ss)
-            css_cs = tf.matmul(act_css_list[t], w_cs)
-            hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
-            # ort_os = tf.matmul(inputs[t], self.w_os) [No direct path]
+            self.input_hps_hs = self.input_hps_hs.write(
+                t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
+            )
+            self.input_sem_ss = self.input_sem_ss.write(
+                t + 1, tf.matmul(self.sem.read(t), w_ss)
+            )
+            self.input_css_cs = self.input_css_cs.write(
+                t + 1, tf.matmul(self.css.read(t), w_cs)
+            )
+            self.input_hos_hs = self.input_hos_hs.write(
+                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
+            )
 
-            s = self.tau * (hps_hs + sem_ss + css_cs + hos_hs + bias_s)
-            s += (1 - self.tau) * input_s_list[t]
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hps_hs.read(t + 1)
+                    + self.input_sem_ss.read(t + 1)
+                    + self.input_css_cs.read(t + 1)
+                    + self.input_hos_hs.read(t + 1)
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
 
             ##### Phonology layer #####
-            hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
-            pho_pp = tf.matmul(act_p_list[t], w_pp)
-            cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
-            # hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp) [LESION]
-            # ort_op = tf.matmul(inputs[t], self.w_op) [No direct path]
+            self.input_hsp_hp = self.input_hsp_hp.write(
+                t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            )
+            self.input_pho_pp = self.input_pho_pp.write(
+                t + 1, tf.matmul(self.pho.read(t), w_pp)
+            )
+            self.input_cpp_cp = self.input_cpp_cp.write(
+                t + 1, tf.matmul(self.cpp.read(t), w_cp)
+            )
+            
+            self.input_hop_hp = self.input_hop_hp.write(
+                t + 1, tf.matmul(self.hop.read(t), self.w_hop_hp)
+            )
 
-            # p = self.tau * (hsp_hp + pho_pp + cpp_cp + hop_hp + bias_p) [LESION]
-            p = self.tau * (hsp_hp + pho_pp + cpp_cp + bias_p)
-            p += (1 - self.tau) * input_p_list[t]
+            self.input_pho = self.input_pho.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hsp_hp.read(t + 1)
+                    + self.input_pho_pp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
+                    # + self.input_hop_hp.read(t + 1) [LESION]
+                    + bias_p
+                )
+                + (1 - self.tau) * self.input_pho.read(t),
+            )
 
             ##### Hidden layer (PS) #####
-            hps = self.tau * (tf.matmul(act_p_list[t], self.w_hps_ph) + self.bias_hps)
-            hps += (1 - self.tau) * input_hps_list[t]
+            self.input_hps = self.input_hps.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps)
+                + (1 - self.tau) * self.input_hps.read(t),
+            )
 
             ##### Hidden layer (SP) #####
-            hsp = self.tau * (tf.matmul(act_s_list[t], self.w_hsp_sh) + self.bias_hsp)
-            hsp += (1 - self.tau) * input_hsp_list[t]
+            self.input_hsp = self.input_hsp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
+                + (1 - self.tau) * self.input_hsp.read(t),
+            )
 
             ##### Semantic Cleanup layer #####
-            css = self.tau * (tf.matmul(act_s_list[t], w_sc) + bias_css)
-            css += (1 - self.tau) * input_css_list[t]
+            self.input_css = self.input_css.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
+                + (1 - self.tau) * self.input_css.read(t),
+            )
 
             ##### Phonology Cleanup layer #####
-            cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
-            cpp += (1 - self.tau) * input_cpp_list[t]
+            self.input_cpp = self.input_cpp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
+                + (1 - self.tau) * self.input_cpp.read(t),
+            )
 
-            # Record this timestep to list
-            input_hps_list.append(hps)
-            input_s_list.append(s)
-            input_css_list.append(css)
+            # Update activations
+            self.hps = self.hps.write(
+                t + 1, self.activation(self.input_hps.read(t + 1))
+            )
+            self.sem = self.sem.write(
+                t + 1, self.activation(self.input_sem.read(t + 1))
+            )
+            self.css = self.css.write(
+                t + 1, self.activation(self.input_css.read(t + 1))
+            )
 
-            input_hsp_list.append(hsp)
-            input_p_list.append(p)
-            input_cpp_list.append(cpp)
+            self.hsp = self.hsp.write(
+                t + 1, self.activation(self.input_hsp.read(t + 1))
+            )
+            self.pho = self.pho.write(
+                t + 1, self.activation(self.input_pho.read(t + 1))
+            )
+            self.cpp = self.cpp.write(
+                t + 1, self.activation(self.input_cpp.read(t + 1))
+            )
 
-            input_hos_list.append(hos)
-            # input_hop_list.append(hop) [LESION]
+            self.hos = self.hos.write(
+                t + 1, self.activation(self.input_hos.read(t + 1))
+            )
+            self.hop = self.hop.write(
+                t + 1, self.activation(self.input_hop.read(t + 1))
+            )
 
-            act_hps_list.append(self.activation(hps))
-            act_s_list.append(self.activation(s))
-            act_css_list.append(self.activation(css))
+        # Packing everything (all TensorArray) into output dictionary
+        output_array_names = (
+            "input_hos",
+            "input_hop",
+            "input_hps",
+            "input_hsp",
+            "input_css",
+            "input_cpp",
+            "input_sem",
+            "input_pho",
+            "input_hps_hs",
+            "input_sem_ss",
+            "input_css_cs",
+            "input_hos_hs",
+            "input_hsp_hp",
+            "input_pho_pp",
+            "input_cpp_cp",
+            "input_hop_hp",
+            "hos",
+            "hop",
+            "hps",
+            "hsp",
+            "css",
+            "cpp",
+            "sem",
+            "pho",
+        )
 
-            act_hsp_list.append(self.activation(hsp))
-            act_p_list.append(self.activation(p))
-            act_cpp_list.append(self.activation(cpp))
-
-            act_hos_list.append(self.activation(hos))
-            # act_hop_list.append(self.activation(hop)) [LESION]
-
-        output_array_names = ()
         return self._package_output(output_array_names)
 
-    def experimental_task_ops(self, inputs, training=None):
-        """Lesion triangle model with HOS damaged"""
+
+    def experimental_task_os(self, inputs, training=None):
+        """Lesion triangle model with OPS damaged
+        Get S output only, should be indentical to OS model
+        Extremely slow, please use OS if pass consistency checking
+        """
         # init input = 0, activation - 0.5
         self._reset_all_tensor_arrays()
 
@@ -923,75 +1304,324 @@ class MyModel(tf.keras.Model):
             w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            # hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos) [LESION]
-            # hos += (1 - self.tau) * input_hos_list[t] [LESION]
+            self.input_hos = self.input_hos.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+                + (1 - self.tau) * self.input_hos.read(t),
+            )
 
             ##### Hidden layer (OP) #####
-            hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
-            hop += (1 - self.tau) * input_hop_list[t]
+            self.input_hop = self.input_hop.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
+                + (1 - self.tau) * self.input_hop.read(t),
+            )
 
             ##### Semantic layer #####
-            hps_hs = tf.matmul(act_hps_list[t], self.w_hps_hs)
-            sem_ss = tf.matmul(act_s_list[t], w_ss)
-            css_cs = tf.matmul(act_css_list[t], w_cs)
-            # hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs) [LESION]
-            # ort_os = tf.matmul(inputs[t], self.w_os) [No direct path]
+            self.input_hps_hs = self.input_hps_hs.write(
+                t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
+            )
+            self.input_sem_ss = self.input_sem_ss.write(
+                t + 1, tf.matmul(self.sem.read(t), w_ss)
+            )
+            self.input_css_cs = self.input_css_cs.write(
+                t + 1, tf.matmul(self.css.read(t), w_cs)
+            )
+            self.input_hos_hs = self.input_hos_hs.write(
+                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
+            )
 
-            # s = self.tau * (hps_hs + sem_ss + css_cs + hos_hs + bias_s) [LESION]
-            s = self.tau * (hps_hs + sem_ss + css_cs + bias_s)
-            s += (1 - self.tau) * input_s_list[t]
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    # self.input_hps_hs.read(t + 1) [LESION]
+                    self.input_sem_ss.read(t + 1)
+                    + self.input_css_cs.read(t + 1)
+                    + self.input_hos_hs.read(t + 1)
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
 
             ##### Phonology layer #####
-            hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
-            pho_pp = tf.matmul(act_p_list[t], w_pp)
-            cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
-            hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp)
-            # ort_op = tf.matmul(inputs[t], self.w_op) [No direct path]
+            self.input_hsp_hp = self.input_hsp_hp.write(
+                t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            )
+            self.input_pho_pp = self.input_pho_pp.write(
+                t + 1, tf.matmul(self.pho.read(t), w_pp)
+            )
+            self.input_cpp_cp = self.input_cpp_cp.write(
+                t + 1, tf.matmul(self.cpp.read(t), w_cp)
+            )
+            self.input_hop_hp = self.input_hop_hp.write(
+                t + 1, tf.matmul(self.hop.read(t), self.w_hop_hp)
+            )
 
-            p = self.tau * (hsp_hp + pho_pp + cpp_cp + hop_hp + bias_p)
-            p += (1 - self.tau) * input_p_list[t]
+            self.input_pho = self.input_pho.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hsp_hp.read(t + 1)
+                    + self.input_pho_pp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
+                    + self.input_hop_hp.read(t + 1)
+                    + bias_p
+                )
+                + (1 - self.tau) * self.input_pho.read(t),
+            )
 
             ##### Hidden layer (PS) #####
-            hps = self.tau * (tf.matmul(act_p_list[t], self.w_hps_ph) + self.bias_hps)
-            hps += (1 - self.tau) * input_hps_list[t]
+            self.input_hps = self.input_hps.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps)
+                + (1 - self.tau) * self.input_hps.read(t),
+            )
 
             ##### Hidden layer (SP) #####
-            hsp = self.tau * (tf.matmul(act_s_list[t], self.w_hsp_sh) + self.bias_hsp)
-            hsp += (1 - self.tau) * input_hsp_list[t]
+            self.input_hsp = self.input_hsp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
+                + (1 - self.tau) * self.input_hsp.read(t),
+            )
 
             ##### Semantic Cleanup layer #####
-            css = self.tau * (tf.matmul(act_s_list[t], w_sc) + bias_css)
-            css += (1 - self.tau) * input_css_list[t]
+            self.input_css = self.input_css.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
+                + (1 - self.tau) * self.input_css.read(t),
+            )
 
             ##### Phonology Cleanup layer #####
-            cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
-            cpp += (1 - self.tau) * input_cpp_list[t]
+            self.input_cpp = self.input_cpp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
+                + (1 - self.tau) * self.input_cpp.read(t),
+            )
 
-            # Record this timestep to list
-            input_hps_list.append(hps)
-            input_s_list.append(s)
-            input_css_list.append(css)
+            # Update activations
+            self.hps = self.hps.write(
+                t + 1, self.activation(self.input_hps.read(t + 1))
+            )
+            self.sem = self.sem.write(
+                t + 1, self.activation(self.input_sem.read(t + 1))
+            )
+            self.css = self.css.write(
+                t + 1, self.activation(self.input_css.read(t + 1))
+            )
 
-            input_hsp_list.append(hsp)
-            input_p_list.append(p)
-            input_cpp_list.append(cpp)
+            self.hsp = self.hsp.write(
+                t + 1, self.activation(self.input_hsp.read(t + 1))
+            )
+            self.pho = self.pho.write(
+                t + 1, self.activation(self.input_pho.read(t + 1))
+            )
+            self.cpp = self.cpp.write(
+                t + 1, self.activation(self.input_cpp.read(t + 1))
+            )
 
-            # input_hos_list.append(hos) [LESION]
-            input_hop_list.append(hop)
+            self.hos = self.hos.write(
+                t + 1, self.activation(self.input_hos.read(t + 1))
+            )
+            self.hop = self.hop.write(
+                t + 1, self.activation(self.input_hop.read(t + 1))
+            )
 
-            act_hps_list.append(self.activation(hps))
-            act_s_list.append(self.activation(s))
-            act_css_list.append(self.activation(css))
+        # Packing everything (all TensorArray) into output dictionary
+        output_array_names = (
+            "input_hos",
+            "input_hop",
+            "input_hps",
+            "input_hsp",
+            "input_css",
+            "input_cpp",
+            "input_sem",
+            "input_pho",
+            "input_hps_hs",
+            "input_sem_ss",
+            "input_css_cs",
+            "input_hos_hs",
+            "input_hsp_hp",
+            "input_pho_pp",
+            "input_cpp_cp",
+            "input_hop_hp",
+            "hos",
+            "hop",
+            "hps",
+            "hsp",
+            "css",
+            "cpp",
+            "sem",
+        )
 
-            act_hsp_list.append(self.activation(hsp))
-            act_p_list.append(self.activation(p))
-            act_cpp_list.append(self.activation(cpp))
-
-            # act_hos_list.append(self.activation(hos)) [LESION]
-            act_hop_list.append(self.activation(hop))
-
-        output_array_names = ()
         return self._package_output(output_array_names)
+
+
+    def experimental_task_op(self, inputs, training=None):
+        # init input = 0, activation - 0.5
+        self._reset_all_tensor_arrays()
+
+        # Recurrent structure over time ticks (Time averaged input)
+        for t in range(self.n_timesteps):
+            # Inject fresh white noise in each tick to weights and biases
+            # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
+            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+
+            ##### Hidden layer (OS) #####
+            self.input_hos = self.input_hos.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+                + (1 - self.tau) * self.input_hos.read(t),
+            )
+
+            ##### Hidden layer (OP) #####
+            self.input_hop = self.input_hop.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
+                + (1 - self.tau) * self.input_hop.read(t),
+            )
+
+            ##### Semantic layer #####
+            self.input_hps_hs = self.input_hps_hs.write(
+                t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
+            )
+            self.input_sem_ss = self.input_sem_ss.write(
+                t + 1, tf.matmul(self.sem.read(t), w_ss)
+            )
+            self.input_css_cs = self.input_css_cs.write(
+                t + 1, tf.matmul(self.css.read(t), w_cs)
+            )
+            self.input_hos_hs = self.input_hos_hs.write(
+                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
+            )
+
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hps_hs.read(t + 1)
+                    + self.input_sem_ss.read(t + 1)
+                    + self.input_css_cs.read(t + 1)
+                    + self.input_hos_hs.read(t + 1)
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
+
+            ##### Phonology layer #####
+            self.input_hsp_hp = self.input_hsp_hp.write(
+                t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            )
+            self.input_pho_pp = self.input_pho_pp.write(
+                t + 1, tf.matmul(self.pho.read(t), w_pp)
+            )
+            self.input_cpp_cp = self.input_cpp_cp.write(
+                t + 1, tf.matmul(self.cpp.read(t), w_cp)
+            )
+            self.input_hop_hp = self.input_hop_hp.write(
+                t + 1, tf.matmul(self.hop.read(t), self.w_hop_hp)
+            )
+
+            self.input_pho = self.input_pho.write(
+                t + 1,
+                self.tau
+                * (
+                    # self.input_hsp_hp.read(t + 1) [LESION]
+                    self.input_pho_pp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
+                    + self.input_hop_hp.read(t + 1)
+                    + bias_p
+                )
+                + (1 - self.tau) * self.input_pho.read(t),
+            )
+
+            ##### Hidden layer (PS) #####
+            self.input_hps = self.input_hps.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps)
+                + (1 - self.tau) * self.input_hps.read(t),
+            )
+
+            ##### Hidden layer (SP) #####
+            self.input_hsp = self.input_hsp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
+                + (1 - self.tau) * self.input_hsp.read(t),
+            )
+
+            ##### Semantic Cleanup layer #####
+            self.input_css = self.input_css.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
+                + (1 - self.tau) * self.input_css.read(t),
+            )
+
+            ##### Phonology Cleanup layer #####
+            self.input_cpp = self.input_cpp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
+                + (1 - self.tau) * self.input_cpp.read(t),
+            )
+
+            # Update activations
+            self.hps = self.hps.write(
+                t + 1, self.activation(self.input_hps.read(t + 1))
+            )
+            self.sem = self.sem.write(
+                t + 1, self.activation(self.input_sem.read(t + 1))
+            )
+            self.css = self.css.write(
+                t + 1, self.activation(self.input_css.read(t + 1))
+            )
+
+            self.hsp = self.hsp.write(
+                t + 1, self.activation(self.input_hsp.read(t + 1))
+            )
+            self.pho = self.pho.write(
+                t + 1, self.activation(self.input_pho.read(t + 1))
+            )
+            self.cpp = self.cpp.write(
+                t + 1, self.activation(self.input_cpp.read(t + 1))
+            )
+
+            self.hos = self.hos.write(
+                t + 1, self.activation(self.input_hos.read(t + 1))
+            )
+            self.hop = self.hop.write(
+                t + 1, self.activation(self.input_hop.read(t + 1))
+            )
+
+        # Packing everything (all TensorArray) into output dictionary
+        output_array_names = (
+            "input_hos",
+            "input_hop",
+            "input_hps",
+            "input_hsp",
+            "input_css",
+            "input_cpp",
+            "input_sem",
+            "input_pho",
+            "input_hps_hs",
+            "input_sem_ss",
+            "input_css_cs",
+            "input_hos_hs",
+            "input_hsp_hp",
+            "input_pho_pp",
+            "input_cpp_cp",
+            "input_hop_hp",
+            "hos",
+            "hop",
+            "hps",
+            "hsp",
+            "css",
+            "cpp",
+            "pho",
+        )
+
+        return self._package_output(output_array_names)
+
+    
 
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""
@@ -1151,8 +1781,10 @@ class MyModel(tf.keras.Model):
         return cfg
 
 
-def get_train_step(task):
+def get_train_step(task, cfg):
     input_name, output_name = IN_OUT[task]
+    all_timesteps = list(range(1, cfg.n_timesteps + 1))
+    all_inject_error_ticks = all_timesteps[-cfg.inject_error_ticks:]
 
     if task == "triangle":
 
