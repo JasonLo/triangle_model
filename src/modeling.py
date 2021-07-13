@@ -79,7 +79,7 @@ class MyModel(tf.keras.Model):
     # Do not use model.predict() 
     # Use model() to predict instead
 
-    def __init__(self, cfg, name="my_model", **kwargs):
+    def __init__(self, cfg, name="my_model", batch_size_override=None, **kwargs):
         super().__init__(**kwargs)
 
         for key, value in cfg.__dict__.items():
@@ -87,6 +87,9 @@ class MyModel(tf.keras.Model):
 
         # Infered variable need to pass manually
         self.n_timesteps = cfg.n_timesteps 
+
+        if batch_size_override is not None:
+            self.batch_size = batch_size_override 
 
         self.activation = tf.keras.activations.get(self.activation)
         
@@ -273,6 +276,42 @@ class MyModel(tf.keras.Model):
             initializer="zeros",
             trainable=True,
         )
+
+        # Storage for recurrent mechanism (TAI)
+        
+        # Input storage
+        self.input_hos = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_hop = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_hps = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_sem = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_css = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_hsp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_pho = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_cpp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+
+        # Intermediate input for division of labor
+        self.input_hps_hs = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_sem_ss = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_css_cs = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_hos_hs = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_hsp_hp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_pho_pp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_cpp_cp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.input_hop_hp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+
+        # Activation storage
+        self.hos = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.hop = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.hps = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.css = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.sem = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.hsp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.cpp = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        self.pho = tf.TensorArray(tf.float32, size=self.n_timesteps+1, clear_after_read=False)
+        # inputs_name = ("input_hos", "input_hop", "input_hps", "input_s", "input_css", "input_hsp", "input_p", "input_cpp")
+        # acts_name = ("hos", "hop", "hps", "css", "sem", "hsp", "cpp", "pho")
+
+        # dol_name = ("dol_sem_os", "dol_sem_cs", "dol_sem_ss", "dol_sem_ps")
 
         self.built = True
 
@@ -787,41 +826,37 @@ class MyModel(tf.keras.Model):
 
     def task_triangle(self, inputs, training=None):
         # init
-        # Ort related
-        input_hos_list, input_hop_list = [], []
-        act_hos_list, act_hop_list = [], []
-
-        # P-to-S related
-        input_hps_list, input_s_list, input_css_list = [], [], []
-        act_hps_list, act_s_list, act_css_list = [], [], []
-
-        # S-to-P related
-        input_hsp_list, input_p_list, input_cpp_list = [], [], []
-        act_hsp_list, act_p_list, act_cpp_list = [], [], []
+        # dol_name = ("dol_sem_os", "dol_sem_cs", "dol_sem_ss", "dol_sem_ps")
 
         # Set inputs to 0
-        input_hps_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
-        input_s_list.append(tf.zeros((1, self.sem_units), dtype=tf.float32))
-        input_css_list.append(tf.zeros((1, self.sem_cleanup_units), dtype=tf.float32))
+        self.input_hos = self.input_hos.write(0, tf.zeros((self.batch_size, self.hidden_os_units), dtype=tf.float32))
+        self.input_hop = self.input_hop.write(0, tf.zeros((self.batch_size, self.hidden_op_units), dtype=tf.float32))
+        self.input_sem = self.input_sem.write(0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32))
+        self.input_pho = self.input_pho.write(0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32))
+        self.input_hps = self.input_hps.write(0, tf.zeros((self.batch_size, self.hidden_ps_units), dtype=tf.float32))
+        self.input_hsp = self.input_hsp.write(0, tf.zeros((self.batch_size, self.hidden_sp_units), dtype=tf.float32))
+        self.input_css = self.input_css.write(0, tf.zeros((self.batch_size, self.sem_cleanup_units), dtype=tf.float32))
+        self.input_cpp = self.input_cpp.write(0, tf.zeros((self.batch_size, self.pho_cleanup_units), dtype=tf.float32))
 
-        input_hsp_list.append(tf.zeros((1, self.hidden_ps_units), dtype=tf.float32))
-        input_p_list.append(tf.zeros((1, self.pho_units), dtype=tf.float32))
-        input_cpp_list.append(tf.zeros((1, self.pho_cleanup_units), dtype=tf.float32))
-
-        input_hos_list.append(tf.zeros((1, self.hidden_os_units), dtype=tf.float32))
-        input_hop_list.append(tf.zeros((1, self.hidden_op_units), dtype=tf.float32))
+        self.input_hps_hs = self.input_hps_hs.write(0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32))
+        self.input_sem_ss = self.input_sem_ss.write(0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32))
+        self.input_css_cs = self.input_css_cs.write(0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32))
+        self.input_hos_hs = self.input_hos_hs.write(0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32))
+        
+        self.input_hsp_hp = self.input_hsp_hp.write(0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32))
+        self.input_pho_pp = self.input_pho_pp.write(0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32))
+        self.input_cpp_cp = self.input_cpp_cp.write(0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32))
+        self.input_hop_hp = self.input_hop_hp.write(0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32))
 
         # Set activations to 0.5
-        act_hps_list.append(input_hps_list[0] + 0.5)
-        act_s_list.append(input_s_list[0] + 0.5)
-        act_css_list.append(input_css_list[0] + 0.5)
-
-        act_hsp_list.append(input_hsp_list[0] + 0.5)
-        act_p_list.append(input_p_list[0] + 0.5)
-        act_cpp_list.append(input_cpp_list[0] + 0.5)
-
-        act_hos_list.append(input_hos_list[0] + 0.5)
-        act_hop_list.append(input_hop_list[0] + 0.5)
+        self.hps = self.hps.write(0, self.input_hps.read(0) + 0.5)
+        self.sem = self.sem.write(0, self.input_sem.read(0) + 0.5)
+        self.css = self.css.write(0, self.input_css.read(0) + 0.5)
+        self.hsp = self.hsp.write(0, self.input_hsp.read(0) + 0.5)
+        self.pho = self.pho.write(0, self.input_pho.read(0) + 0.5)
+        self.cpp = self.cpp.write(0, self.input_cpp.read(0) + 0.5)
+        self.hos = self.hos.write(0, self.input_hos.read(0) + 0.5)
+        self.hop = self.hop.write(0, self.input_hop.read(0) + 0.5)
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -879,95 +914,88 @@ class MyModel(tf.keras.Model):
             )
 
             ##### Hidden layer (OS) #####
-            hos = self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
-            hos += (1 - self.tau) * input_hos_list[t]
+            self.input_hos = self.input_hos.write(t+1, self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos) + (1 - self.tau) * self.input_hos.read(t))
 
             ##### Hidden layer (OP) #####
-            hop = self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
-            hop += (1 - self.tau) * input_hop_list[t]
+            self.input_hop = self.input_hop.write(t+1, self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop) + (1 - self.tau) * self.input_hop.read(t))
 
             ##### Semantic layer #####
-            hps_hs = tf.matmul(act_hps_list[t], self.w_hps_hs)
-            sem_ss = tf.matmul(act_s_list[t], w_ss)
-            css_cs = tf.matmul(act_css_list[t], w_cs)
-            hos_hs = tf.matmul(act_hos_list[t], self.w_hos_hs)
-            # ort_os = tf.matmul(inputs[t], self.w_os)
+            self.input_hps_hs = self.input_hps_hs.write(t+1, tf.matmul(self.hps.read(t), self.w_hps_hs))
+            self.input_sem_ss = self.input_sem_ss.write(t+1, tf.matmul(self.sem.read(t), w_ss))
+            self.input_css_cs = self.input_css_cs.write(t+1, tf.matmul(self.css.read(t), w_cs))
+            self.input_hos_hs = self.input_hos_hs.write(t+1, tf.matmul(self.hos.read(t), self.w_hos_hs))
 
-            s = self.tau * (hps_hs + sem_ss + css_cs + hos_hs + bias_s)
-            s += (1 - self.tau) * input_s_list[t]
+            self.input_sem = self.input_sem.write(t+1, self.tau * (self.input_hps_hs.read(t+1) + self.input_sem_ss.read(t+1) + self.input_css_cs.read(t+1) + self.input_hos_hs.read(t+1) + bias_s) + (1 - self.tau) * self.input_sem.read(t))
 
             ##### Phonology layer #####
-            hsp_hp = tf.matmul(act_hsp_list[t], self.w_hsp_hp)
-            pho_pp = tf.matmul(act_p_list[t], w_pp)
-            cpp_cp = tf.matmul(act_cpp_list[t], w_cp)
-            hop_hp = tf.matmul(act_hop_list[t], self.w_hop_hp)
-            # ort_op = tf.matmul(inputs[t], self.w_op)
+            self.input_hsp_hp = self.input_hsp_hp.write(t+1, tf.matmul(self.hsp.read(t), self.w_hsp_hp))
+            self.input_pho_pp = self.input_pho_pp.write(t+1, tf.matmul(self.pho.read(t), w_pp))
+            self.input_cpp_cp = self.input_cpp_cp.write(t+1, tf.matmul(self.cpp.read(t), w_cp))
+            self.input_hop_hp = self.input_hop_hp.write(t+1, tf.matmul(self.hop.read(t), self.w_hop_hp))
 
-            p = self.tau * (hsp_hp + pho_pp + cpp_cp + hop_hp + bias_p)
-            p += (1 - self.tau) * input_p_list[t]
+            self.input_pho = self.input_pho.write(t+1, self.tau * (self.input_hsp_hp.read(t+1) + self.input_pho_pp.read(t+1) + self.input_cpp_cp.read(t+1) + self.input_hop_hp.read(t+1) + bias_p) + (1 - self.tau) * self.input_pho.read(t))
 
             ##### Hidden layer (PS) #####
-            hps = self.tau * (tf.matmul(act_p_list[t], self.w_hps_ph) + self.bias_hps)
-            hps += (1 - self.tau) * input_hps_list[t]
+            self.input_hps = self.input_hps.write(t+1, self.tau * (tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps) + (1 - self.tau) * self.input_hps.read(t))
 
             ##### Hidden layer (SP) #####
-            hsp = self.tau * (tf.matmul(act_s_list[t], self.w_hsp_sh) + self.bias_hsp)
-            hsp += (1 - self.tau) * input_hsp_list[t]
+            self.input_hsp = self.input_hsp.write(t+1, self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp) + (1 - self.tau) * self.input_hsp.read(t))
 
             ##### Semantic Cleanup layer #####
-            css = self.tau * (tf.matmul(act_s_list[t], w_sc) + bias_css)
-            css += (1 - self.tau) * input_css_list[t]
+            self.input_css = self.input_css.write(t+1, self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css) + (1 - self.tau) * self.input_css.read(t))
 
             ##### Phonology Cleanup layer #####
-            cpp = self.tau * (tf.matmul(act_p_list[t], w_pc) + bias_cpp)
-            cpp += (1 - self.tau) * input_cpp_list[t]
+            self.input_cpp = self.input_cpp.write(t+1, self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp) + (1 - self.tau) * self.input_cpp.read(t))
 
-            # Record this timestep to list
-            input_hps_list.append(hps)
-            input_s_list.append(s)
-            input_css_list.append(css)
+            # Update activations
+            self.hps = self.hps.write(t+1, self.activation(self.input_hps.read(t+1)))
+            self.sem = self.sem.write(t+1, self.activation(self.input_sem.read(t+1)))
+            self.css = self.css.write(t+1, self.activation(self.input_css.read(t+1)))
 
-            input_hsp_list.append(hsp)
-            input_p_list.append(p)
-            input_cpp_list.append(cpp)
+            self.hsp = self.hsp.write(t+1, self.activation(self.input_hsp.read(t+1)))
+            self.pho = self.pho.write(t+1, self.activation(self.input_pho.read(t+1)))
+            self.cpp = self.cpp.write(t+1, self.activation(self.input_cpp.read(t+1)))
 
-            input_hos_list.append(hos)
-            input_hop_list.append(hop)
+            self.hos = self.hos.write(t+1, self.activation(self.input_hos.read(t+1)))
+            self.hop = self.hop.write(t+1, self.activation(self.input_hop.read(t+1)))
 
-            act_hps_list.append(self.activation(hps))
-            act_s_list.append(self.activation(s))
-            act_css_list.append(self.activation(css))
-
-            act_hsp_list.append(self.activation(hsp))
-            act_p_list.append(self.activation(p))
-            act_cpp_list.append(self.activation(cpp))
-
-            act_hos_list.append(self.activation(hos))
-            act_hop_list.append(self.activation(hop))
+            # Testing new format
+            # print(f"t={t}, s shape={s.shape}, tensor_shape={self.input_sem[:,t,:].shape}")
+            # self.input_sem[:,t,:].assign(s)
 
         # output different number of time ticks depending on training/testing
-        output_ticks = K.in_train_phase(
-            self.inject_error_ticks, self.output_ticks, training=training
-        )
-
+        # output_ticks = K.in_train_phase(
+        #     self.inject_error_ticks, self.output_ticks, training=training
+        # )
+        # inputs_name = ("input_hos", "input_hop", "input_hps", "input_sem", "input_css", "input_hsp", "input_pho", "input_cpp")
+        # acts_name = ("hos", "hop", "hps", "css", "sem", "hsp", "cpp", "pho")
         output_dict = {}
-        output_dict["input_hos"] = input_hos_list[-output_ticks:]
-        output_dict["input_hop"] = input_hop_list[-output_ticks:]
-        output_dict["input_hps"] = input_hps_list[-output_ticks:]
-        output_dict["input_s"] = input_s_list[-output_ticks:]
-        output_dict["input_css"] = input_css_list[-output_ticks:]
-        output_dict["input_hsp"] = input_hsp_list[-output_ticks:]
-        output_dict["input_p"] = input_p_list[-output_ticks:]
-        output_dict["input_cpp"] = input_cpp_list[-output_ticks:]
+        output_dict["input_hos"] = self.input_hos.stack()
+        output_dict["input_hop"] = self.input_hop.stack()
+        output_dict["input_hps"] = self.input_hps.stack()
+        output_dict["input_sem"] = self.input_sem.stack()
+        output_dict["input_css"] = self.input_css.stack()
+        output_dict["input_hsp"] = self.input_hsp.stack()
+        output_dict["input_pho"] = self.input_pho.stack()
+        output_dict["input_cpp"] = self.input_cpp.stack()
 
-        output_dict["hos"] = act_hos_list[-output_ticks:]
-        output_dict["hop"] = act_hop_list[-output_ticks:]
-        output_dict["hps"] = act_hps_list[-output_ticks:]
-        output_dict["css"] = act_css_list[-output_ticks:]
-        output_dict["sem"] = act_s_list[-output_ticks:]
-        output_dict["hsp"] = act_hsp_list[-output_ticks:]
-        output_dict["cpp"] = act_cpp_list[-output_ticks:]
-        output_dict["pho"] = act_p_list[-output_ticks:]
+        output_dict["input_hps_hs"] = self.input_hps_hs.stack()
+        output_dict["input_sem_ss"] = self.input_sem_ss.stack()
+        output_dict["input_css_cs"] = self.input_css_cs.stack()
+        output_dict["input_hos_hs"] = self.input_hos_hs.stack()
+        output_dict["input_hsp_hp"] = self.input_hsp_hp.stack()
+        output_dict["input_pho_pp"] = self.input_pho_pp.stack()
+        output_dict["input_cpp_cp"] = self.input_cpp_cp.stack()
+        output_dict["input_hop_hp"] = self.input_hop_hp.stack()
+
+        output_dict["hos"] = self.hos.stack()
+        output_dict["hop"] = self.hop.stack()
+        output_dict["hps"] = self.hps.stack()
+        output_dict["css"] = self.css.stack()
+        output_dict["sem"] = self.sem.stack()
+        output_dict["hsp"] = self.hsp.stack()
+        output_dict["cpp"] = self.cpp.stack()
+        output_dict["pho"] = self.pho.stack()
 
         return output_dict
 
