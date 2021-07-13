@@ -452,7 +452,7 @@ class MyModel(tf.keras.Model):
             "sem",
             "css",
         )
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     def task_sem_sem(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -512,7 +512,7 @@ class MyModel(tf.keras.Model):
             "css",
         )
 
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     def task_sem_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -583,7 +583,7 @@ class MyModel(tf.keras.Model):
             "pho",
             "cpp",
         )
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     def task_pho_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -642,7 +642,7 @@ class MyModel(tf.keras.Model):
             "pho",
             "cpp",
         )
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     def task_ort_sem(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -714,7 +714,7 @@ class MyModel(tf.keras.Model):
             "css",
             "hos"
         )
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     def task_ort_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -786,7 +786,7 @@ class MyModel(tf.keras.Model):
             "hop"
         )
 
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     def task_triangle(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -951,7 +951,7 @@ class MyModel(tf.keras.Model):
             "pho",
         )
 
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     def experimental_task_ops(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -1116,7 +1116,7 @@ class MyModel(tf.keras.Model):
             "pho",
         )
 
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
 
     def experimental_task_osp(self, inputs, training=None):
@@ -1285,7 +1285,7 @@ class MyModel(tf.keras.Model):
             "pho",
         )
 
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
 
     def experimental_task_os(self, inputs, training=None):
@@ -1454,7 +1454,7 @@ class MyModel(tf.keras.Model):
             "sem",
         )
 
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
 
     def experimental_task_op(self, inputs, training=None):
@@ -1619,7 +1619,7 @@ class MyModel(tf.keras.Model):
             "pho",
         )
 
-        return self._package_output(output_array_names)
+        return self._package_output(output_array_names, training=training)
 
     
 
@@ -1755,8 +1755,13 @@ class MyModel(tf.keras.Model):
 
         return w_ss, w_sc, w_cs, bias_css, bias_s
 
-    def _package_output(self, tensor_array_name):
-        return {k: getattr(self, k).stack() for k in tensor_array_name}
+    def _package_output(self, tensor_array_name, training):
+        output_dict = K.in_train_phase(
+                {k: getattr(self, k).stack()[self.inject_error_ticks] for k in tensor_array_name},
+                {k: getattr(self, k).stack()[self.output_ticks] for k in tensor_array_name},
+                training=training
+            )
+        return output_dict
 
     def get_config(self):
         cfg = super().get_config().copy()
@@ -1781,80 +1786,80 @@ class MyModel(tf.keras.Model):
         return cfg
 
 
-def get_train_step(task, cfg):
-    input_name, output_name = IN_OUT[task]
-    all_timesteps = list(range(1, cfg.n_timesteps + 1))
-    all_inject_error_ticks = all_timesteps[-cfg.inject_error_ticks:]
+# def get_train_step(task, cfg):
+#     input_name, output_name = IN_OUT[task]
+#     all_timesteps = list(range(1, cfg.n_timesteps + 1))
+#     all_inject_error_ticks = all_timesteps[-cfg.inject_error_ticks:]
 
-    if task == "triangle":
+#     if task == "triangle":
 
-        @tf.function
-        def train_step(
-            x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
-        ):
-            """Train a batch, log loss and metrics (last time step only)"""
+#         @tf.function
+#         def train_step(
+#             x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
+#         ):
+#             """Train a batch, log loss and metrics (last time step only)"""
 
-            train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
-            train_weights = [x for x in model.weights if x.name in train_weights_name]
+#             train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
+#             train_weights = [x for x in model.weights if x.name in train_weights_name]
 
-            # TF Automatic differentiation
-            with tf.GradientTape() as tape:
-                y_pred = model(x, training=True)
-                # training flag can be access within model by K.in_train_phase()
-                # it can change the behavior in model() (e.g., turn on/off noise)
+#             # TF Automatic differentiation
+#             with tf.GradientTape() as tape:
+#                 y_pred = model(x, training=True)
+#                 # training flag can be access within model by K.in_train_phase()
+#                 # it can change the behavior in model() (e.g., turn on/off noise)
 
-                loss_value_pho = loss_fn(y["pho"], y_pred["pho"])
-                loss_value_sem = loss_fn(y["sem"], y_pred["sem"])
-                loss_value = loss_value_pho + loss_value_sem
+#                 loss_value_pho = loss_fn(y["pho"], y_pred["pho"])
+#                 loss_value_sem = loss_fn(y["sem"], y_pred["sem"])
+#                 loss_value = loss_value_pho + loss_value_sem
 
-            grads = tape.gradient(loss_value, train_weights)
+#             grads = tape.gradient(loss_value, train_weights)
 
-            # Weight update
-            optimizer.apply_gradients(zip(grads, train_weights))
+#             # Weight update
+#             optimizer.apply_gradients(zip(grads, train_weights))
 
-            # Calculate mean loss and metrics for tensorboard
-            # Metrics update (Only last time step)
-            for y_name, metrics in train_metrics.items():
-                if y_name == "pho":
-                    # y[0] is pho, y[0][-1] is last time step in pho
-                    [
-                        m.update_state(
-                            tf.cast(y["pho"][-1], tf.float32), y_pred["pho"][-1]
-                        )
-                        for m in metrics
-                    ]
-                else:
-                    # y[1] is sem, y[0][-1] is last time step in sem
-                    [
-                        m.update_state(
-                            tf.cast(y["sem"][-1], tf.float32), y_pred["sem"][-1]
-                        )
-                        for m in metrics
-                    ]
+#             # Calculate mean loss and metrics for tensorboard
+#             # Metrics update (Only last time step)
+#             for y_name, metrics in train_metrics.items():
+#                 if y_name == "pho":
+#                     # y[0] is pho, y[0][-1] is last time step in pho
+#                     [
+#                         m.update_state(
+#                             tf.cast(y["pho"][-1], tf.float32), y_pred["pho"][-1]
+#                         )
+#                         for m in metrics
+#                     ]
+#                 else:
+#                     # y[1] is sem, y[0][-1] is last time step in sem
+#                     [
+#                         m.update_state(
+#                             tf.cast(y["sem"][-1], tf.float32), y_pred["sem"][-1]
+#                         )
+#                         for m in metrics
+#                     ]
 
-            # Mean loss
-            train_losses.update_state(loss_value)
+#             # Mean loss
+#             train_losses.update_state(loss_value)
 
-    else:  # Single output tasks
+#     else:  # Single output tasks
 
-        @tf.function
-        def train_step(
-            x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
-        ):
-            train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
-            train_weights = [x for x in model.weights if x.name in train_weights_name]
+#         @tf.function
+#         def train_step(
+#             x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
+#         ):
+#             train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
+#             train_weights = [x for x in model.weights if x.name in train_weights_name]
 
-            with tf.GradientTape() as tape:
-                y_pred = model(x, training=True)
-                loss_value = loss_fn(y, y_pred[output_name])
+#             with tf.GradientTape() as tape:
+#                 y_pred = model(x, training=True)
+#                 loss_value = loss_fn(y, y_pred[output_name])
 
-            grads = tape.gradient(loss_value, train_weights)
-            optimizer.apply_gradients(zip(grads, train_weights))
+#             grads = tape.gradient(loss_value, train_weights)
+#             optimizer.apply_gradients(zip(grads, train_weights))
 
-            [
-                m.update_state(tf.cast(y[-1], tf.float32), y_pred[output_name][-1])
-                for m in train_metrics
-            ]
-            train_losses.update_state(loss_value)
+#             [
+#                 m.update_state(tf.cast(y[-1], tf.float32), y_pred[output_name][-1])
+#                 for m in train_metrics
+#             ]
+#             train_losses.update_state(loss_value)
 
-    return train_step
+#     return train_step
