@@ -10,7 +10,7 @@ def init(code_name, tau_override=None):
     cfg = meta.ModelConfig.from_json(cfg_json)
 
     # TMP output tick fix:
-    cfg.output_ticks = 8
+    cfg.output_ticks = 13
 
     # Rebuild model with tau_override
     if tau_override is not None:
@@ -19,13 +19,13 @@ def init(code_name, tau_override=None):
         cfg.output_ticks = int(round(cfg.output_ticks * (cfg.tau_original / cfg.tau)))
 
     model = modeling.MyModel(cfg)
-    test = evaluate.TestSet(cfg, model)
+    test = evaluate.TestSet(cfg)
     return test
 
 
 def run_test1(code_name):
     test = init(code_name)
-    df = test.eval("train_r1000", "triangle")
+    df = test.eval("train_r100", "triangle")
     mdf = make_mean_df(df)
     fig9 = plot_hs04_fig9(mdf, metric="acc")
     fig9_sse = plot_hs04_fig9(mdf, metric="csse")
@@ -33,10 +33,10 @@ def run_test1(code_name):
     fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1_sse.html"))
 
     # Extras Oral tasks
-    mdf_pp = make_mean_df(test.eval("train_r1000", "pho_pho"))
-    mdf_ss = make_mean_df(test.eval("train_r1000", "sem_sem"))
-    mdf_sp = make_mean_df(test.eval("train_r1000", "sem_pho"))
-    mdf_ps = make_mean_df(test.eval("train_r1000", "pho_sem"))
+    mdf_pp = make_mean_df(test.eval("train_r100", "pho_pho"))
+    mdf_ss = make_mean_df(test.eval("train_r100", "sem_sem"))
+    mdf_sp = make_mean_df(test.eval("train_r100", "sem_pho"))
+    mdf_ps = make_mean_df(test.eval("train_r100", "pho_sem"))
 
     df_oral = pd.concat([mdf_pp, mdf_ss, mdf_sp, mdf_ps], ignore_index=True)
     test1_oral_plot_acc = plot_hs04_fig14(df_oral, metric="acc")
@@ -105,9 +105,9 @@ def run_test5(code_name):
     test = init(code_name, tau_override=tau)
 
     # SEM (same as HS04)
-    df_intact = test.eval("train_r1000", "triangle", save_file_prefix="hi_res")
-    df_os_lesion = test.eval("train_r1000", "exp_ops", save_file_prefix="hi_res")
-    df_ops_lesion = test.eval("train_r1000", "ort_sem", save_file_prefix="hi_res")
+    df_intact = test.eval("train_r100", "triangle", save_file_prefix="hi_res")
+    df_os_lesion = test.eval("train_r100", "exp_ops", save_file_prefix="hi_res")
+    df_ops_lesion = test.eval("train_r100", "ort_sem", save_file_prefix="hi_res")
 
     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
     mdf_sem = make_mean_df(df_sem)
@@ -115,8 +115,8 @@ def run_test5(code_name):
     test5a.save(os.path.join(test.cfg.plot_folder, "test5_sem.html"))
 
     # PHO (extra)
-    df_op_lesion = test.eval("train_r1000", "exp_osp", save_file_prefix="hi_res")
-    df_osp_lesion = test.eval("train_r1000", "ort_pho", save_file_prefix="hi_res")
+    df_op_lesion = test.eval("train_r100", "exp_osp", save_file_prefix="hi_res")
+    df_osp_lesion = test.eval("train_r100", "ort_pho", save_file_prefix="hi_res")
 
     df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
     mdf_pho = make_mean_df(df_pho)
@@ -129,9 +129,9 @@ def run_test6(code_name):
     test = init(code_name)
 
     # SEM (same as HS04)
-    df_intact = test.eval("train_r1000", "triangle")
-    df_os_lesion = test.eval("train_r1000", "exp_ops")
-    df_ops_lesion = test.eval("train_r1000", "ort_sem")
+    df_intact = test.eval("train_r100", "triangle")
+    df_os_lesion = test.eval("train_r100", "exp_ops")
+    df_ops_lesion = test.eval("train_r100", "ort_sem")
 
     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
     mdf_sem = make_mean_df(df_sem)
@@ -139,8 +139,8 @@ def run_test6(code_name):
     test5a.save(os.path.join(test.cfg.plot_folder, "test6_sem.html"))
 
     # PHO (extra)
-    df_op_lesion = test.eval("train_r1000", "exp_osp")
-    df_osp_lesion = test.eval("train_r1000", "ort_pho")
+    df_op_lesion = test.eval("train_r100", "exp_osp")
+    df_osp_lesion = test.eval("train_r100", "ort_pho")
 
     df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
     mdf_pho = make_mean_df(df_pho)
