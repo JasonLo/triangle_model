@@ -27,9 +27,8 @@ class TestSet:
         "act1": metrics.OutputOfOneTarget()
     }
 
-    def __init__(self, cfg, model):
+    def __init__(self, cfg):
         self.cfg = cfg
-        self.model = model
 
     def eval(self, testset_name, task, save_file_prefix=None):
         """
@@ -48,17 +47,22 @@ class TestSet:
             testset_package = data_wrangling.load_testset(
                 os.path.join(ts_path, f"{testset_name}.pkl.gz")
             )
-            self.model.set_active_task(task)
+
+            # Enforceing batch_size dim to match wiht test case
+            inputs = testset_package[modeling.IN_OUT[task][0]]
+            self.cfg.batch_size = inputs.shape[0]
+            
+            # Build model and switch task
+            model = modeling.MyModel(self.cfg)
+            model.set_active_task(task)
 
             for epoch in tqdm(
                 self.cfg.saved_epoches, desc=f"Evaluating {testset_name}:{task}"
             ):
                 # for epoch in tqdm(range(250, 291, 10)):
                 w = self.cfg.saved_weights_fstring.format(epoch=epoch)
-                self.model.load_weights(w)
-                y_pred = self.model(
-                    [testset_package[modeling.IN_OUT[task][0]]] * self.cfg.n_timesteps
-                )
+                model.load_weights(w)
+                y_pred = model([inputs] * self.cfg.n_timesteps)
 
                 for timetick_idx in range(self.cfg.output_ticks):
                     if task == "triangle":
