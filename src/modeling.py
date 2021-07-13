@@ -460,29 +460,52 @@ class MyModel(tf.keras.Model):
             w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ### Semantic ###
+            self.input_sem_ss = self.input_sem_ss.write(
+                t + 1, tf.matmul(self.sem.read(t), w_ss)
+            )
+            self.input_css_cs = self.input_css_cs.write(
+                t + 1, tf.matmul(self.css.read(t), w_cs)
+            )
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_sem_ss.read(t + 1)
+                    + self.input_css_cs.read(t + 1)
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
 
-            cs = tf.matmul(act_css_list[t], w_cs)
-            ss = tf.matmul(act_s_list[t], w_ss)
-            s = self.tau * (cs + ss + bias_s)
-            #  s = self.tau * (cs + bias_s)
-            s += (1 - self.tau) * input_s_list[t]
-            input_s_list.append(s)
+            ##### Semantic Cleanup layer #####
+            self.input_css = self.input_css.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
+                + (1 - self.tau) * self.input_css.read(t),
+            )
 
             if t < 8:
                 # Clamp activation to teaching signal
-                act_s_list.append(inputs[t])
+                self.sem = self.sem.write(t + 1, inputs[t])
             else:
-                act_s_list.append(self.activation(s))
-
-            ### Cleanup unit ###
-            sc = tf.matmul(act_s_list[t], w_sc)
-            css = self.tau * (sc + bias_css) + (1 - self.tau) * input_css_list[t]
+                self.sem = self.sem.write(
+                    t + 1, self.activation(self.input_sem.read(t + 1))
+                )
 
             # Record this timestep to list
-            input_css_list.append(css)
-            act_css_list.append(self.activation(css))
+            self.css = self.css.write(
+                t + 1, self.activation(self.input_css.read(t + 1))
+            )
 
-        output_array_names = ()
+        output_array_names = (
+            "input_sem_ss",
+            "input_css_cs",
+            "input_sem",
+            "input_css",
+            "sem",
+            "css",
+        )
+
         return self._package_output(output_array_names)
 
     def task_sem_pho(self, inputs, training=None):
