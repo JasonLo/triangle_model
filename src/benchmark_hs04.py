@@ -9,6 +9,9 @@ def init(code_name, tau_override=None):
     cfg_json = os.path.join("models", code_name, "model_config.json")
     cfg = meta.ModelConfig.from_json(cfg_json)
 
+    # TMP output tick fix:
+    cfg.output_ticks = 8
+
     # Rebuild model with tau_override
     if tau_override is not None:
         cfg.tau_original = cfg.tau
@@ -79,9 +82,11 @@ def run_test3(code_name):
     test = init(code_name)
     df = test.eval("glushko", "triangle")
     mdf = make_cond_mean_df(df)
-    test3 = plot_conds(mdf, tick_after=12)
-    test3.save(os.path.join(test.cfg.plot_folder, "test3.html"))
+    test3_acc = plot_conds(mdf, "acc")
+    test3_acc.save(os.path.join(test.cfg.plot_folder, "test3_acc.html"))
 
+    test3_sse = plot_conds(mdf, "csse")
+    test3_sse.save(os.path.join(test.cfg.plot_folder, "test3_sse.html"))
 
 def run_test4(code_name):
     test = init(code_name)
@@ -89,11 +94,11 @@ def run_test4(code_name):
     mdf = make_cond_mean_df(df)
     mdf["fc"] = mdf.cond.apply(lambda x: x[:5])
     mdf["img"] = mdf.cond.apply(lambda x: x[-2:])
-    test4 = plot_hs04_fig11(
-        mdf, max_epoch=test.cfg.total_number_of_epoch, tick_after=12
-    )
-    test4.save(os.path.join(test.cfg.plot_folder, "test4.html"))
+    test4_acc = plot_hs04_fig11(mdf, metric="acc")
+    test4_acc.save(os.path.join(test.cfg.plot_folder, "test4_acc.html"))
 
+    test4_sse = plot_hs04_fig11(mdf, metric="csse")
+    test4_sse.save(os.path.join(test.cfg.plot_folder, "test4_sse.html"))
 
 def run_test5(code_name):
     tau = 1.0 / 12.0
@@ -204,11 +209,12 @@ def plot_hs04_fig9(mean_df, metric="acc"):
 
 def plot_hs04_fig10(mean_df, metric="acc"):
     """test case 2"""
-    # metric_domain = (0, 1) if metric == "acc" else (0, mean_df.csse.max())
+    metric_domain = (0, 1) if metric == "acc" else (0, 0.2)
     mean_df = mean_df.loc[mean_df.output_name == "pho"]
 
     interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
     interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
+
 
     epoch_selection = (
         alt.Chart(mean_df)
@@ -228,12 +234,11 @@ def plot_hs04_fig10(mean_df, metric="acc"):
         .mark_line()
         .encode(
             x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
-            y=f"mean({metric}):Q",
+            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
             color="reg:N",
         )
-        .transform_filter(interval_epoch)
         .transform_filter(interval_timetick)
-        .interactive()
+        .transform_filter(interval_epoch)
         .properties(width=400)
     )
     
@@ -242,53 +247,68 @@ def plot_hs04_fig10(mean_df, metric="acc"):
         
 
 
-def plot_conds(mean_df, tick_after=4):
+def plot_conds(mean_df, metric="acc"):
     """test case 3"""
+    metric_domain = (0, 1) if metric == "acc" else (0, 0.5)
 
-    # timetick_selection = alt.selection_single(
-    #     bind=alt.binding_range(min=0, max=12, step=1),
-    #     fields=["timetick"],
-    #     init={"timetick": 12},
-    #     name="timetick",
-    # )
-    sdf = mean_df.loc[(mean_df.timetick >= tick_after) & (mean_df.output_name == "pho")]
+    mean_df = mean_df.loc[mean_df.output_name == "pho"]
 
-    return (
-        alt.Chart(sdf)
+    interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
+    timetick_sel = (
+        alt.Chart(mean_df)
+        .mark_rect()
+        .encode(x="timetick:Q")
+        .add_selection(interval_timetick)
+    ).properties(width=400)
+
+    cond_over_epoch = (
+        alt.Chart(mean_df)
         .mark_line()
         .encode(
             x="epoch:Q",
-            y=alt.Y("mean(acc):Q", scale=alt.Scale(domain=(0, 1))),
+            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
             color="cond:N",
         )
+        .transform_filter(interval_timetick)
+        .interactive()
     )
+    
 
-    # .add_selection(timetick_selection).transform_filter(timetick_selection)
+    return timetick_sel & cond_over_epoch
 
 
-def plot_hs04_fig11(
-    mean_df,
-    max_epoch,
-    tick_after=4,
-):
+def plot_hs04_fig11(mean_df, metric="acc"):
     """test case 4"""
+    mean_df = mean_df.loc[mean_df.output_name == "pho"]
 
-    epoch_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=max_epoch + 1, step=10),
-        fields=["epoch"],
-        init={"epoch": 290},
-        name="epoch",
-    )
-    sdf = mean_df.loc[(mean_df.timetick >= tick_after) & (mean_df.output_name == "pho")]
+    metric_domain = (0, 1) if metric == "acc" else (0, 0.05)
 
-    return (
-        alt.Chart(sdf)
+    interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
+    interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
+
+    epoch_selection = (
+        alt.Chart(mean_df)
+        .mark_rect()
+        .encode(x="epoch:Q")
+        .add_selection(interval_epoch)
+    ).properties(width=400)
+
+    timetick_sel = (
+        alt.Chart(mean_df)
+        .mark_rect()
+        .encode(x="timetick:Q")
+        .add_selection(interval_timetick)
+    ).properties(width=400)
+
+    bar = (
+        alt.Chart(mean_df)
         .mark_bar()
-        .encode(x="img:N", y="mean(csse):Q", color="img:N", column="fc:N")
-        .add_selection(epoch_selection)
-        .transform_filter(epoch_selection)
+        .encode(x="img:N", y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)), color="img:N", column="fc:N")
+        .transform_filter(interval_epoch)
+        .transform_filter(interval_timetick)
         .properties(width=50, height=200)
     )
+    return epoch_selection & timetick_sel & bar
 
 
 def plot_hs04_fig14(mean_df, output=None, metric="acc"):
