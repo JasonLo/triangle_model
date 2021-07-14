@@ -97,7 +97,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         self.out = self.add_weight(name="pho_accuracy", initializer="zeros")
 
         # Load pho key
-        pho_key_file = "/home/jupyter/tf/dataset/mappingv2.txt"
+        pho_key_file = "dataset/mappingv2.txt"
         mapping = pd.read_table(pho_key_file, header=None, delim_whitespace=True)
         pho_key = mapping.set_index(0).T.to_dict("list")
 
