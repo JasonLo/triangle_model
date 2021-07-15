@@ -9,7 +9,7 @@ def init(code_name, tau_override=None):
     cfg_json = os.path.join("models", code_name, "model_config.json")
     cfg = meta.ModelConfig.from_json(cfg_json)
 
-    # TMP output tick fix:
+    # Force output to 13:
     cfg.output_ticks = 13
 
     # Rebuild model with tau_override
@@ -18,7 +18,6 @@ def init(code_name, tau_override=None):
         cfg.tau = tau_override
         cfg.output_ticks = int(round(cfg.output_ticks * (cfg.tau_original / cfg.tau)))
 
-    model = modeling.MyModel(cfg)
     test = evaluate.TestSet(cfg)
     return test
 
@@ -147,6 +146,29 @@ def run_test6(code_name):
 
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
     test5b.save(os.path.join(test.cfg.plot_folder, "test6_pho.html"))
+
+
+def run_test7(code_name):
+    """Activation by target signal"""
+    test = init(code_name)
+    # SEM (same as HS04)
+    df1_sem = test.eval("train_r100", "triangle")
+    df2_sem = test.eval("train_r100", "exp_ops")
+    df3_sem = test.eval("train_r100", "ort_sem")
+    df_sem = pd.concat([df1_sem, df2_sem, df3_sem], ignore_index=True)
+    p_sem = plot_activation_by_target(df_sem, output="sem")
+    p_sem.save(os.path.join(test.cfg.plot_folder, "sem_output_diagnostic.html"))
+
+    # PHO
+    df1_pho = test.eval("train_r100", "triangle")
+    df2_pho = test.eval("train_r100", "exp_osp")
+    df3_pho = test.eval("train_r100", "ort_pho")
+
+    df_pho = pd.concat([df1_pho, df2_pho, df3_pho], ignore_index=True)
+    p_pho = plot_activation_by_target(df_pho, output="pho")
+    p_pho.save(os.path.join(test.cfg.plot_folder, "pho_output_diagnostic.html"))
+
+
 
 ########## Support functions ##########
 
@@ -340,9 +362,49 @@ def plot_hs04_fig14(mean_df, output=None, metric="acc"):
 
     return timetick_sel & line
 
+def plot_activation_by_target(df, output):
+    df = df.loc[df.output_name==output]
+
+    interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
+    interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
+
+    epoch_selection = (
+        alt.Chart(df)
+        .mark_rect()
+        .encode(x="epoch:Q")
+        .add_selection(interval_epoch)
+    ).properties(width=400)
+
+    timetick_sel = (
+        alt.Chart(df)
+        .mark_rect()
+        .encode(x="timetick:Q")
+        .add_selection(interval_timetick)
+    ).properties(width=400)
+
+    plot_activation = (
+        alt.Chart(df).mark_point().encode(
+        x=alt.X("act1:Q", scale=alt.Scale(domain=(0,1)), title="Activation for target node = 1"),
+        y=alt.Y("act0:Q", scale=alt.Scale(reverse=True, domain=(0,1)), title="Activation for target node = 0"),
+        color="task:N",
+        detail="word:N",
+        column=alt.Column("acc:N", title="Prediction accuracy"),
+        tooltip=['word', 'acc', 'sse', 'act0', 'act1' ]
+        )
+        .transform_filter(interval_epoch)
+        .transform_filter(interval_timetick)
+        .properties(title=f"{output} diagnostic")
+    )
+
+    return epoch_selection & timetick_sel & plot_activation
+
 ################################################################################
 
-TEST_MAP = {1: run_test1, 2: run_test2, 3: run_test3, 4: run_test4, 5: run_test5, 6: run_test6}
+TEST_MAP = {
+    1: run_test1, 2: run_test2, 3: run_test3, 
+    4: run_test4, 5: run_test5, 6: run_test6,
+    7: run_test7
+}
 
 if __name__ == "__main__":
     """Command line entry point, take code_name and testcase to run tests"""
