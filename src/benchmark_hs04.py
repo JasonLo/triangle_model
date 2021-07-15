@@ -157,7 +157,7 @@ def run_test7(code_name):
     df3_sem = test.eval("train_r100", "ort_sem")
     df_sem = pd.concat([df1_sem, df2_sem, df3_sem], ignore_index=True)
     p_sem = plot_activation_by_target(df_sem, output="sem")
-    p_sem.save(os.path.join(test.cfg.plot_folder, "sem_output_diagnostic.html"))
+    p_sem.save(os.path.join(test.cfg.plot_folder, "test7_sem.html"))
 
     # PHO
     df1_pho = test.eval("train_r100", "triangle")
@@ -166,7 +166,7 @@ def run_test7(code_name):
 
     df_pho = pd.concat([df1_pho, df2_pho, df3_pho], ignore_index=True)
     p_pho = plot_activation_by_target(df_pho, output="pho")
-    p_pho.save(os.path.join(test.cfg.plot_folder, "pho_output_diagnostic.html"))
+    p_pho.save(os.path.join(test.cfg.plot_folder, "test7_pho.html"))
 
 
 
@@ -204,8 +204,7 @@ def plot_hs04_fig9(mean_df, metric="acc"):
     """test case 1"""
 
     interval = alt.selection_interval()
-
-    metric_domain = (0, 1) if metric == "acc" else (0, mean_df.csse.max())
+    metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
 
     timetick_sel = (
         alt.Chart(mean_df)
@@ -219,7 +218,7 @@ def plot_hs04_fig9(mean_df, metric="acc"):
         .mark_line(point=True)
         .encode(
             x="epoch:Q",
-            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
+            y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
             color="output_name:N",
         )
         .transform_filter(interval)
@@ -231,7 +230,7 @@ def plot_hs04_fig9(mean_df, metric="acc"):
 
 def plot_hs04_fig10(mean_df, metric="acc"):
     """test case 2"""
-    metric_domain = (0, 1) if metric == "acc" else (0, 0.2)
+    metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
     mean_df = mean_df.loc[mean_df.output_name == "pho"]
 
     interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
@@ -256,7 +255,7 @@ def plot_hs04_fig10(mean_df, metric="acc"):
         .mark_line()
         .encode(
             x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
-            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
+            y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
             color="reg:N",
         )
         .transform_filter(interval_timetick)
@@ -271,7 +270,7 @@ def plot_hs04_fig10(mean_df, metric="acc"):
 
 def plot_conds(mean_df, metric="acc"):
     """test case 3"""
-    metric_domain = (0, 1) if metric == "acc" else (0, 0.5)
+    metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
 
     mean_df = mean_df.loc[mean_df.output_name == "pho"]
 
@@ -288,7 +287,7 @@ def plot_conds(mean_df, metric="acc"):
         .mark_line()
         .encode(
             x="epoch:Q",
-            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
+            y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
             color="cond:N",
         )
         .transform_filter(interval_timetick)
@@ -302,8 +301,8 @@ def plot_conds(mean_df, metric="acc"):
 def plot_hs04_fig11(mean_df, metric="acc"):
     """test case 4"""
     mean_df = mean_df.loc[mean_df.output_name == "pho"]
+    metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
 
-    metric_domain = (0, 1) if metric == "acc" else (0, 0.05)
 
     interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
     interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
@@ -325,7 +324,7 @@ def plot_hs04_fig11(mean_df, metric="acc"):
     bar = (
         alt.Chart(mean_df)
         .mark_bar()
-        .encode(x="img:N", y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)), color="img:N", column="fc:N")
+        .encode(x="img:N", y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale), color="img:N", column="fc:N")
         .transform_filter(interval_epoch)
         .transform_filter(interval_timetick)
         .properties(width=50, height=200)
@@ -338,7 +337,8 @@ def plot_hs04_fig14(mean_df, output=None, metric="acc"):
     if output is not None:
         mean_df = mean_df.loc[(mean_df.output_name == output)]
 
-    metric_domain = (0, 1) if metric == "acc" else (0, mean_df.csse.max())
+    metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
+
     interval = alt.selection_interval()
 
     timetick_sel = (
@@ -353,7 +353,7 @@ def plot_hs04_fig14(mean_df, output=None, metric="acc"):
         .mark_line(point=True)
         .encode(
             x="epoch:Q",
-            y=alt.Y(f"mean({metric}):Q", scale=alt.Scale(domain=metric_domain)),
+            y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
             color="task:N",
             column="output_name:N",
         )
