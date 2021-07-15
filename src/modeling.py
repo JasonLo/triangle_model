@@ -310,86 +310,6 @@ class MyModel(tf.keras.Model):
             trainable=True,
         )
 
-        # Create all OUTPUT_ARRAY storage for recurrent mechanism (TAI)
-        # Storage for recurrent mechanism (TAI)
-        # Cannot use set attribute here
-        self.input_hos = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hop = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hps = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_sem = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_css = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hsp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_pho = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_cpp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-
-        # Intermediate input for division of labor
-        self.input_hps_hs = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_sem_ss = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_css_cs = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hos_hs = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hsp_hp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_pho_pp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_cpp_cp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hop_hp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-
-        # Activation storage
-        self.hos = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.hop = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.hps = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.css = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.sem = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.hsp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.cpp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.pho = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-
         self.built = True
 
     def set_active_task(self, task):
@@ -409,7 +329,7 @@ class MyModel(tf.keras.Model):
 
     def task_pho_sem(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -471,7 +391,7 @@ class MyModel(tf.keras.Model):
 
     def task_sem_sem(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -522,7 +442,7 @@ class MyModel(tf.keras.Model):
 
     def task_sem_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -582,7 +502,7 @@ class MyModel(tf.keras.Model):
 
     def task_pho_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -633,7 +553,7 @@ class MyModel(tf.keras.Model):
 
     def task_ort_sem(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -694,7 +614,7 @@ class MyModel(tf.keras.Model):
 
     def task_ort_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -754,7 +674,7 @@ class MyModel(tf.keras.Model):
 
     def task_triangle(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -891,7 +811,7 @@ class MyModel(tf.keras.Model):
 
     def experimental_task_ops(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1030,7 +950,7 @@ class MyModel(tf.keras.Model):
         """Lesion triangle model with HOP damaged"""
 
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1172,7 +1092,7 @@ class MyModel(tf.keras.Model):
         Extremely slow, please use OS if pass consistency checking
         """
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1309,7 +1229,7 @@ class MyModel(tf.keras.Model):
 
     def experimental_task_op(self, inputs, training=None):
         # init input = 0, activation - 0.5
-        self._reset_all_tensor_arrays()
+        self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1451,8 +1371,13 @@ class MyModel(tf.keras.Model):
         else:
             return x
 
-    def _reset_all_tensor_arrays(self):
+    def _init_tensor_arrays(self):
         """At the beginning of all tasks, reset all time related tensor arrays"""
+
+        # Recreate array for safety
+        for x in self.OUTPUT_ARRAY_NAMES:
+            setattr(self, x, tf.TensorArray(tf.float32, size=self.n_timesteps + 1, clear_after_read=False)
+            
         # Set inputs to 0
         self.input_hos = self.input_hos.write(
             0, tf.zeros((self.batch_size, self.hidden_os_units), dtype=tf.float32)
