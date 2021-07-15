@@ -76,12 +76,38 @@ IN_OUT["exp_os"] = ("ort", "sem")
 IN_OUT["exp_op"] = ("ort", "pho")
 
 
-
 class MyModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
 
     # Do not use model.predict()
     # Use model() to predict instead
+
+    OUTPUT_ARRAY_NAMES = (
+        "input_hos",
+        "input_hop",
+        "input_hps",
+        "input_hsp",
+        "input_css",
+        "input_cpp",
+        "input_sem",
+        "input_pho",
+        "input_hps_hs",
+        "input_sem_ss",
+        "input_css_cs",
+        "input_hos_hs",
+        "input_hsp_hp",
+        "input_pho_pp",
+        "input_cpp_cp",
+        "input_hop_hp",
+        "hos",
+        "hop",
+        "hps",
+        "hsp",
+        "css",
+        "cpp",
+        "sem",
+        "pho",
+    )
 
     def __init__(self, cfg, name="my_model", batch_size_override=None, **kwargs):
         super().__init__(**kwargs)
@@ -112,7 +138,7 @@ class MyModel(tf.keras.Model):
             "exp_osp": self.experimental_task_osp,
             "exp_ops": self.experimental_task_ops,
             "exp_os": self.experimental_task_os,
-            "exp_op": self.experimental_task_op
+            "exp_op": self.experimental_task_op,
         }
 
     def build(self, input_shape=None):
@@ -284,85 +310,17 @@ class MyModel(tf.keras.Model):
             trainable=True,
         )
 
-        # Storage for recurrent mechanism (TAI)
-
-        # Input storage
-        self.input_hos = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hop = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hps = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_sem = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_css = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hsp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_pho = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_cpp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-
-        # Intermediate input for division of labor
-        self.input_hps_hs = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_sem_ss = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_css_cs = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hos_hs = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hsp_hp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_pho_pp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_cpp_cp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.input_hop_hp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-
-        # Activation storage
-        self.hos = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.hop = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.hps = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.css = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.sem = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.hsp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.cpp = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
-        self.pho = tf.TensorArray(
-            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-        )
+        # Create all OUTPUT_ARRAY storage for recurrent mechanism (TAI)
+        [
+            setattr(
+                self,
+                x,
+                tf.TensorArray(
+                    tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+                ),
+            )
+            for x in self.OUTPUT_ARRAY_NAMES
+        ]
 
         self.built = True
 
@@ -441,18 +399,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_css.read(t + 1))
             )
 
-        output_array_names = (
-            "input_hps",
-            "input_hps_hs",
-            "input_sem_ss",
-            "input_css_cs",
-            "input_sem",
-            "input_css",
-            "hps",
-            "sem",
-            "css",
-        )
-        return self._package_output(output_array_names, training=training)
+        return self._package_output(training=training)
 
     def task_sem_sem(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -503,16 +450,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_css.read(t + 1))
             )
 
-        output_array_names = (
-            "input_sem_ss",
-            "input_css_cs",
-            "input_sem",
-            "input_css",
-            "sem",
-            "css",
-        )
-
-        return self._package_output(output_array_names, training=training)
+        return self._package_output(training=training)
 
     def task_sem_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -572,18 +510,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_cpp.read(t + 1))
             )
 
-        output_array_names = (
-            "input_hsp",
-            "input_hsp_hp",
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_pho",
-            "input_cpp",
-            "hsp",
-            "pho",
-            "cpp",
-        )
-        return self._package_output(output_array_names, training=training)
+        return self._package_output(training=training)
 
     def task_pho_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -634,15 +561,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_cpp.read(t + 1))
             )
 
-        output_array_names = (
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_pho",
-            "input_cpp",
-            "pho",
-            "cpp",
-        )
-        return self._package_output(output_array_names, training=training)
+        return self._package_output(training=training)
 
     def task_ort_sem(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -703,18 +622,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_hos.read(t + 1))
             )
 
-        output_array_names = (
-            "input_hos",
-            "input_sem_ss",
-            "input_css_cs",
-            "input_hos_hs",
-            "input_sem",
-            "input_css",
-            "sem",
-            "css",
-            "hos"
-        )
-        return self._package_output(output_array_names, training=training)
+        return self._package_output(training=training)
 
     def task_ort_pho(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -774,19 +682,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_hop.read(t + 1))
             )
 
-        output_array_names = (
-            "input_hop",
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_hop_hp",
-            "input_pho",
-            "input_cpp",
-            "pho",
-            "cpp",
-            "hop"
-        )
-
-        return self._package_output(output_array_names, training=training)
+        return self._package_output(training=training)
 
     def task_triangle(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -923,35 +819,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_hop.read(t + 1))
             )
 
-        # Packing everything (all TensorArray) into output dictionary
-        output_array_names = (
-            "input_hos",
-            "input_hop",
-            "input_hps",
-            "input_hsp",
-            "input_css",
-            "input_cpp",
-            "input_sem",
-            "input_pho",
-            "input_hps_hs",
-            "input_sem_ss",
-            "input_css_cs",
-            "input_hos_hs",
-            "input_hsp_hp",
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_hop_hp",
-            "hos",
-            "hop",
-            "hps",
-            "hsp",
-            "css",
-            "cpp",
-            "sem",
-            "pho",
-        )
-
-        return self._package_output(output_array_names, training=training)
+        return self._package_output(training=training)
 
     def experimental_task_ops(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -1088,36 +956,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_hop.read(t + 1))
             )
 
-        # Packing everything (all TensorArray) into output dictionary
-        output_array_names = (
-            "input_hos",
-            "input_hop",
-            "input_hps",
-            "input_hsp",
-            "input_css",
-            "input_cpp",
-            "input_sem",
-            "input_pho",
-            "input_hps_hs",
-            "input_sem_ss",
-            "input_css_cs",
-            "input_hos_hs",
-            "input_hsp_hp",
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_hop_hp",
-            "hos",
-            "hop",
-            "hps",
-            "hsp",
-            "css",
-            "cpp",
-            "sem",
-            "pho",
-        )
-
-        return self._package_output(output_array_names, training=training)
-
+        return self._package_output(training=training)
 
     def experimental_task_osp(self, inputs, training=None):
         """Lesion triangle model with HOP damaged"""
@@ -1183,7 +1022,7 @@ class MyModel(tf.keras.Model):
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
             )
-            
+
             self.input_hop_hp = self.input_hop_hp.write(
                 t + 1, tf.matmul(self.hop.read(t), self.w_hop_hp)
             )
@@ -1257,36 +1096,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_hop.read(t + 1))
             )
 
-        # Packing everything (all TensorArray) into output dictionary
-        output_array_names = (
-            "input_hos",
-            "input_hop",
-            "input_hps",
-            "input_hsp",
-            "input_css",
-            "input_cpp",
-            "input_sem",
-            "input_pho",
-            "input_hps_hs",
-            "input_sem_ss",
-            "input_css_cs",
-            "input_hos_hs",
-            "input_hsp_hp",
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_hop_hp",
-            "hos",
-            "hop",
-            "hps",
-            "hsp",
-            "css",
-            "cpp",
-            "sem",
-            "pho",
-        )
-
-        return self._package_output(output_array_names, training=training)
-
+        return self._package_output(training=training)
 
     def experimental_task_os(self, inputs, training=None):
         """Lesion triangle model with OPS damaged
@@ -1427,35 +1237,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_hop.read(t + 1))
             )
 
-        # Packing everything (all TensorArray) into output dictionary
-        output_array_names = (
-            "input_hos",
-            "input_hop",
-            "input_hps",
-            "input_hsp",
-            "input_css",
-            "input_cpp",
-            "input_sem",
-            "input_pho",
-            "input_hps_hs",
-            "input_sem_ss",
-            "input_css_cs",
-            "input_hos_hs",
-            "input_hsp_hp",
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_hop_hp",
-            "hos",
-            "hop",
-            "hps",
-            "hsp",
-            "css",
-            "cpp",
-            "sem",
-        )
-
-        return self._package_output(output_array_names, training=training)
-
+        return self._package_output(training=training)
 
     def experimental_task_op(self, inputs, training=None):
         # init input = 0, activation - 0.5
@@ -1584,7 +1366,6 @@ class MyModel(tf.keras.Model):
             self.cpp = self.cpp.write(
                 t + 1, self.activation(self.input_cpp.read(t + 1))
             )
-
             self.hos = self.hos.write(
                 t + 1, self.activation(self.input_hos.read(t + 1))
             )
@@ -1592,36 +1373,7 @@ class MyModel(tf.keras.Model):
                 t + 1, self.activation(self.input_hop.read(t + 1))
             )
 
-        # Packing everything (all TensorArray) into output dictionary
-        output_array_names = (
-            "input_hos",
-            "input_hop",
-            "input_hps",
-            "input_hsp",
-            "input_css",
-            "input_cpp",
-            "input_sem",
-            "input_pho",
-            "input_hps_hs",
-            "input_sem_ss",
-            "input_css_cs",
-            "input_hos_hs",
-            "input_hsp_hp",
-            "input_pho_pp",
-            "input_cpp_cp",
-            "input_hop_hp",
-            "hos",
-            "hop",
-            "hps",
-            "hsp",
-            "css",
-            "cpp",
-            "pho",
-        )
-
-        return self._package_output(output_array_names, training=training)
-
-    
+        return self._package_output(training=training)
 
     def _inject_noise(self, x, noise_sd):
         """Inject Gaussian noise if noise_sd > 0"""
@@ -1755,13 +1507,24 @@ class MyModel(tf.keras.Model):
 
         return w_ss, w_sc, w_cs, bias_css, bias_s
 
-    def _package_output(self, tensor_array_name, training):
+    def _package_output(self, training):
+
         output_dict = K.in_train_phase(
-                {k: getattr(self, k).stack()[-self.inject_error_ticks:] for k in tensor_array_name},
-                {k: getattr(self, k).stack()[-self.output_ticks:] for k in tensor_array_name},
-                training=training
-            )
+            {
+                k: getattr(self, k).stack()[-self.inject_error_ticks :]
+                for k in self.OUTPUT_ARRAY_NAMES
+            },
+            {
+                k: getattr(self, k).stack()[-self.output_ticks :]
+                for k in self.OUTPUT_ARRAY_NAMES
+            },
+            training=training,
+        )
+
+        # Close all array to release memeory
+        [getattr(self, x).close() for x in self.OUTPUT_ARRAY_NAMES]
         return output_dict
+
 
     def get_config(self):
         cfg = super().get_config().copy()
