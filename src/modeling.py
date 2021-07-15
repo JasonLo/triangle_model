@@ -1376,7 +1376,7 @@ class MyModel(tf.keras.Model):
 
         # Recreate array for safety
         for x in self.OUTPUT_ARRAY_NAMES:
-            setattr(self, x, tf.TensorArray(tf.float32, size=self.n_timesteps + 1, clear_after_read=False)
+            setattr(self, x, tf.TensorArray(tf.float32, size=self.n_timesteps + 1, clear_after_read=False))
             
         # Set inputs to 0
         self.input_hos = self.input_hos.write(
