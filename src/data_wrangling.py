@@ -614,7 +614,7 @@ class MyData:
         with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
 
-        self.phon_key = gen_pkey()
+        self.phon_key = gen_pkey(p_file=os.path.join(input_path, 'mappingv2.txt'))
 
     def word_to_idx(self, word, cond=None, skip_duplicates=True):
         # TODO: Handle duplicate later
