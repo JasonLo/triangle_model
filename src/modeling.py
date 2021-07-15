@@ -311,16 +311,84 @@ class MyModel(tf.keras.Model):
         )
 
         # Create all OUTPUT_ARRAY storage for recurrent mechanism (TAI)
-        [
-            setattr(
-                self,
-                x,
-                tf.TensorArray(
-                    tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-                ),
-            )
-            for x in self.OUTPUT_ARRAY_NAMES
-        ]
+        # Storage for recurrent mechanism (TAI)
+        # Cannot use set attribute here
+        self.input_hos = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_hop = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_hps = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_sem = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_css = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_hsp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_pho = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_cpp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+
+        # Intermediate input for division of labor
+        self.input_hps_hs = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_sem_ss = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_css_cs = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_hos_hs = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_hsp_hp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_pho_pp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_cpp_cp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.input_hop_hp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+
+        # Activation storage
+        self.hos = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.hop = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.hps = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.css = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.sem = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.hsp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.cpp = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
+        self.pho = tf.TensorArray(
+            tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+        )
 
         self.built = True
 
