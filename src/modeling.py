@@ -454,7 +454,7 @@ class MyModel(tf.keras.Model):
             ##### Hidden layer (SP) #####
             self.input_hsp = self.input_hsp.write(
                 t + 1,
-                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
+                self.tau * (tf.matmul(inputs[t], self.w_hsp_sh) + self.bias_hsp)
                 + (1 - self.tau) * self.input_hsp.read(t),
             )
 
