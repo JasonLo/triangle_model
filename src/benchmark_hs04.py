@@ -89,7 +89,7 @@ def run_test3(code_name):
 
 def run_test4(code_name):
     test = init(code_name)
-    df = test.eval("hs04_img", "triangle")
+    df = test.eval("hs04_img_240", "triangle")
     mdf = make_cond_mean_df(df)
     mdf["fc"] = mdf.cond.apply(lambda x: x[:5])
     mdf["img"] = mdf.cond.apply(lambda x: x[-2:])
