@@ -43,8 +43,9 @@ class Diagnosis:
 
         self.model = modeling.MyModel(self.cfg)
         self.model.load_weights(self.cfg.saved_weights_fstring.format(epoch=epoch))
-        self.model.set_active_task("triangle")
-        self.y_pred = self.model([self.testset_package["ort"]] * self.cfg.n_timesteps)
+        self.model.set_active_task(task)
+        input_name = modeling.IN_OUT[task][0]
+        self.y_pred = self.model([self.testset_package[input_name]] * self.cfg.n_timesteps)
 
         # Get data for evaluate object
         self.testset = evaluate.TestSet(self.cfg)
@@ -235,6 +236,7 @@ class Plots:
                 opacity=alt.condition(self.sel_var, alt.value(1), alt.value(0.2)),
             )
             .add_selection(self.sel_var)
+            .transform_filter(self.sel_unit)
         ).properties(title=f"Time course of time averaged input in each pathway")
 
     def _subplot_input_units(self) -> alt.Chart:
@@ -281,4 +283,4 @@ class Plots:
     def __call__(self):
         return (
             self._subplot_input_pathways() | self._subplot_input_units()
-        ).resolve_scale(color="independent", y="shared")
+        ).resolve_scale(color="independent", y="shared") 
