@@ -270,8 +270,8 @@ class Plots:
                     tooltip=["unit", "value"],
                 )
                 .add_selection(self.sel_unit)
-            ).properties(title=f"Time course of time averaged input in each unit")
-        )
+            )
+        ).properties(title=f"Time course of time averaged input in each unit")
 
     def _subplot_act(self) -> alt.Chart:
         """Plot activation by accuracy"""
