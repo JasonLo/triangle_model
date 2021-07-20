@@ -2,12 +2,13 @@ import meta, data_wrangling, modeling, evaluate
 import random, os
 import pandas as pd
 import altair as alt
+import helper as H
 
 
 class Diagnosis:
     """A diagnoistic bundle to trouble shot activation and input in semantic layer
     Usage:
-    Step 1. Init by code_name
+    Step 1. Init by code_name 
     Step 2. Call eval() method to a) get the evaluation results from evaluate.TestSet object b) Load weight to the model at given epoch
     Step 3. Call set_target_word() method to "zoom in" a target word results (including all crucial input and activation pathways as defined in SEM_NAME_MAP and PHO_NAME_MAP)
     Step 4. plot_diagnosis
@@ -95,7 +96,12 @@ class Diagnosis:
         else:
             return self.y_pred[output_name][timetick, self.target_word_idx, :].numpy()
 
-    def set_target_word(self, word: str or list):
+    def get_output_phoneme(self):
+        """Get output phoneme from model output activation pattern"""
+        assert self.target_word is not None
+        return H.get_batch_pronunciations_fast(self.get_output('pho'))
+
+    def set_target_word(self, word: str) -> pd.DataFrame:
         self.target_word = word
         self.target_word_idx = self.testset_package["item"].index(self.target_word)
         self.word_sem_df = self.make_output_diagnostic_df(word, "sem")
@@ -207,15 +213,22 @@ class Diagnosis:
 
         return df.loc[df.unit.isin(correct_units + incorrect_units)]
 
-    def plot_one_layer_one_target(self, layer: str, target_act: int) -> alt.Chart:
-        df = self.subset_df(layer, target_act)
+    def plot_one_node(self, layer:str, node:int) -> alt.Chart:
+        assert layer in ("pho", "sem")
+        df = self.word_pho_df if layer == "pho" else self.word_sem_df
+        df = df.loc[df.unit == node]
         p = Plots(df)
         return p()
 
+    def plot_one_layer_by_target(self, layer: str, target_act: int) -> alt.Chart:
+        df = self.subset_df(layer, target_act)
+        p = Plots(df)
+        return p.raw_and_tai().properties(title=f"At target node = {target_act}")
+
     def plot_one_layer(self, layer: str) -> alt.Chart:
-        p1 = self.plot_one_layer_one_target(layer, target_act=1)
-        p2 = self.plot_one_layer_one_target(layer, target_act=0)
-        return (p1 & p2).resolve_scale(y="shared")
+        p1 = self.plot_one_layer_by_target(layer, target_act=1)
+        p2 = self.plot_one_layer_by_target(layer, target_act=0)
+        return (p1 & p2).resolve_scale(y="shared").properties(title=f"In a word: {self.target_word}")
 
 
 class Plots:
@@ -237,7 +250,7 @@ class Plots:
             )
             .add_selection(self.sel_var)
             .transform_filter(self.sel_unit)
-        ).properties(title=f"Time course of time averaged input in each pathway")
+        ).properties(title=f"Time course of raw input from each pathway")
 
     def _subplot_input_units(self) -> alt.Chart:
         """Plot time averaged input by unit"""
@@ -248,15 +261,16 @@ class Plots:
             line
             + (
                 alt.Chart(self.df.loc[self.df.variable == "input"])
-                .mark_line()
+                .mark_line(point=True)
                 .encode(
                     y="value:Q",
                     x="timetick",
                     color="unit:N",
                     opacity=alt.condition(self.sel_unit, alt.value(1), alt.value(0.2)),
+                    tooltip=["unit", "value"],
                 )
                 .add_selection(self.sel_unit)
-            ).properties(title=f"Time course of input in each unit")
+            ).properties(title=f"Time course of time averaged input in each unit")
         )
 
     def _subplot_act(self) -> alt.Chart:
@@ -280,7 +294,7 @@ class Plots:
             .properties(title=f"Activation time course in each unit")
         )
 
-    def __call__(self):
+    def raw_and_tai(self):
         return (
             self._subplot_input_pathways() | self._subplot_input_units()
         ).resolve_scale(color="independent", y="shared") 
