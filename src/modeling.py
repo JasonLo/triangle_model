@@ -79,8 +79,8 @@ IN_OUT["exp_op"] = ("ort", "pho")
 class MyModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
 
-    # Do not use model.predict()
-    # Use model() to predict instead
+    # Do not use model.predict(x)
+    # Use model(x) to predict instead
 
     OUTPUT_ARRAY_NAMES = (
         "input_hos",
@@ -1540,82 +1540,3 @@ class MyModel(tf.keras.Model):
             }
         )
         return cfg
-
-
-# def get_train_step(task, cfg):
-#     input_name, output_name = IN_OUT[task]
-#     all_timesteps = list(range(1, cfg.n_timesteps + 1))
-#     all_inject_error_ticks = all_timesteps[-cfg.inject_error_ticks:]
-
-#     if task == "triangle":
-
-#         @tf.function
-#         def train_step(
-#             x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
-#         ):
-#             """Train a batch, log loss and metrics (last time step only)"""
-
-#             train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
-#             train_weights = [x for x in model.weights if x.name in train_weights_name]
-
-#             # TF Automatic differentiation
-#             with tf.GradientTape() as tape:
-#                 y_pred = model(x, training=True)
-#                 # training flag can be access within model by K.in_train_phase()
-#                 # it can change the behavior in model() (e.g., turn on/off noise)
-
-#                 loss_value_pho = loss_fn(y["pho"], y_pred["pho"])
-#                 loss_value_sem = loss_fn(y["sem"], y_pred["sem"])
-#                 loss_value = loss_value_pho + loss_value_sem
-
-#             grads = tape.gradient(loss_value, train_weights)
-
-#             # Weight update
-#             optimizer.apply_gradients(zip(grads, train_weights))
-
-#             # Calculate mean loss and metrics for tensorboard
-#             # Metrics update (Only last time step)
-#             for y_name, metrics in train_metrics.items():
-#                 if y_name == "pho":
-#                     # y[0] is pho, y[0][-1] is last time step in pho
-#                     [
-#                         m.update_state(
-#                             tf.cast(y["pho"][-1], tf.float32), y_pred["pho"][-1]
-#                         )
-#                         for m in metrics
-#                     ]
-#                 else:
-#                     # y[1] is sem, y[0][-1] is last time step in sem
-#                     [
-#                         m.update_state(
-#                             tf.cast(y["sem"][-1], tf.float32), y_pred["sem"][-1]
-#                         )
-#                         for m in metrics
-#                     ]
-
-#             # Mean loss
-#             train_losses.update_state(loss_value)
-
-#     else:  # Single output tasks
-
-#         @tf.function
-#         def train_step(
-#             x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
-#         ):
-#             train_weights_name = [x + ":0" for x in WEIGHTS_AND_BIASES[task]]
-#             train_weights = [x for x in model.weights if x.name in train_weights_name]
-
-#             with tf.GradientTape() as tape:
-#                 y_pred = model(x, training=True)
-#                 loss_value = loss_fn(y, y_pred[output_name])
-
-#             grads = tape.gradient(loss_value, train_weights)
-#             optimizer.apply_gradients(zip(grads, train_weights))
-
-#             [
-#                 m.update_state(tf.cast(y[-1], tf.float32), y_pred[output_name][-1])
-#                 for m in train_metrics
-#             ]
-#             train_losses.update_state(loss_value)
-
-#     return train_step
