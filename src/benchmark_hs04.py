@@ -406,10 +406,15 @@ TEST_MAP = {
     7: run_test7
 }
 
+def main(code_name):
+    """Run the frequently used tests"""
+    for test in (1, 2, 3, 4, 6, 7):
+        TEST_MAP[i](code_name)
+
+
 if __name__ == "__main__":
     """Command line entry point, take code_name and testcase to run tests"""
     parser = argparse.ArgumentParser(description="Run HS04 test cases")
     parser.add_argument("-n", "--code_name", required=True, type=str)
-    parser.add_argument("-t", "--testcase", nargs="+", type=int, help="1:EoT acc, 2:FxC, 3:NW, 4:IMG, 5:Lesion")
     args = parser.parse_args()
-    [TEST_MAP[i](args.code_name) for i in args.testcase]
+    main(args.code_name)
