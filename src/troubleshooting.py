@@ -54,20 +54,20 @@ class Diagnosis:
         self.df = self.df.loc[self.df.epoch == epoch]
 
     @property
-    def all_outputs(self) -> list:
+    def list_outputs(self) -> list:
         return list(self.y_pred.keys())
 
     @property
-    def all_weights(self) -> list:
+    def list_weights(self) -> list:
         return [w.name for w in self.model.weights]
 
     @property
-    def all_words(self) -> dict:
+    def list_all_words(self) -> dict:
         words = self.testset_package["item"]
         return dict(zip(range(len(words)), words))
 
     @property
-    def all_correct_words(self) -> dict:
+    def list_all_correct_words(self) -> dict:
         x = list(
             self.df.loc[
                 (self.df.acc == 1) & (self.df.timetick == self.df.timetick.max()),
@@ -77,7 +77,7 @@ class Diagnosis:
         return {k: v for k, v in self.all_words.items() if v in x}
 
     @property
-    def all_incorrect_words(self) -> dict:
+    def list_all_incorrect_words(self) -> dict:
         df = self.df
         df = df.loc[(df.acc == 0) & (df.timetick == df.timetick.max())]
 
@@ -89,6 +89,12 @@ class Diagnosis:
             "sem": {k: v for k, v in self.all_words.items() if v in ic_sem_word},
         }
 
+    def get_weight(self, name):
+        """export the weight tensor"""
+        return [
+            w.numpy() for w in self.model.weights if w.name.endswith(f"{name}:0")
+        ][0]
+
     def get_output(self, output_name, timetick=None):
         """Get selected output from TensorArrays"""
         if timetick is None:
@@ -96,7 +102,8 @@ class Diagnosis:
         else:
             return self.y_pred[output_name][timetick, self.target_word_idx, :].numpy()
 
-    def get_output_phoneme(self):
+    @property
+    def list_output_phoneme(self) -> list:
         """Get output phoneme from model output activation pattern"""
         assert self.target_word is not None
         return H.get_batch_pronunciations_fast(self.get_output('pho'))
@@ -218,7 +225,7 @@ class Diagnosis:
         df = self.word_pho_df if layer == "pho" else self.word_sem_df
         df = df.loc[df.unit == node]
         p = Plots(df)
-        return p()
+        return p.raw_and_tai()
 
     def plot_one_layer_by_target(self, layer: str, target_act: int) -> alt.Chart:
         df = self.subset_df(layer, target_act)
