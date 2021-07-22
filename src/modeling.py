@@ -328,7 +328,6 @@ class MyModel(tf.keras.Model):
         return self.tasks[self.active_task](inputs, training)
 
     def task_pho_sem(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -390,7 +389,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_sem_sem(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -441,7 +439,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_sem_pho(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -501,7 +498,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_pho_pho(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -552,7 +548,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_ort_sem(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -613,7 +608,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_ort_pho(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -673,7 +667,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_triangle(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -810,7 +803,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def experimental_task_ops(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -949,7 +941,6 @@ class MyModel(tf.keras.Model):
     def experimental_task_osp(self, inputs, training=None):
         """Lesion triangle model with HOP damaged"""
 
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -1091,7 +1082,6 @@ class MyModel(tf.keras.Model):
         Get S output only, should be indentical to OS model
         Extremely slow, please use OS if pass consistency checking
         """
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -1228,7 +1218,6 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def experimental_task_op(self, inputs, training=None):
-        # init input = 0, activation - 0.5
         self._init_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -1430,15 +1419,16 @@ class MyModel(tf.keras.Model):
             0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32)
         )
 
-        # Set activations to 0.5
-        self.hps = self.hps.write(0, self.input_hps.read(0) + 0.5)
-        self.sem = self.sem.write(0, self.input_sem.read(0) + 0.5)
-        self.css = self.css.write(0, self.input_css.read(0) + 0.5)
-        self.hsp = self.hsp.write(0, self.input_hsp.read(0) + 0.5)
-        self.pho = self.pho.write(0, self.input_pho.read(0) + 0.5)
-        self.cpp = self.cpp.write(0, self.input_cpp.read(0) + 0.5)
-        self.hos = self.hos.write(0, self.input_hos.read(0) + 0.5)
-        self.hop = self.hop.write(0, self.input_hop.read(0) + 0.5)
+        # Set activations to init value
+        init_value = 0.
+        self.hps = self.hps.write(0, self.input_hps.read(0) + init_value)
+        self.sem = self.sem.write(0, self.input_sem.read(0) + init_value)
+        self.css = self.css.write(0, self.input_css.read(0) + init_value)
+        self.hsp = self.hsp.write(0, self.input_hsp.read(0) + init_value)
+        self.pho = self.pho.write(0, self.input_pho.read(0) + init_value)
+        self.cpp = self.cpp.write(0, self.input_cpp.read(0) + init_value)
+        self.hos = self.hos.write(0, self.input_hos.read(0) + init_value)
+        self.hop = self.hop.write(0, self.input_hop.read(0) + init_value)
 
     def _inject_noise_to_all_pho(self, training):
         """inject noise to all PHO relate weights and biases"""
