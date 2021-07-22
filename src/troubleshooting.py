@@ -244,6 +244,20 @@ class Plots:
         self.sel_var = alt.selection_multi(fields=["variable"], bind="legend")
         self.sel_unit = alt.selection_multi(fields=["unit"])
 
+    def raw_inputs(self) -> alt.Chart():
+        """Plot raw input by pathway without sel unit dependency"""
+        return (
+            alt.Chart(self.df.loc[~self.df.variable.isin(["act", "input"])])
+            .mark_line()
+            .encode(
+                y="mean(value):Q",
+                x="timetick",
+                color="variable",
+                opacity=alt.condition(self.sel_var, alt.value(1), alt.value(0.2)),
+            )
+            .add_selection(self.sel_var)
+        ).properties(title=f"Time course of raw input from each pathway")
+
     def _subplot_input_pathways(self) -> alt.Chart:
         """Plot input by pathway"""
         return (
