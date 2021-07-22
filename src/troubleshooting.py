@@ -258,6 +258,19 @@ class Plots:
             .add_selection(self.sel_var)
         ).properties(title=f"Time course of raw input from each pathway")
 
+    def activation(self) -> alt.Chart():
+        return (
+            alt.Chart(self.df.loc[self.df.variable == "act"])
+            .mark_line()
+            .encode(
+                y="mean(value):Q",
+                x="timetick",
+                color="variable",
+                opacity=alt.condition(self.sel_var, alt.value(1), alt.value(0.2)),
+            )
+            .add_selection(self.sel_var)
+        ).properties(title=f"Time course of activation")
+
     def _subplot_input_pathways(self) -> alt.Chart:
         """Plot input by pathway"""
         return (
