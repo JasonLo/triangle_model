@@ -1,7 +1,8 @@
 import argparse, os
 import pandas as pd
 import altair as alt
-import meta, modeling, evaluate
+import meta, evaluate
+import modeling
 
 
 def init(code_name, tau_override=None):
@@ -408,7 +409,7 @@ TEST_MAP = {
 
 def main(code_name):
     """Run the frequently used tests"""
-    for test in (1, 2, 3, 4, 6, 7):
+    for i in (1, 2, 3, 4, 6, 7):
         TEST_MAP[i](code_name)
 
 
