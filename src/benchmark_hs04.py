@@ -1,8 +1,9 @@
 import argparse, os
 import pandas as pd
 import altair as alt
-import meta, evaluate
+import meta, evaluate, troubleshooting
 import modeling
+import random
 
 
 def init(code_name, tau_override=None):
@@ -169,9 +170,38 @@ def run_test7(code_name):
     p_pho = plot_activation_by_target(df_pho, output="pho")
     p_pho.save(os.path.join(test.cfg.plot_folder, "test7_pho.html"))
 
+def run_test8(code_name, epoch=300):
+    """10 random word raw input temporal dynamics"""
+    d = troubleshooting.Diagnosis(code_name)
+    d.eval('train_r100', task='triangle', epoch=epoch)
+
+    ten_words = random.sample(d.testset_package['item'], 10)
+
+    ten_plots_pho = alt.hconcat()
+    ten_plots_sem = alt.hconcat()
+    for w in ten_words:
+        ten_plots_pho &= plot_raw_input_by_target(w, d, 'pho')
+        ten_plots_sem &= plot_raw_input_by_target(w, d, 'sem')
+
+    ten_plots_pho.resolve_scale(y="shared").save(os.path.join(d.cfg.plot_folder, 'test8_pho.html'))
+    ten_plots_sem.resolve_scale(y="shared").save(os.path.join(d.cfg.plot_folder, 'test8_sem.html'))
 
 
 ########## Support functions ##########
+
+def plot_raw_input_by_target(word:str, diag:troubleshooting.Diagnosis, layer:str) -> alt.Chart:
+    diag.set_target_word(word)
+    print(f"Output phoneme over timeticks: {diag.list_output_phoneme}")
+
+    df_act1 = diag.subset_df(layer=layer, target_act=1)
+    plotter = troubleshooting.Plots(df_act1)
+    raw_input_1 = plotter.raw_inputs()
+
+    df_act0 = diag.subset_df(layer=layer, target_act=0)
+    plotter = troubleshooting.Plots(df_act0)
+    raw_input_0 = plotter.raw_inputs()
+
+    return (raw_input_1 | raw_input_0).resolve_scale(y="shared").properties(title=word)
 
 
 def print_unique(df):
@@ -404,7 +434,7 @@ def plot_activation_by_target(df, output):
 TEST_MAP = {
     1: run_test1, 2: run_test2, 3: run_test3, 
     4: run_test4, 5: run_test5, 6: run_test6,
-    7: run_test7
+    7: run_test7, 8: run_test8
 }
 
 def main(code_name):
