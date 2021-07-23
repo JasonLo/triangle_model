@@ -1420,7 +1420,7 @@ class MyModel(tf.keras.Model):
         )
 
         # Set activations to init value
-        init_value = 0.5
+        init_value = 0.
         self.hps = self.hps.write(0, self.input_hps.read(0) + init_value)
         self.sem = self.sem.write(0, self.input_sem.read(0) + init_value)
         self.css = self.css.write(0, self.input_css.read(0) + init_value)
