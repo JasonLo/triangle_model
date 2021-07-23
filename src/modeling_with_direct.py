@@ -602,7 +602,7 @@ class MyModel(tf.keras.Model):
                     self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
                     + self.input_hos_hs.read(t + 1)
-                    + self.input_os(t + 1)
+                    + self.input_os.read(t + 1)
                     + bias_s
                 )
                 + (1 - self.tau) * self.input_sem.read(t),
@@ -774,7 +774,7 @@ class MyModel(tf.keras.Model):
                     + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
-                    + self.input_op(t + 1)  # Experimental
+                    + self.input_op.read(t + 1)  # Experimental
                     + bias_p
                 )
                 + (1 - self.tau) * self.input_pho.read(t),
@@ -890,7 +890,7 @@ class MyModel(tf.keras.Model):
                     self.input_hps_hs.read(t + 1)
                     + self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
-                    # + self.input_os(t + 1) [LESION]
+                    # + self.input_os.read(t + 1) [LESION]
                     # + self.input_hos_hs.read(t + 1) [LESION]
                     + bias_s
                 )
@@ -924,7 +924,7 @@ class MyModel(tf.keras.Model):
                     + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
-                    + self.input_op(t + 1)
+                    + self.input_op.read(t + 1)
                     + bias_p
                 )
                 + (1 - self.tau) * self.input_pho.read(t),
@@ -1041,7 +1041,7 @@ class MyModel(tf.keras.Model):
                     + self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
                     + self.input_hos_hs.read(t + 1)
-                    + self.input_os(t + 1)
+                    + self.input_os.read(t + 1)
                     + bias_s
                 )
                 + (1 - self.tau) * self.input_sem.read(t),
@@ -1073,7 +1073,7 @@ class MyModel(tf.keras.Model):
                     self.input_hsp_hp.read(t + 1)
                     + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
-                    # + self.input_op(t + 1) [LESION]
+                    # + self.input_op.read(t + 1) [LESION]
                     # + self.input_hop_hp.read(t + 1) [LESION]
                     + bias_p
                 )
