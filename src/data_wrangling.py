@@ -655,8 +655,14 @@ class MyData:
 
 
 def load_testset(file):
-    with gzip.open(file, "rb") as f:
-        testset = pickle.load(f)
+    """Load testset from pickled file"""
+    try:
+        with gzip.open(file, "rb") as f:
+            testset = pickle.load(f)
+    except Exception:
+        _maybe_file = os.path.join('dataset', 'testsets', f"{file}.pkl.gz")
+        with gzip.open(_maybe_file, "rb") as f:
+            testset = pickle.load(f)
     return testset
 
 
@@ -757,3 +763,23 @@ class BatchSampling:
             self.ingested_training_sample += len(idx)
 
             yield (batch_x, batch_y, sample_weights)
+
+
+class NodeStats:
+    """Collect statistics from a particular unit"""
+
+    def __init__(self, testset_name):
+        self.testset = load_testset(testset_name)
+
+    def get_words_from_pho_unit(self, unit:int) -> list:
+        """unit is 0-indexing position in pho representation"""
+        p_unit = self.testset['pho'][:, unit]
+        p_unit_is_on = (p_unit == 1)
+        words = list(self.testset['item'].values())
+        return words[p_unit_is_on]
+
+    def get_words_from_sem_unit(self, unit:int) -> list:
+        s_unit = self.testset['sem'][:, unit]
+        s_unit_is_on = (s_unit == 1)
+        words = list(self.testset['item'].values())
+        return words[p_unit_is_on]
