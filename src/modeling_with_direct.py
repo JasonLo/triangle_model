@@ -141,8 +141,6 @@ class MyModel(tf.keras.Model):
             "triangle": self.task_triangle,
             "exp_osp": self.experimental_task_osp,
             "exp_ops": self.experimental_task_ops,
-            "exp_os": self.experimental_task_os,
-            "exp_op": self.experimental_task_op,
         }
 
     def build(self, input_shape=None):
@@ -583,7 +581,7 @@ class MyModel(tf.keras.Model):
             )
 
             ##### Semantic layer #####            
-            self.input_os = self.input_op.write(
+            self.input_os = self.input_os.write(
                 t + 1, tf.matmul(inputs[t], self.w_os)
             )  # Experimental
 
@@ -719,7 +717,7 @@ class MyModel(tf.keras.Model):
             )
 
             ##### Semantic layer #####
-            self.input_os = self.input_op.write(
+            self.input_os = self.input_os.write(
                 t + 1, tf.matmul(inputs[t], self.w_os)
             )  # Experimental
 
@@ -868,7 +866,7 @@ class MyModel(tf.keras.Model):
 
 
             ##### Semantic layer #####
-            self.input_os = self.input_op.write(
+            self.input_os = self.input_os.write(
                 t + 1, tf.matmul(inputs[t], self.w_os)
             )  # Experimental
 
@@ -1017,7 +1015,7 @@ class MyModel(tf.keras.Model):
             )
 
             ##### Semantic layer #####
-            self.input_os = self.input_op.write(
+            self.input_os = self.input_os.write(
                 t + 1, tf.matmul(inputs[t], self.w_os)
             )  # Experimental
 
