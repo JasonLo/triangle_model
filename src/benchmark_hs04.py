@@ -439,7 +439,7 @@ TEST_MAP = {
 
 def main(code_name):
     """Run the frequently used tests"""
-    for i in (1, 2, 3, 4, 6, 7):
+    for i in (1, 2, 3, 4, 6, 7, 8):
         TEST_MAP[i](code_name)
 
 
