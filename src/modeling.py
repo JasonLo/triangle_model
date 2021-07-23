@@ -395,8 +395,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training=False)  # No noise override
+            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training=False)  # No noise override
 
             ### Semantic ###
             self.input_sem_ss = self.input_sem_ss.write(
@@ -445,8 +445,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training=False) # No noise override
+            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training=False) # No noise override
 
             ##### Hidden layer (SP) #####
             self.input_hsp = self.input_hsp.write(
@@ -1420,7 +1420,7 @@ class MyModel(tf.keras.Model):
         )
 
         # Set activations to init value
-        init_value = 0.
+        init_value = 0.5
         self.hps = self.hps.write(0, self.input_hps.read(0) + init_value)
         self.sem = self.sem.write(0, self.input_sem.read(0) + init_value)
         self.css = self.css.write(0, self.input_css.read(0) + init_value)
