@@ -75,6 +75,8 @@ IN_OUT["exp_ops"] = ("ort", "sem")
 IN_OUT["exp_os"] = ("ort", "sem")
 IN_OUT["exp_op"] = ("ort", "pho")
 
+WEIGHTS_AND_BIASES["exp_os_ff"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
+IN_OUT["exp_os_ff"] = ("ort", "sem")
 
 class MyModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
@@ -139,6 +141,7 @@ class MyModel(tf.keras.Model):
             "exp_ops": self.experimental_task_ops,
             "exp_os": self.experimental_task_os,
             "exp_op": self.experimental_task_op,
+            "exp_os_ff": self.task_ort_sem_ff,
         }
 
     def build(self, input_shape=None):
@@ -600,6 +603,47 @@ class MyModel(tf.keras.Model):
             )
             self.css = self.css.write(
                 t + 1, self.activation(self.input_css.read(t + 1))
+            )
+            self.hos = self.hos.write(
+                t + 1, self.activation(self.input_hos.read(t + 1))
+            )
+
+        return self._package_output(training=training)
+
+    def task_ort_sem_ff(self, inputs, training=None):
+        """OS feedforward task"""
+
+        self._init_tensor_arrays()
+       
+
+        # Recurrent structure over time ticks (Time averaged input)
+        for t in range(self.n_timesteps):
+            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            ##### Hidden layer (OS) #####
+            self.input_hos = self.input_hos.write(
+                t + 1,
+                self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
+                + (1 - self.tau) * self.input_hos.read(t),
+            )
+
+            ##### Semantic layer #####
+            self.input_hos_hs = self.input_hos_hs.write(
+                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
+            )
+
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hos_hs.read(t + 1)
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
+
+            # Update activation
+            self.sem = self.sem.write(
+                t + 1, self.activation(self.input_sem.read(t + 1))
             )
             self.hos = self.hos.write(
                 t + 1, self.activation(self.input_hos.read(t + 1))
