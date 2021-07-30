@@ -230,7 +230,7 @@ class Diagnosis:
     def plot_one_layer_by_target(self, layer: str, target_act: int) -> alt.Chart:
         df = self.subset_df(layer, target_act)
         p = Plots(df)
-        return p.raw_and_tai().properties(title=f"At target node = {target_act}")
+        return p.raw_and_act().properties(title=f"At target node = {target_act}")
 
     def plot_one_layer(self, layer: str) -> alt.Chart:
         p1 = self.plot_one_layer_by_target(layer, target_act=1)
@@ -243,6 +243,7 @@ class Plots:
         self.df = df
         self.sel_var = alt.selection_multi(fields=["variable"], bind="legend")
         self.sel_unit = alt.selection_multi(fields=["unit"])
+        self.sel_unit_legend = alt.selection_multi(fields=['unit'], bind="legend")
 
     def raw_inputs(self) -> alt.Chart():
         """Plot raw input by pathway without sel unit dependency"""
@@ -258,19 +259,6 @@ class Plots:
             .add_selection(self.sel_var)
         ).properties(title=f"Time course of raw input from each pathway")
 
-    def activation(self) -> alt.Chart():
-        return (
-            alt.Chart(self.df.loc[self.df.variable == "act"])
-            .mark_line()
-            .encode(
-                y="mean(value):Q",
-                x="timetick",
-                color="variable",
-                opacity=alt.condition(self.sel_var, alt.value(1), alt.value(0.2)),
-            )
-            .add_selection(self.sel_var)
-        ).properties(title=f"Time course of activation")
-
     def _subplot_input_pathways(self) -> alt.Chart:
         """Plot input by pathway"""
         return (
@@ -284,6 +272,7 @@ class Plots:
             )
             .add_selection(self.sel_var)
             .transform_filter(self.sel_unit)
+            .transform_filter(self.sel_unit_legend)
         ).properties(title=f"Time course of raw input from each pathway")
 
     def _subplot_input_units(self) -> alt.Chart:
@@ -309,22 +298,22 @@ class Plots:
 
     def _subplot_act(self) -> alt.Chart:
         """Plot activation by accuracy"""
-        color_scale = alt.Scale(domain=[False, True], range=["#c30d24", "#1770ab"])
         line = (
             alt.Chart(pd.DataFrame({"y": [0.5]})).mark_rule(color="black").encode(y="y")
         )
         return line + (
             alt.Chart(self.df.loc[self.df.variable == "act"])
-            .mark_circle()
+            .mark_line()
             .encode(
                 y=alt.Y("value:Q", scale=alt.Scale(domain=(0, 1))),
                 x="timetick",
-                detail="unit:N",
-                color=alt.Color("unit_acc:N", scale=color_scale),
-                tooltip=["unit"],
+                color=alt.Color("unit:N"),
+                tooltip=["unit", "value"],
             )
             .transform_filter(self.sel_unit)
+            .transform_filter(self.sel_unit_legend)
             .add_selection(self.sel_unit)
+            .add_selection(self.sel_unit_legend)
             .properties(title=f"Activation time course in each unit")
         )
 
@@ -332,3 +321,8 @@ class Plots:
         return (
             self._subplot_input_pathways() | self._subplot_input_units()
         ).resolve_scale(color="independent", y="shared") 
+
+    def raw_and_act(self):
+        return(
+            self._subplot_input_pathways() | self._subplot_act()
+        ).resolve_scale(color="independent", y="independent") 
