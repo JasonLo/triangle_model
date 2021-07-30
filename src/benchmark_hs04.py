@@ -170,9 +170,14 @@ def run_test7(code_name):
     p_pho = plot_activation_by_target(df_pho, output="pho")
     p_pho.save(os.path.join(test.cfg.plot_folder, "test7_pho.html"))
 
-def run_test8(code_name, epoch=300):
+def run_test8(code_name, epoch=None):
     """10 random word raw input temporal dynamics"""
     d = troubleshooting.Diagnosis(code_name)
+
+    if epoch is None:
+        # Use last epoch if no epoch is provided
+        epoch = d.cfg.total_number_of_epoch
+
     d.eval('train_r100', task='triangle', epoch=epoch)
 
     ten_words = random.sample(d.testset_package['item'], 10)
