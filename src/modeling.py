@@ -115,7 +115,7 @@ class MyModel(tf.keras.Model):
         for key, value in cfg.__dict__.items():
             setattr(self, key, value)
 
-        # Infered variable need to pass manually
+        # Inferred variable need to pass manually
         self.n_timesteps = cfg.n_timesteps
 
         if batch_size_override is not None:
