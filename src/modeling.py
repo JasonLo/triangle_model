@@ -9,6 +9,8 @@ import tensorflow.keras.backend as K
 ## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
 
 
+
+
 WEIGHTS_AND_BIASES = {}
 WEIGHTS_AND_BIASES["pho_sem"] = (
     "w_hps_ph",
@@ -84,7 +86,7 @@ class MyModel(tf.keras.Model):
     # Do not use model.predict(x)
     # Use model(x) to predict instead
 
-    OUTPUT_ARRAY_NAMES = (
+    INPUT_ARRAY_NAMES = (
         "input_hos",
         "input_hop",
         "input_hps",
@@ -101,15 +103,11 @@ class MyModel(tf.keras.Model):
         "input_pho_pp",
         "input_cpp_cp",
         "input_hop_hp",
-        "hos",
-        "hop",
-        "hps",
-        "hsp",
-        "css",
-        "cpp",
-        "sem",
-        "pho",
     )
+
+    ACTIVATION_ARRAY_NAMES = ("hos", "hop", "hps", "hsp", "css", "cpp", "sem", "pho")
+
+    ALL_ARRAY_NAMES = INPUT_ARRAY_NAMES + ACTIVATION_ARRAY_NAMES
 
     def __init__(self, cfg, name="my_model", batch_size_override=None, **kwargs):
         super().__init__(**kwargs)
@@ -143,6 +141,28 @@ class MyModel(tf.keras.Model):
             "exp_op": self.experimental_task_op,
             "exp_os_ff": self.task_ort_sem_ff,
         }
+
+        self.shapes = self._create_shape_map()
+
+    def _create_shape_map(self):
+        INPUT_SHAPES = {}
+        INPUT_SHAPES["input_hos"]    = (self.batch_size, self.hidden_os_units)
+        INPUT_SHAPES["input_hop"]    = (self.batch_size, self.hidden_op_units)
+        INPUT_SHAPES["input_sem"]    = (self.batch_size, self.sem_units)
+        INPUT_SHAPES["input_pho"]    = (self.batch_size, self.pho_units)
+        INPUT_SHAPES["input_hps"]    = (self.batch_size, self.hidden_ps_units)
+        INPUT_SHAPES["input_hsp"]    = (self.batch_size, self.hidden_sp_units)
+        INPUT_SHAPES["input_css"]    = (self.batch_size, self.sem_cleanup_units)
+        INPUT_SHAPES["input_cpp"]    = (self.batch_size, self.pho_cleanup_units)
+        INPUT_SHAPES["input_hps_hs"] = (self.batch_size, self.sem_units)
+        INPUT_SHAPES["input_sem_ss"] = (self.batch_size, self.sem_units)
+        INPUT_SHAPES["input_css_cs"] = (self.batch_size, self.sem_units)
+        INPUT_SHAPES["input_hos_hs"] = (self.batch_size, self.sem_units)
+        INPUT_SHAPES["input_hsp_hp"] = (self.batch_size, self.pho_units)
+        INPUT_SHAPES["input_pho_pp"] = (self.batch_size, self.pho_units)
+        INPUT_SHAPES["input_cpp_cp"] = (self.batch_size, self.pho_units)
+        INPUT_SHAPES["input_hop_hp"] = (self.batch_size, self.pho_units)
+        return INPUT_SHAPES
 
     def build(self, input_shape=None):
         """Build entire model's weights and biases
@@ -331,7 +351,7 @@ class MyModel(tf.keras.Model):
         return self.tasks[self.active_task](inputs, training)
 
     def task_pho_sem(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -379,27 +399,19 @@ class MyModel(tf.keras.Model):
             )
 
             # Record this timestep to list
-            self.hps = self.hps.write(
-                t + 1, self.activation(self.input_hps.read(t + 1))
-            )
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in ("hps", "sem", "css")]
 
         return self._package_output(training=training)
 
     def task_sem_sem(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training=False)  # No noise override
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training=False)  # No noise override
+            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ### Semantic ###
             self.input_sem_ss = self.input_sem_ss.write(
@@ -434,22 +446,19 @@ class MyModel(tf.keras.Model):
                     t + 1, self.activation(self.input_sem.read(t + 1))
                 )
 
-            # Record this timestep to list
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
+            self._update_activations(t + 1, "css")
 
         return self._package_output(training=training)
 
     def task_sem_pho(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training=False) # No noise override
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training=False) # No noise override
+            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (SP) #####
             self.input_hsp = self.input_hsp.write(
@@ -487,21 +496,12 @@ class MyModel(tf.keras.Model):
                 + (1 - self.tau) * self.input_cpp.read(t),
             )
 
-            # Record this timestep to list
-            self.hsp = self.hsp.write(
-                t + 1, self.activation(self.input_hsp.read(t + 1))
-            )
-            self.pho = self.pho.write(
-                t + 1, self.activation(self.input_pho.read(t + 1))
-            )
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in ("hsp", "pho", "cpp")]
 
         return self._package_output(training=training)
 
     def task_pho_pho(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -543,15 +543,12 @@ class MyModel(tf.keras.Model):
                     t + 1, self.activation(self.input_pho.read(t + 1))
                 )
 
-            # Record this timestep to list
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
+            self._update_activations(t + 1, "cpp")
 
         return self._package_output(training=training)
 
     def task_ort_sem(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -598,23 +595,17 @@ class MyModel(tf.keras.Model):
             )
 
             # Update activation
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
-            self.hos = self.hos.write(
-                t + 1, self.activation(self.input_hos.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in ("sem", "css", "hos")]
+
+            
 
         return self._package_output(training=training)
 
     def task_ort_sem_ff(self, inputs, training=None):
-        """OS feedforward task"""
+            """OS feedforward task"""
 
-        self._init_tensor_arrays()
-       
+        self._init_all_tensor_arrays()
+    
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -642,17 +633,13 @@ class MyModel(tf.keras.Model):
             )
 
             # Update activation
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.hos = self.hos.write(
-                t + 1, self.activation(self.input_hos.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in ("sem", "hos")]
+
 
         return self._package_output(training=training)
 
     def task_ort_pho(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -698,20 +685,12 @@ class MyModel(tf.keras.Model):
                 + (1 - self.tau) * self.input_cpp.read(t),
             )
 
-            self.pho = self.pho.write(
-                t + 1, self.activation(self.input_pho.read(t + 1))
-            )
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
-            self.hop = self.hop.write(
-                t + 1, self.activation(self.input_hop.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in ("pho", "cpp", "hop")]
 
         return self._package_output(training=training)
 
     def task_triangle(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -817,37 +796,12 @@ class MyModel(tf.keras.Model):
             )
 
             # Update activations
-            self.hps = self.hps.write(
-                t + 1, self.activation(self.input_hps.read(t + 1))
-            )
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
-
-            self.hsp = self.hsp.write(
-                t + 1, self.activation(self.input_hsp.read(t + 1))
-            )
-            self.pho = self.pho.write(
-                t + 1, self.activation(self.input_pho.read(t + 1))
-            )
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
-
-            self.hos = self.hos.write(
-                t + 1, self.activation(self.input_hos.read(t + 1))
-            )
-            self.hop = self.hop.write(
-                t + 1, self.activation(self.input_hop.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
 
         return self._package_output(training=training)
 
     def experimental_task_ops(self, inputs, training=None):
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -953,39 +907,14 @@ class MyModel(tf.keras.Model):
             )
 
             # Update activations
-            self.hps = self.hps.write(
-                t + 1, self.activation(self.input_hps.read(t + 1))
-            )
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
-
-            self.hsp = self.hsp.write(
-                t + 1, self.activation(self.input_hsp.read(t + 1))
-            )
-            self.pho = self.pho.write(
-                t + 1, self.activation(self.input_pho.read(t + 1))
-            )
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
-
-            self.hos = self.hos.write(
-                t + 1, self.activation(self.input_hos.read(t + 1))
-            )
-            self.hop = self.hop.write(
-                t + 1, self.activation(self.input_hop.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
 
         return self._package_output(training=training)
 
     def experimental_task_osp(self, inputs, training=None):
         """Lesion triangle model with HOP damaged"""
 
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1092,32 +1021,7 @@ class MyModel(tf.keras.Model):
             )
 
             # Update activations
-            self.hps = self.hps.write(
-                t + 1, self.activation(self.input_hps.read(t + 1))
-            )
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
-
-            self.hsp = self.hsp.write(
-                t + 1, self.activation(self.input_hsp.read(t + 1))
-            )
-            self.pho = self.pho.write(
-                t + 1, self.activation(self.input_pho.read(t + 1))
-            )
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
-
-            self.hos = self.hos.write(
-                t + 1, self.activation(self.input_hos.read(t + 1))
-            )
-            self.hop = self.hop.write(
-                t + 1, self.activation(self.input_hop.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
 
         return self._package_output(training=training)
 
@@ -1126,7 +1030,7 @@ class MyModel(tf.keras.Model):
         Get S output only, should be indentical to OS model
         Extremely slow, please use OS if pass consistency checking
         """
-        self._init_tensor_arrays()
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1232,37 +1136,13 @@ class MyModel(tf.keras.Model):
             )
 
             # Update activations
-            self.hps = self.hps.write(
-                t + 1, self.activation(self.input_hps.read(t + 1))
-            )
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
-
-            self.hsp = self.hsp.write(
-                t + 1, self.activation(self.input_hsp.read(t + 1))
-            )
-            self.pho = self.pho.write(
-                t + 1, self.activation(self.input_pho.read(t + 1))
-            )
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
-
-            self.hos = self.hos.write(
-                t + 1, self.activation(self.input_hos.read(t + 1))
-            )
-            self.hop = self.hop.write(
-                t + 1, self.activation(self.input_hop.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
 
         return self._package_output(training=training)
 
     def experimental_task_op(self, inputs, training=None):
-        self._init_tensor_arrays()
+
+        self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
@@ -1368,35 +1248,11 @@ class MyModel(tf.keras.Model):
             )
 
             # Update activations
-            self.hps = self.hps.write(
-                t + 1, self.activation(self.input_hps.read(t + 1))
-            )
-            self.sem = self.sem.write(
-                t + 1, self.activation(self.input_sem.read(t + 1))
-            )
-            self.css = self.css.write(
-                t + 1, self.activation(self.input_css.read(t + 1))
-            )
-
-            self.hsp = self.hsp.write(
-                t + 1, self.activation(self.input_hsp.read(t + 1))
-            )
-            self.pho = self.pho.write(
-                t + 1, self.activation(self.input_pho.read(t + 1))
-            )
-            self.cpp = self.cpp.write(
-                t + 1, self.activation(self.input_cpp.read(t + 1))
-            )
-            self.hos = self.hos.write(
-                t + 1, self.activation(self.input_hos.read(t + 1))
-            )
-            self.hop = self.hop.write(
-                t + 1, self.activation(self.input_hop.read(t + 1))
-            )
+            [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
 
         return self._package_output(training=training)
 
-    def _inject_noise(self, x, noise_sd):
+    def _inject_noise(self, x: tf.Tensor, noise_sd: float) -> tf.Tensor:
         """Inject Gaussian noise if noise_sd > 0"""
         if noise_sd > 0:
             noise = K.random_normal(shape=K.shape(x), mean=0.0, stddev=noise_sd)
@@ -1404,75 +1260,30 @@ class MyModel(tf.keras.Model):
         else:
             return x
 
-    def _init_tensor_arrays(self):
+    def _init_tensor_array(self, name: str, shape: tuple):
+        setattr(
+            self, name, getattr(self, name).write(0, tf.zeros(shape, dtype=tf.float32))
+        )
+
+    def _init_all_tensor_arrays(self):
         """At the beginning of all tasks, reset all time related tensor arrays"""
 
         # Recreate array for safety
-        for x in self.OUTPUT_ARRAY_NAMES:
-            setattr(self, x, tf.TensorArray(tf.float32, size=self.n_timesteps + 1, clear_after_read=False))
-            
+        for x in self.ALL_ARRAY_NAMES:
+            setattr(self, x,
+                tf.TensorArray(
+                    tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+                ),
+            )
+
         # Set inputs to 0
-        self.input_hos = self.input_hos.write(
-            0, tf.zeros((self.batch_size, self.hidden_os_units), dtype=tf.float32)
-        )
-        self.input_hop = self.input_hop.write(
-            0, tf.zeros((self.batch_size, self.hidden_op_units), dtype=tf.float32)
-        )
-        self.input_sem = self.input_sem.write(
-            0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32)
-        )
-        self.input_pho = self.input_pho.write(
-            0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32)
-        )
-        self.input_hps = self.input_hps.write(
-            0, tf.zeros((self.batch_size, self.hidden_ps_units), dtype=tf.float32)
-        )
-        self.input_hsp = self.input_hsp.write(
-            0, tf.zeros((self.batch_size, self.hidden_sp_units), dtype=tf.float32)
-        )
-        self.input_css = self.input_css.write(
-            0, tf.zeros((self.batch_size, self.sem_cleanup_units), dtype=tf.float32)
-        )
-        self.input_cpp = self.input_cpp.write(
-            0, tf.zeros((self.batch_size, self.pho_cleanup_units), dtype=tf.float32)
-        )
-
-        self.input_hps_hs = self.input_hps_hs.write(
-            0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32)
-        )
-        self.input_sem_ss = self.input_sem_ss.write(
-            0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32)
-        )
-        self.input_css_cs = self.input_css_cs.write(
-            0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32)
-        )
-        self.input_hos_hs = self.input_hos_hs.write(
-            0, tf.zeros((self.batch_size, self.sem_units), dtype=tf.float32)
-        )
-
-        self.input_hsp_hp = self.input_hsp_hp.write(
-            0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32)
-        )
-        self.input_pho_pp = self.input_pho_pp.write(
-            0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32)
-        )
-        self.input_cpp_cp = self.input_cpp_cp.write(
-            0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32)
-        )
-        self.input_hop_hp = self.input_hop_hp.write(
-            0, tf.zeros((self.batch_size, self.pho_units), dtype=tf.float32)
-        )
+        [
+            self._init_tensor_array(x, shape=self.shapes[x])
+            for x in self.INPUT_ARRAY_NAMES
+        ]
 
         # Set activations to init value
-        init_value = 0.5
-        self.hps = self.hps.write(0, self.input_hps.read(0) + init_value)
-        self.sem = self.sem.write(0, self.input_sem.read(0) + init_value)
-        self.css = self.css.write(0, self.input_css.read(0) + init_value)
-        self.hsp = self.hsp.write(0, self.input_hsp.read(0) + init_value)
-        self.pho = self.pho.write(0, self.input_pho.read(0) + init_value)
-        self.cpp = self.cpp.write(0, self.input_cpp.read(0) + init_value)
-        self.hos = self.hos.write(0, self.input_hos.read(0) + init_value)
-        self.hop = self.hop.write(0, self.input_hop.read(0) + init_value)
+        [self._update_activations(0, x) for x in self.ACTIVATION_ARRAY_NAMES]
 
     def _inject_noise_to_all_pho(self, training):
         """inject noise to all PHO relate weights and biases"""
@@ -1534,24 +1345,30 @@ class MyModel(tf.keras.Model):
 
         return w_ss, w_sc, w_cs, bias_css, bias_s
 
+    def _update_activations(self, timetick: int, act: str):
+        """Update the activation"""
+        sum_input = getattr(self, f"input_{act}").read(timetick)
+        activation = self.activation(sum_input)
+
+        setattr(self, act, getattr(self, act).write(timetick, activation))
+
     def _package_output(self, training):
 
         output_dict = K.in_train_phase(
             {
                 k: getattr(self, k).stack()[-self.inject_error_ticks :]
-                for k in self.OUTPUT_ARRAY_NAMES
+                for k in self.ALL_ARRAY_NAMES
             },
             {
                 k: getattr(self, k).stack()[-self.output_ticks :]
-                for k in self.OUTPUT_ARRAY_NAMES
+                for k in self.ALL_ARRAY_NAMES
             },
             training=training,
         )
 
         # Close all array to release memeory
-        [getattr(self, x).close() for x in self.OUTPUT_ARRAY_NAMES]
+        [getattr(self, x).close() for x in self.ALL_ARRAY_NAMES]
         return output_dict
-
 
     def get_config(self):
         cfg = super().get_config().copy()
