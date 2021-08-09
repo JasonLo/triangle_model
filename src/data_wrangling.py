@@ -9,7 +9,7 @@ import modeling
 import helper as H
 
 
-def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
+def gen_pkey(p_file="dataset/mappingv2.txt"):
     """Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
     """
@@ -567,7 +567,7 @@ class MyData:
     Also calculate sampling_p according to cfg.sample_name setting
     """
 
-    def __init__(self, input_path="/home/jupyter/tf/dataset/"):
+    def __init__(self, input_path="dataset"):
 
         self.input_path = input_path
 
@@ -608,7 +608,7 @@ class MyData:
         self.x_glushko_wf = np.array(self.df_glushko["wf"])
         self.x_glushko_img = np.array(self.df_glushko["img"])
 
-        with open(self.input_path + "y_glushko.pkl", "rb") as f:
+        with open(os.path.join(self.input_path, "y_glushko.pkl"), "rb") as f:
             self.y_glushko = pickle.load(f)
 
         with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
@@ -656,13 +656,8 @@ class MyData:
 
 def load_testset(file):
     """Load testset from pickled file"""
-    try:
-        with gzip.open(file, "rb") as f:
-            testset = pickle.load(f)
-    except Exception:
-        _maybe_file = os.path.join('dataset', 'testsets', f"{file}.pkl.gz")
-        with gzip.open(_maybe_file, "rb") as f:
-            testset = pickle.load(f)
+    with gzip.open(file, "rb") as f:
+        testset = pickle.load(f)
     return testset
 
 

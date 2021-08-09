@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-def gen_pkey(p_file="/home/jupyter/tf/dataset/mappingv2.txt"):
+def gen_pkey(p_file="/home/jupyter/triangle_model/dataset/mappingv2.txt"):
     """Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
     """

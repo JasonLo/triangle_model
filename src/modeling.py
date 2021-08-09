@@ -602,10 +602,9 @@ class MyModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_ort_sem_ff(self, inputs, training=None):
-            """OS feedforward task"""
+        """OS feedforward task"""
 
         self._init_all_tensor_arrays()
-    
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):

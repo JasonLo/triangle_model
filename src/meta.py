@@ -57,7 +57,7 @@ from dataclasses import dataclass
 @dataclass
 class ModelConfig:
     code_name: str
-    tf_root: str = "/home/jupyter/tf"
+    tf_root: str = "/home/jupyter/triangle_model"
     uuid: str = None
     batch_name: str = None
     batch_unique_setting_string: str = None
