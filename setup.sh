@@ -1,5 +1,5 @@
 #! /bin/bash
-echo "/home/jupyter/triangle_model/src" > /opt/conda/lib/python3.7/site-packages/tf_src.pth
+echo "/home/jupyter/triangle_model/src/" > /opt/conda/lib/python3.7/site-packages/tf_src.pth
 pip install -r /home/jupyter/triangle_model/requirements.txt
 mkdir -p ~/.config/git
 nbstripout --install --global --attributes=~/.config/git/attributes
