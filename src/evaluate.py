@@ -43,7 +43,7 @@ class TestSet:
         except (FileNotFoundError, IOError):
 
             df = pd.DataFrame()
-            ts_path = "/home/jupyter/tf/dataset/testsets"
+            ts_path = "dataset/testsets"
             testset_package = data_wrangling.load_testset(
                 os.path.join(ts_path, f"{testset_name}.pkl.gz")
             )
