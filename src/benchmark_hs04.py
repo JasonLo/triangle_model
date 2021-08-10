@@ -6,6 +6,7 @@ import modeling
 import random
 
 
+
 def init(code_name, tau_override=None):
 
     cfg_json = os.path.join("models", code_name, "model_config.json")
@@ -190,6 +191,31 @@ def run_test8(code_name, epoch=None):
 
     ten_plots_pho.resolve_scale(y="shared").save(os.path.join(d.cfg.plot_folder, 'test8_pho.html'))
     ten_plots_sem.resolve_scale(y="shared").save(os.path.join(d.cfg.plot_folder, 'test8_sem.html'))
+
+
+def run_test9(code_name, epoch=None):
+    """ Compare weight with mikenet """
+    d = troubleshooting.Diagnosis(code_name)
+
+    if epoch is None:
+        # Use last epoch if no epoch is provided
+        epoch = d.cfg.total_number_of_epoch
+
+    d.eval('train_r100', task='triangle', epoch=epoch)
+
+    w = troubleshooting.MikeNetWeight('mikenet/Reading_Weight_v1')
+    os.makedirs(os.path.join(d.cfg.plot_folder, "compare_mn_weights"), exist_ok=True)
+
+    for x in w.weight_keys:
+        w_name = w.as_tf_name(x)
+
+        try:
+            tmp = troubleshooting.dual_plot(d, w, w_name)
+            tmp.savefig(os.path.join(d.cfg.plot_folder, "compare_mn_weights", f"{w_name}.png"))
+        except IndexError:
+            pass
+    
+
 
 
 ########## Support functions ##########
