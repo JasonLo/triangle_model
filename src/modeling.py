@@ -186,13 +186,12 @@ class MyModel(tf.keras.Model):
             trainable=True,
         )
 
-        # Experimental no direct connection
-        # self.w_pp = self.add_weight(
-        #     name="w_pp",
-        #     shape=(self.pho_units, self.pho_units),
-        #     initializer=weight_initializer,
-        #     trainable=True,
-        # )
+        self.w_pp = self.add_weight(
+            name="w_pp",
+            shape=(self.pho_units, self.pho_units),
+            initializer=weight_initializer,
+            trainable=True,
+        )
 
         self.w_pc = self.add_weight(
             name="w_pc",
@@ -244,13 +243,12 @@ class MyModel(tf.keras.Model):
             trainable=True,
         )
 
-        # Experimental no direct connection
-        # self.w_ss = self.add_weight(
-        #     name="w_ss",
-        #     shape=(self.sem_units, self.sem_units),
-        #     initializer=weight_initializer,
-        #     trainable=True,
-        # )
+        self.w_ss = self.add_weight(
+            name="w_ss",
+            shape=(self.sem_units, self.sem_units),
+            initializer=weight_initializer,
+            trainable=True,
+        )
 
         self.w_sc = self.add_weight(
             name="w_sc",
@@ -1261,7 +1259,7 @@ class MyModel(tf.keras.Model):
         else:
             return x
 
-    def _init_tensor_array(self, name: str, shape: tuple, value=-1: float): # Experimental init at -1
+    def _init_tensor_array(self, name: str, shape: tuple, value: float=-1): # Experimental init at -1
 
         setattr(
             self, 
