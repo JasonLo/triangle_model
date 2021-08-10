@@ -48,9 +48,9 @@ def run_test1(code_name):
     test1_oral_plot_sse.save(os.path.join(test.cfg.plot_folder, "test1_oral_sse.html"))
 
 
-def run_test2(code_name):
+def run_test2(code_name, task="triangle"):
     test = init(code_name)
-    df = test.eval("taraban", "triangle")
+    df = test.eval("taraban", task)
     mdf = make_cond_mean_df(df)
 
     mdf = mdf.loc[
@@ -74,10 +74,10 @@ def run_test2(code_name):
     )
 
     fig10_acc = plot_hs04_fig10(mdf, metric="acc")
-    fig10_acc.save(os.path.join(test.cfg.plot_folder, "test2_acc.html"))
+    fig10_acc.save(os.path.join(test.cfg.plot_folder, f"test2_acc_{task}.html"))
 
     fig10_sse = plot_hs04_fig10(mdf, metric="csse")
-    fig10_sse.save(os.path.join(test.cfg.plot_folder, "test2_sse.html"))
+    fig10_sse.save(os.path.join(test.cfg.plot_folder, f"test2_sse_{task}.html"))
 
 
 def run_test3(code_name):
@@ -465,12 +465,12 @@ def plot_activation_by_target(df, output):
 TEST_MAP = {
     1: run_test1, 2: run_test2, 3: run_test3, 
     4: run_test4, 5: run_test5, 6: run_test6,
-    7: run_test7, 8: run_test8
+    7: run_test7, 8: run_test8, 9: run_test9,
 }
 
 def main(code_name):
-    """Run the frequently used tests"""
-    for i in (1, 2, 3, 4, 6, 7, 8):
+    """Run the frequently used tests (except high res test 5)"""
+    for i in (1, 2, 3, 4, 6, 7, 8, 9):
         TEST_MAP[i](code_name)
 
 
