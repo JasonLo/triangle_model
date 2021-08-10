@@ -1259,15 +1259,18 @@ class MyModel(tf.keras.Model):
         else:
             return x
 
-    def _init_tensor_array(self, name: str, shape: tuple):
+    def _init_tensor_array(self, name: str, shape: tuple, value=-1: float): # Experimental init at -1
+
         setattr(
-            self, name, getattr(self, name).write(0, tf.zeros(shape, dtype=tf.float32))
+            self, 
+            name, 
+            getattr(self, name).write(0, tf.constant(value, dtype=tf.float32, shape=shape))
         )
 
     def _init_all_tensor_arrays(self):
         """At the beginning of all tasks, reset all time related tensor arrays"""
 
-        # Recreate array for safety
+        # Recreate tensor array for safety
         for x in self.ALL_ARRAY_NAMES:
             setattr(self, x,
                 tf.TensorArray(
