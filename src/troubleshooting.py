@@ -336,7 +336,7 @@ class Diagnosis:
     def plot_one_layer_by_target(self, layer: str, target_act: int) -> alt.Chart:
         df = self.subset_df(layer, target_act)
         p = Plots(df)
-        return p.raw_and_act().properties(title=f"At target node = {target_act}")
+        return p.raw_tai_act().properties(title=f"At target node = {target_act}")
 
     def plot_one_layer(self, layer: str) -> alt.Chart:
         p1 = self.plot_one_layer_by_target(layer, target_act=1)
@@ -443,7 +443,12 @@ class Plots:
     def raw_and_act(self):
         return(
             self._subplot_input_pathways() | self._subplot_act()
-        ).resolve_scale(color="independent", y="independent") 
+        ).resolve_scale(color="independent", y="independent")
+
+    def raw_tai_act(self):
+        return (
+            self.raw_and_tai() | self._subplot_act()
+        ).resolve_scale(color="independent", y="independent")
 
 
 def dual_plot(tf_diag, mn_weights, weight_name:str) -> plt.figure:
