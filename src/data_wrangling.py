@@ -656,8 +656,13 @@ class MyData:
 
 def load_testset(file):
     """Load testset from pickled file"""
-    with gzip.open(file, "rb") as f:
-        testset = pickle.load(f)
+    try:
+        with gzip.open(file, "rb") as f:
+            testset = pickle.load(f)
+    except Exception:
+        _maybe_file = os.path.join('dataset', 'testsets', f"{file}.pkl.gz")
+        with gzip.open(_maybe_file, "rb") as f:
+            testset = pickle.load(f)
     return testset
 
 
