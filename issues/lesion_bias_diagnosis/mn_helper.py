@@ -34,10 +34,10 @@ class mn_weights:
         self.weights = self.parse_weight(file)
 
         # Print keys
-        self.useful_keys = list(self.weights.keys())[useful_start_idx:]
-        self.useless_keys = list(self.weights.keys())[:useful_start_idx]
-        print(f"Useful Keys: {self.useful_keys}\n")
-        print(f"Useless Keys: {self.useless_keys}")
+        self.weight_keys = list(self.weights.keys())[useful_start_idx:]
+        self.nonweight_keys = list(self.weights.keys())[:useful_start_idx]
+        print(f"Weight Keys: {self.weight_keys}\n")
+        print(f"Non-weight Keys: {self.nonweight_keys}")
 
     @staticmethod
     def parse_weight(file: str = None) -> dict:
@@ -89,7 +89,7 @@ class mn_weights:
         """Plot all the useful weights"""
         fig, ax = plt.subplots(5, 5, figsize=(25, 25), sharex=True)
 
-        for i, weight_name in enumerate(self.useful_keys):
+        for i, weight_name in enumerate(self.weight_keys):
             self.plot(weight_name, ax=ax[i // 5, i % 5], xlim=xlim)
 
         return fig
