@@ -1259,7 +1259,7 @@ class MyModel(tf.keras.Model):
         else:
             return x
 
-    def _init_tensor_array(self, name: str, shape: tuple, value: float=-1): # Experimental init at -1
+    def _init_tensor_array(self, name: str, shape: tuple, value: float=0): # Experimental init at -1
 
         setattr(
             self, 
