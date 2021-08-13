@@ -142,13 +142,13 @@ class Diagnosis:
             os.path.join("models", code_name, "model_config.json")
         )
         self.cfg.output_ticks = 13  # Full export
+        self.model = modeling.MyModel(self.cfg)
 
     def eval(self, testset_name: str, task: str, epoch: int):
         self.testset_package = data_wrangling.load_testset(
             os.path.join("dataset", "testsets", f"{testset_name}.pkl.gz")
         )
-
-        self.model = modeling.MyModel(self.cfg)
+        
         self.model.load_weights(self.cfg.saved_weights_fstring.format(epoch=epoch))
         self.model.set_active_task(task)
         input_name = modeling.IN_OUT[task][0]
