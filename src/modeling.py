@@ -9,8 +9,6 @@ import tensorflow.keras.backend as K
 ## when refering to cleanup, we need to use this format in biases: bias_c{from}{to}
 
 
-
-
 WEIGHTS_AND_BIASES = {}
 WEIGHTS_AND_BIASES["pho_sem"] = (
     "w_hps_ph",
@@ -80,6 +78,7 @@ IN_OUT["exp_op"] = ("ort", "pho")
 WEIGHTS_AND_BIASES["exp_os_ff"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
 IN_OUT["exp_os_ff"] = ("ort", "sem")
 
+
 class MyModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
 
@@ -146,14 +145,14 @@ class MyModel(tf.keras.Model):
 
     def _create_shape_map(self):
         INPUT_SHAPES = {}
-        INPUT_SHAPES["input_hos"]    = (self.batch_size, self.hidden_os_units)
-        INPUT_SHAPES["input_hop"]    = (self.batch_size, self.hidden_op_units)
-        INPUT_SHAPES["input_sem"]    = (self.batch_size, self.sem_units)
-        INPUT_SHAPES["input_pho"]    = (self.batch_size, self.pho_units)
-        INPUT_SHAPES["input_hps"]    = (self.batch_size, self.hidden_ps_units)
-        INPUT_SHAPES["input_hsp"]    = (self.batch_size, self.hidden_sp_units)
-        INPUT_SHAPES["input_css"]    = (self.batch_size, self.sem_cleanup_units)
-        INPUT_SHAPES["input_cpp"]    = (self.batch_size, self.pho_cleanup_units)
+        INPUT_SHAPES["input_hos"] = (self.batch_size, self.hidden_os_units)
+        INPUT_SHAPES["input_hop"] = (self.batch_size, self.hidden_op_units)
+        INPUT_SHAPES["input_sem"] = (self.batch_size, self.sem_units)
+        INPUT_SHAPES["input_pho"] = (self.batch_size, self.pho_units)
+        INPUT_SHAPES["input_hps"] = (self.batch_size, self.hidden_ps_units)
+        INPUT_SHAPES["input_hsp"] = (self.batch_size, self.hidden_sp_units)
+        INPUT_SHAPES["input_css"] = (self.batch_size, self.sem_cleanup_units)
+        INPUT_SHAPES["input_cpp"] = (self.batch_size, self.pho_cleanup_units)
         INPUT_SHAPES["input_hps_hs"] = (self.batch_size, self.sem_units)
         INPUT_SHAPES["input_sem_ss"] = (self.batch_size, self.sem_units)
         INPUT_SHAPES["input_css_cs"] = (self.batch_size, self.sem_units)
@@ -597,8 +596,6 @@ class MyModel(tf.keras.Model):
             # Update activation
             [self._update_activations(t + 1, x) for x in ("sem", "css", "hos")]
 
-            
-
         return self._package_output(training=training)
 
     def task_ort_sem_ff(self, inputs, training=None):
@@ -623,17 +620,12 @@ class MyModel(tf.keras.Model):
 
             self.input_sem = self.input_sem.write(
                 t + 1,
-                self.tau
-                * (
-                    self.input_hos_hs.read(t + 1)
-                    + bias_s
-                )
+                self.tau * (self.input_hos_hs.read(t + 1) + bias_s)
                 + (1 - self.tau) * self.input_sem.read(t),
             )
 
             # Update activation
             [self._update_activations(t + 1, x) for x in ("sem", "hos")]
-
 
         return self._package_output(training=training)
 
@@ -1259,12 +1251,16 @@ class MyModel(tf.keras.Model):
         else:
             return x
 
-    def _init_tensor_array(self, name: str, shape: tuple, value: float=0): # Experimental init at -1
+    def _init_input_array(
+        self, name: str, shape: tuple, value: float = 0
+    ):  # Init at zero
 
         setattr(
-            self, 
-            name, 
-            getattr(self, name).write(0, tf.constant(value, dtype=tf.float32, shape=shape))
+            self,
+            name,
+            getattr(self, name).write(
+                0, tf.constant(value, dtype=tf.float32, shape=shape)
+            ),
         )
 
     def _init_all_tensor_arrays(self):
@@ -1272,15 +1268,17 @@ class MyModel(tf.keras.Model):
 
         # Recreate tensor array for safety
         for x in self.ALL_ARRAY_NAMES:
-            setattr(self, x,
+            setattr(
+                self,
+                x,
                 tf.TensorArray(
                     tf.float32, size=self.n_timesteps + 1, clear_after_read=False
                 ),
             )
 
-        # Set inputs to 0
+        # Set inputs
         [
-            self._init_tensor_array(x, shape=self.shapes[x])
+            self._init_input_array(x, shape=self.shapes[x])
             for x in self.INPUT_ARRAY_NAMES
         ]
 
