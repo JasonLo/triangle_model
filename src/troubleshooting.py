@@ -142,12 +142,16 @@ class Diagnosis:
             os.path.join("models", code_name, "model_config.json")
         )
         self.cfg.output_ticks = 13  # Full export
-        self.model = modeling.MyModel(self.cfg)
+        
 
     def eval(self, testset_name: str, task: str, epoch: int):
         self.testset_package = data_wrangling.load_testset(
             os.path.join("dataset", "testsets", f"{testset_name}.pkl.gz")
         )
+        
+        # Manual batch_size override
+        batch_size = len(self.testset_package["item"])
+        self.model = modeling.MyModel(cfg=self.cfg, batch_size_override=batch_size)
         
         self.model.load_weights(self.cfg.saved_weights_fstring.format(epoch=epoch))
         self.model.set_active_task(task)

@@ -116,10 +116,6 @@ class MyModel(tf.keras.Model):
 
         # Inferred variable need to pass manually
         self.n_timesteps = cfg.n_timesteps
-
-        if batch_size_override is not None:
-            self.batch_size = batch_size_override
-
         self.activation = tf.keras.activations.get(self.activation)
 
         # self.active_task = "triangle" # Do not set default task here,
@@ -141,26 +137,32 @@ class MyModel(tf.keras.Model):
             "exp_os_ff": self.task_ort_sem_ff,
         }
 
-        self.shapes = self._create_shape_map()
+        # Instead of relying boardcasting, we specifiy the batch size manually for easier debugging
+        self.shapes = self._create_shape_map(batch_size=batch_size_override)
 
-    def _create_shape_map(self):
+    def _create_shape_map(self, batch_size:int=None) -> dict:
+
+        if batch_size is None:
+            batch_size = self.batch_size
+            
         INPUT_SHAPES = {}
-        INPUT_SHAPES["input_hos"] = (self.batch_size, self.hidden_os_units)
-        INPUT_SHAPES["input_hop"] = (self.batch_size, self.hidden_op_units)
-        INPUT_SHAPES["input_sem"] = (self.batch_size, self.sem_units)
-        INPUT_SHAPES["input_pho"] = (self.batch_size, self.pho_units)
-        INPUT_SHAPES["input_hps"] = (self.batch_size, self.hidden_ps_units)
-        INPUT_SHAPES["input_hsp"] = (self.batch_size, self.hidden_sp_units)
-        INPUT_SHAPES["input_css"] = (self.batch_size, self.sem_cleanup_units)
-        INPUT_SHAPES["input_cpp"] = (self.batch_size, self.pho_cleanup_units)
-        INPUT_SHAPES["input_hps_hs"] = (self.batch_size, self.sem_units)
-        INPUT_SHAPES["input_sem_ss"] = (self.batch_size, self.sem_units)
-        INPUT_SHAPES["input_css_cs"] = (self.batch_size, self.sem_units)
-        INPUT_SHAPES["input_hos_hs"] = (self.batch_size, self.sem_units)
-        INPUT_SHAPES["input_hsp_hp"] = (self.batch_size, self.pho_units)
-        INPUT_SHAPES["input_pho_pp"] = (self.batch_size, self.pho_units)
-        INPUT_SHAPES["input_cpp_cp"] = (self.batch_size, self.pho_units)
-        INPUT_SHAPES["input_hop_hp"] = (self.batch_size, self.pho_units)
+        INPUT_SHAPES["input_hos"] = (batch_size, self.hidden_os_units)
+        INPUT_SHAPES["input_hop"] = (batch_size, self.hidden_op_units)
+        INPUT_SHAPES["input_sem"] = (batch_size, self.sem_units)
+        INPUT_SHAPES["input_pho"] = (batch_size, self.pho_units)
+        INPUT_SHAPES["input_hps"] = (batch_size, self.hidden_ps_units)
+        INPUT_SHAPES["input_hsp"] = (batch_size, self.hidden_sp_units)
+        INPUT_SHAPES["input_css"] = (batch_size, self.sem_cleanup_units)
+        INPUT_SHAPES["input_cpp"] = (batch_size, self.pho_cleanup_units)
+        INPUT_SHAPES["input_hps_hs"] = (batch_size, self.sem_units)
+        INPUT_SHAPES["input_sem_ss"] = (batch_size, self.sem_units)
+        INPUT_SHAPES["input_css_cs"] = (batch_size, self.sem_units)
+        INPUT_SHAPES["input_hos_hs"] = (batch_size, self.sem_units)
+        INPUT_SHAPES["input_hsp_hp"] = (batch_size, self.pho_units)
+        INPUT_SHAPES["input_pho_pp"] = (batch_size, self.pho_units)
+        INPUT_SHAPES["input_cpp_cp"] = (batch_size, self.pho_units)
+        INPUT_SHAPES["input_hop_hp"] = (batch_size, self.pho_units)
+
         return INPUT_SHAPES
 
     def build(self, input_shape=None):
