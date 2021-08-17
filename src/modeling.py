@@ -171,6 +171,7 @@ class MyModel(tf.keras.Model):
         """
 
         weight_initializer = tf.random_uniform_initializer(minval=-0.1, maxval=0.1)
+        bias_initializer = tf.constant_initializer(value=-5.0)
 
         # For SP (incl. PP, since PP is nested within SP)
         self.w_hsp_sh = self.add_weight(
@@ -211,21 +212,21 @@ class MyModel(tf.keras.Model):
         self.bias_hsp = self.add_weight(
             shape=(self.hidden_sp_units,),
             name="bias_hsp",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
         self.bias_p = self.add_weight(
             shape=(self.pho_units,),
             name="bias_p",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
         self.bias_cpp = self.add_weight(
             shape=(self.pho_cleanup_units,),
             name="bias_cpp",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
@@ -268,21 +269,21 @@ class MyModel(tf.keras.Model):
         self.bias_hps = self.add_weight(
             shape=(self.hidden_ps_units,),
             name="bias_hps",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
         self.bias_s = self.add_weight(
             shape=(self.sem_units,),
             name="bias_s",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
         self.bias_css = self.add_weight(
             shape=(self.sem_cleanup_units,),
             name="bias_css",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
@@ -307,7 +308,7 @@ class MyModel(tf.keras.Model):
         self.bias_hos = self.add_weight(
             shape=(self.hidden_os_units,),
             name="bias_hos",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
@@ -330,7 +331,7 @@ class MyModel(tf.keras.Model):
         self.bias_hop = self.add_weight(
             shape=(self.hidden_op_units,),
             name="bias_hop",
-            initializer="zeros",
+            initializer=bias_initializer,
             trainable=True,
         )
 
@@ -340,11 +341,13 @@ class MyModel(tf.keras.Model):
         """Method for switching task"""
         self.active_task = task
 
-    def call(self, inputs, training=None):
-        """
-        call active task when running model()
-        inputs: model input
-        input dimension: [timestep (input should be identical across timestep), item_in_batch, input_unit]
+    def call(self, inputs, training=None) -> dict:
+        """Call active task when running model().
+        
+        Args:
+            inputs: model input
+            input dimension: [timestep (input should be identical across timestep), item_in_batch, input_unit]
+        
         return: a dictionary of input and activation depending on task
         """
 
