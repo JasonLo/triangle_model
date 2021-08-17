@@ -79,7 +79,9 @@ class MikeNetWeight:
     def __repr__(self):
         return "\n".join([f"{i}: {x}" for i, x in enumerate(self.weights.keys())])
 
-    def plot(self, weight_name: str, ax: plt.axes = None, xlim: tuple = None) -> plt.figure:
+    def plot(
+        self, weight_name: str, ax: plt.axes = None, xlim: tuple = None
+    ) -> plt.figure:
         """Density plot of a given weight"""
         df = pd.DataFrame({weight_name: self.weights[weight_name]})
         if len(df) > 1000:
@@ -87,13 +89,13 @@ class MikeNetWeight:
 
         tf_weight_name = self.as_tf_name(weight_name)
         title = f"{weight_name}\n({tf_weight_name})"
-        color = 'red' if tf_weight_name.startswith("bias") else 'blue'
+        color = "red" if tf_weight_name.startswith("bias") else "blue"
         return df.plot.density(title=title, ax=ax, legend=None, xlim=xlim, color=color)
 
     def plot_all(self, xlim: tuple = None) -> plt.figure:
         """Plot all the useful weights"""
         fig, ax = plt.subplots(5, 5, figsize=(25, 25), sharex=True)
-        
+
         for i, weight_name in enumerate(self.weight_keys):
             self.plot(weight_name, ax=ax[i // 5, i % 5], xlim=xlim)
 
@@ -109,12 +111,10 @@ class MikeNetWeight:
         return reverse_map[name]
 
 
-
-
 class Diagnosis:
     """A diagnoistic bundle to trouble shot activation and input in semantic layer
     Usage:
-    Step 1. Init by code_name 
+    Step 1. Init by code_name
     Step 2. Call eval() method to a) get the evaluation results from evaluate.TestSet object b) Load weight to the model at given epoch
     Step 3. Call set_target_word() method to "zoom in" a target word results (including all crucial input and activation pathways as defined in SEM_NAME_MAP and PHO_NAME_MAP)
     Step 4. plot_diagnosis
@@ -142,21 +142,22 @@ class Diagnosis:
             os.path.join("models", code_name, "model_config.json")
         )
         self.cfg.output_ticks = 13  # Full export
-        
 
     def eval(self, testset_name: str, task: str, epoch: int):
         self.testset_package = data_wrangling.load_testset(
             os.path.join("dataset", "testsets", f"{testset_name}.pkl.gz")
         )
-        
+
         # Manual batch_size override
         batch_size = len(self.testset_package["item"])
         self.model = modeling.MyModel(cfg=self.cfg, batch_size_override=batch_size)
-        
+
         self.model.load_weights(self.cfg.saved_weights_fstring.format(epoch=epoch))
         self.model.set_active_task(task)
         input_name = modeling.IN_OUT[task][0]
-        self.y_pred = self.model([self.testset_package[input_name]] * self.cfg.n_timesteps)
+        self.y_pred = self.model(
+            [self.testset_package[input_name]] * self.cfg.n_timesteps
+        )
 
         # Get data for evaluate object
         self.testset = evaluate.TestSet(self.cfg)
@@ -201,9 +202,9 @@ class Diagnosis:
 
     def get_weight(self, name):
         """export the weight tensor"""
-        return [
-            w.numpy() for w in self.model.weights if w.name.endswith(f"{name}:0")
-        ][0]
+        return [w.numpy() for w in self.model.weights if w.name.endswith(f"{name}:0")][
+            0
+        ]
 
     def get_output(self, output_name, timetick=None):
         """Get selected output from TensorArrays"""
@@ -216,7 +217,7 @@ class Diagnosis:
     def list_output_phoneme(self) -> list:
         """Get output phoneme from model output activation pattern"""
         assert self.target_word is not None
-        return H.get_batch_pronunciations_fast(self.get_output('pho'))
+        return H.get_batch_pronunciations_fast(self.get_output("pho"))
 
     def set_target_word(self, word: str) -> pd.DataFrame:
         self.target_word = word
@@ -224,8 +225,13 @@ class Diagnosis:
         self.word_sem_df = self.make_output_diagnostic_df(word, "sem")
         self.word_pho_df = self.make_output_diagnostic_df(word, "pho")
 
-        print(f"Target pronounciation is: {self.testset_package['phoneme'][self.target_word_idx]}")
-        return self.df.loc[(self.df.word==self.target_word) & (self.df.timetick == self.df.timetick.max())]
+        print(
+            f"Target pronounciation is: {self.testset_package['phoneme'][self.target_word_idx]}"
+        )
+        return self.df.loc[
+            (self.df.word == self.target_word)
+            & (self.df.timetick == self.df.timetick.max())
+        ]
 
     def make_output_diagnostic_df(self, target_word: str, layer: str) -> pd.DataFrame:
         """Output all Semantic related input and activation in a word"""
@@ -291,12 +297,14 @@ class Diagnosis:
     @staticmethod
     def find_incorrect_nodes(df: pd.DataFrame, layer: str) -> pd.DataFrame:
         """Based on last time tick, create a dataframe with all incorrect nodes in a given output layer"""
+        
         assert layer in ("pho", "sem")
         return df.loc[(df.unit_acc == 0) & (df.timetick == df.timetick.max())]
 
     @staticmethod
     def find_correct_nodes(df: pd.DataFrame, layer: str) -> pd.DataFrame:
         """Based on last time tick, create a dataframe with all correct nodes in a given output layer"""
+        
         assert layer in ("pho", "sem")
         return df.loc[(df.unit_acc == 1) & (df.timetick == df.timetick.max())]
 
@@ -325,12 +333,16 @@ class Diagnosis:
         )
 
         print(f"At last timetick in {layer} output layer (target = {target_act}):")
-        print(f"Selected {len(correct_units)} out of {total_correct_units} correct units")
-        print(f"Selected {len(incorrect_units)} out of {total_incorrect_units} incorrect units")
+        print(
+            f"Selected {len(correct_units)} out of {total_correct_units} correct units"
+        )
+        print(
+            f"Selected {len(incorrect_units)} out of {total_incorrect_units} incorrect units"
+        )
 
         return df.loc[df.unit.isin(correct_units + incorrect_units)]
 
-    def plot_one_node(self, layer:str, node:int) -> alt.Chart:
+    def plot_one_node(self, layer: str, node: int) -> alt.Chart:
         assert layer in ("pho", "sem")
         df = self.word_pho_df if layer == "pho" else self.word_sem_df
         df = df.loc[df.unit == node]
@@ -338,20 +350,30 @@ class Diagnosis:
         return p.raw_and_tai()
 
     def plot_one_layer_by_target(self, layer: str, target_act: int) -> alt.Chart:
+        """Plot one layer in target = target_act"""
+
         df = self.subset_df(layer, target_act)
         p = Plots(df)
         return p.raw_tai_act().properties(title=f"At target node = {target_act}")
 
     def plot_one_layer(self, layer: str) -> alt.Chart:
+        """Combined plot with 1 and 0 target"""
+
         p1 = self.plot_one_layer_by_target(layer, target_act=1)
         p2 = self.plot_one_layer_by_target(layer, target_act=0)
-        return (p1 & p2).resolve_scale(y="shared").properties(title=f"In a word: {self.target_word}")
+        return (
+            (p1 & p2)
+            .resolve_scale(y="shared")
+            .properties(title=f"In a word: {self.target_word}")
+        )
 
-    def plot_weight_density(self, weight_name: str, ax: plt.axes = None, xlim: tuple = None) -> plt.figure:
+    def plot_weight_density(
+        self, weight_name: str, ax: plt.axes = None, xlim: tuple = None
+    ) -> plt.figure:
         """Density plot of a given weight in Diagnosis object"""
 
         df = pd.DataFrame({weight_name: self.get_weight(weight_name).flatten()})
-        color = 'red' if weight_name.startswith("bias") else 'blue'
+        color = "red" if weight_name.startswith("bias") else "blue"
 
         if len(df) > 1000:
             df = df.sample(1000)
@@ -365,7 +387,7 @@ class Plots:
         self.df = df
         self.sel_var = alt.selection_multi(fields=["variable"], bind="legend")
         self.sel_unit = alt.selection_multi(fields=["unit"])
-        self.sel_unit_legend = alt.selection_multi(fields=['unit'], bind="legend")
+        self.sel_unit_legend = alt.selection_multi(fields=["unit"], bind="legend")
 
     def raw_inputs(self) -> alt.Chart():
         """Plot raw input by pathway without sel unit dependency"""
@@ -442,20 +464,20 @@ class Plots:
     def raw_and_tai(self):
         return (
             self._subplot_input_pathways() | self._subplot_input_units()
-        ).resolve_scale(color="independent", y="shared") 
+        ).resolve_scale(color="independent", y="shared")
 
     def raw_and_act(self):
-        return(
-            self._subplot_input_pathways() | self._subplot_act()
-        ).resolve_scale(color="independent", y="independent")
+        return (self._subplot_input_pathways() | self._subplot_act()).resolve_scale(
+            color="independent", y="independent"
+        )
 
     def raw_tai_act(self):
-        return (
-            self.raw_and_tai() | self._subplot_act()
-        ).resolve_scale(color="independent", y="independent")
+        return (self.raw_and_tai() | self._subplot_act()).resolve_scale(
+            color="independent", y="independent"
+        )
 
 
-def dual_plot(tf_diag, mn_weights, weight_name:str) -> plt.figure:
+def dual_plot(tf_diag, mn_weights, weight_name: str) -> plt.figure:
     """Plot both MN weight with TF weight
     td_diag: troubleshoot.Diagnosis class
     mn_weights: mn_helper.mn_weights class
