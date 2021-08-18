@@ -138,6 +138,7 @@ class Diagnosis:
     }
 
     def __init__(self, code_name: str):
+        self.code_name = code_name
         self.cfg = meta.ModelConfig.from_json(
             os.path.join("models", code_name, "model_config.json")
         )
