@@ -1,10 +1,11 @@
+# This file need serious refactoring
+
 import argparse, os
 import pandas as pd
 import altair as alt
-import meta, evaluate, troubleshooting
+import meta, evaluate, troubleshooting, data_wrangling
 import modeling
 import random
-
 
 
 def init(code_name, tau_override=None):
@@ -25,9 +26,9 @@ def init(code_name, tau_override=None):
     return test
 
 
-def run_test1(code_name):
+def run_test1(code_name, testset="train_r100"):
     test = init(code_name)
-    df = test.eval("train_r100", "triangle")
+    df = test.eval(testset, "triangle")
     mdf = make_mean_df(df)
     fig9 = plot_hs04_fig9(mdf, metric="acc")
     fig9_sse = plot_hs04_fig9(mdf, metric="csse")
@@ -35,10 +36,10 @@ def run_test1(code_name):
     fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1_sse.html"))
 
     # Extras Oral tasks
-    mdf_pp = make_mean_df(test.eval("train_r100", "pho_pho"))
-    mdf_ss = make_mean_df(test.eval("train_r100", "sem_sem"))
-    mdf_sp = make_mean_df(test.eval("train_r100", "sem_pho"))
-    mdf_ps = make_mean_df(test.eval("train_r100", "pho_sem"))
+    mdf_pp = make_mean_df(test.eval(testset, "pho_pho"))
+    mdf_ss = make_mean_df(test.eval(testset, "sem_sem"))
+    mdf_sp = make_mean_df(test.eval(testset, "sem_pho"))
+    mdf_ps = make_mean_df(test.eval(testset, "pho_sem"))
 
     df_oral = pd.concat([mdf_pp, mdf_ss, mdf_sp, mdf_ps], ignore_index=True)
     test1_oral_plot_acc = plot_hs04_fig14(df_oral, metric="acc")
@@ -90,6 +91,7 @@ def run_test3(code_name):
     test3_sse = plot_conds(mdf, "csse")
     test3_sse.save(os.path.join(test.cfg.plot_folder, "test3_sse.html"))
 
+
 def run_test4(code_name):
     test = init(code_name)
     df = test.eval("hs04_img_240", "triangle")
@@ -101,6 +103,7 @@ def run_test4(code_name):
 
     test4_sse = plot_hs04_fig11(mdf, metric="csse")
     test4_sse.save(os.path.join(test.cfg.plot_folder, "test4_sse.html"))
+
 
 def run_test5(code_name):
     tau = 1.0 / 12.0
@@ -126,29 +129,63 @@ def run_test5(code_name):
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
     test5b.save(os.path.join(test.cfg.plot_folder, "test5_pho.html"))
 
-def run_test6(code_name):
+
+def run_test6(code_name, testset="train_r100"):
     """Test 5 without resizing tau"""
     test = init(code_name)
 
     # SEM (same as HS04)
-    df_intact = test.eval("train_r100", "triangle")
-    df_os_lesion = test.eval("train_r100", "exp_ops")
-    df_ops_lesion = test.eval("train_r100", "ort_sem")
+    df_intact = test.eval(testset, "triangle")
+    df_os_lesion = test.eval(testset, "exp_ops")
+    df_ops_lesion = test.eval(testset, "ort_sem")
 
     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
     mdf_sem = make_mean_df(df_sem)
     test5a = plot_hs04_fig14(mdf_sem, output="sem")
-    test5a.save(os.path.join(test.cfg.plot_folder, "test6_sem.html"))
+    test5a.save(os.path.join(test.cfg.plot_folder, f"test6_sem_{testset}.html"))
 
     # PHO (extra)
-    df_op_lesion = test.eval("train_r100", "exp_osp")
-    df_osp_lesion = test.eval("train_r100", "ort_pho")
+    df_op_lesion = test.eval(testset, "exp_osp")
+    df_osp_lesion = test.eval(testset, "ort_pho")
 
     df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
     mdf_pho = make_mean_df(df_pho)
 
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
-    test5b.save(os.path.join(test.cfg.plot_folder, "test6_pho.html"))
+    test5b.save(os.path.join(test.cfg.plot_folder, f"test6_pho_{testset}.html"))
+
+def run_test6r(code_name, testset="train_r300_difficulty"):
+    """Lesioning with high_mid_low difficulty"""
+    test = init(code_name)
+
+    # Get word to condition mapping
+    ts = data_wrangling.load_testset(testset)
+    word_to_cond = dict(zip(ts['item'], ts['cond']))
+
+    # SEM (same as HS04)
+    df_intact = test.eval(testset, "triangle")
+    df_os_lesion = test.eval(testset, "exp_ops")
+    df_ops_lesion = test.eval(testset, "ort_sem")
+
+    df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
+    df_sem['cond'] = df_sem['word'].map(word_to_cond)
+    mdf_sem = make_cond_mean_df(df_sem)
+
+    for diff in ["hi", "mid", "low"]:
+        test5a = plot_hs04_fig14(mdf_sem.loc[mdf_sem.cond == diff], output="sem")
+        test5a.save(os.path.join(test.cfg.plot_folder, f"test6r_sem_{diff}_{testset}.html"))
+
+    # PHO (extra)
+    df_op_lesion = test.eval(testset, "exp_osp")
+    df_osp_lesion = test.eval(testset, "ort_pho")
+
+    df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
+    df_pho['cond'] = df_pho['word'].map(word_to_cond)
+    mdf_pho = make_cond_mean_df(df_pho)
+
+    for diff in ["hi", "mid", "low"]:
+        test5b = plot_hs04_fig14(mdf_pho.loc[mdf_pho.cond == diff], output="pho")
+        test5b.save(os.path.join(test.cfg.plot_folder, f"test6r_pho_{diff}_{testset}.html"))
 
 
 def run_test7(code_name):
@@ -171,6 +208,7 @@ def run_test7(code_name):
     p_pho = plot_activation_by_target(df_pho, output="pho")
     p_pho.save(os.path.join(test.cfg.plot_folder, "test7_pho.html"))
 
+
 def run_test8(code_name, epoch=None):
     """10 random word raw input temporal dynamics"""
     d = troubleshooting.Diagnosis(code_name)
@@ -179,31 +217,35 @@ def run_test8(code_name, epoch=None):
         # Use last epoch if no epoch is provided
         epoch = d.cfg.total_number_of_epoch
 
-    d.eval('train_r100', task='triangle', epoch=epoch)
+    d.eval("train_r100", task="triangle", epoch=epoch)
 
-    ten_words = random.sample(d.testset_package['item'], 10)
+    ten_words = random.sample(d.testset_package["item"], 10)
 
     ten_plots_pho = alt.hconcat()
     ten_plots_sem = alt.hconcat()
     for w in ten_words:
-        ten_plots_pho &= plot_raw_input_by_target(w, d, 'pho')
-        ten_plots_sem &= plot_raw_input_by_target(w, d, 'sem')
+        ten_plots_pho &= plot_raw_input_by_target(w, d, "pho")
+        ten_plots_sem &= plot_raw_input_by_target(w, d, "sem")
 
-    ten_plots_pho.resolve_scale(y="shared").save(os.path.join(d.cfg.plot_folder, 'test8_pho.html'))
-    ten_plots_sem.resolve_scale(y="shared").save(os.path.join(d.cfg.plot_folder, 'test8_sem.html'))
+    ten_plots_pho.resolve_scale(y="shared").save(
+        os.path.join(d.cfg.plot_folder, "test8_pho.html")
+    )
+    ten_plots_sem.resolve_scale(y="shared").save(
+        os.path.join(d.cfg.plot_folder, "test8_sem.html")
+    )
 
 
 def run_test9(code_name, epoch=None):
-    """ Compare weight with mikenet """
+    """Compare weight with mikenet"""
     d = troubleshooting.Diagnosis(code_name)
 
     if epoch is None:
         # Use last epoch if no epoch is provided
         epoch = d.cfg.total_number_of_epoch
 
-    d.eval('train_r100', task='triangle', epoch=epoch)
+    d.eval("train_r100", task="triangle", epoch=epoch)
 
-    w = troubleshooting.MikeNetWeight('mikenet/Reading_Weight_v1')
+    w = troubleshooting.MikeNetWeight("mikenet/Reading_Weight_v1")
     os.makedirs(os.path.join(d.cfg.plot_folder, "compare_mn_weights"), exist_ok=True)
 
     for x in w.weight_keys:
@@ -211,16 +253,44 @@ def run_test9(code_name, epoch=None):
 
         try:
             tmp = troubleshooting.dual_plot(d, w, w_name)
-            tmp.savefig(os.path.join(d.cfg.plot_folder, "compare_mn_weights", f"{w_name}.png"))
+            tmp.savefig(
+                os.path.join(d.cfg.plot_folder, "compare_mn_weights", f"{w_name}.png")
+            )
         except IndexError:
             pass
+
+
+
+def run_test10(code_name):
+    """Test 10: Evaluate the accuracy in each task over epoch with 3 levels of difficulties"""
+
+    test = init(code_name)
+
+    testset = "train_r300_difficulty"
+    ts = data_wrangling.load_testset(testset)
     
+    tasks = ["triangle", "pho_pho", "sem_sem", "sem_pho", "pho_sem"]
+
+    # Evaluate all tasks
+    all_eval = [test.eval(testset, x) for x in tasks]
+    df = pd.concat(all_eval, ignore_index=True)
+
+    # Post process the data
+    word_to_cond = dict(zip(ts['item'], ts['cond']))
+    df['cond'] = df['word'].map(word_to_cond)
+    mdf = make_cond_mean_df(df)
+
+    # Plot and save
+    plot_acc_by_difficulty(mdf).save(os.path.join(test.cfg.plot_folder, "test10.html"))
 
 
 
 ########## Support functions ##########
 
-def plot_raw_input_by_target(word:str, diag:troubleshooting.Diagnosis, layer:str) -> alt.Chart:
+
+def plot_raw_input_by_target(
+    word: str, diag: troubleshooting.Diagnosis, layer: str
+) -> alt.Chart:
     diag.set_target_word(word)
     print(f"Output phoneme over timeticks: {diag.list_output_phoneme}")
 
@@ -289,7 +359,6 @@ def plot_hs04_fig9(mean_df, metric="acc"):
     return timetick_sel & main
 
 
-
 def plot_hs04_fig10(mean_df, metric="acc"):
     """test case 2"""
     metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
@@ -298,12 +367,8 @@ def plot_hs04_fig10(mean_df, metric="acc"):
     interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
     interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
 
-
     epoch_selection = (
-        alt.Chart(mean_df)
-        .mark_rect()
-        .encode(x="epoch:Q")
-        .add_selection(interval_epoch)
+        alt.Chart(mean_df).mark_rect().encode(x="epoch:Q").add_selection(interval_epoch)
     ).properties(width=400)
 
     timetick_sel = (
@@ -313,7 +378,8 @@ def plot_hs04_fig10(mean_df, metric="acc"):
         .add_selection(interval_timetick)
     ).properties(width=400)
 
-    plot_fxc_interact = (alt.Chart(mean_df)
+    plot_fxc_interact = (
+        alt.Chart(mean_df)
         .mark_line()
         .encode(
             x=alt.X("freq:N", scale=alt.Scale(reverse=True)),
@@ -324,10 +390,8 @@ def plot_hs04_fig10(mean_df, metric="acc"):
         .transform_filter(interval_epoch)
         .properties(width=400)
     )
-    
 
     return epoch_selection & timetick_sel & plot_fxc_interact
-        
 
 
 def plot_conds(mean_df, metric="acc"):
@@ -355,7 +419,6 @@ def plot_conds(mean_df, metric="acc"):
         .transform_filter(interval_timetick)
         .interactive()
     )
-    
 
     return timetick_sel & cond_over_epoch
 
@@ -365,15 +428,11 @@ def plot_hs04_fig11(mean_df, metric="acc"):
     mean_df = mean_df.loc[mean_df.output_name == "pho"]
     metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
 
-
     interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
     interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
 
     epoch_selection = (
-        alt.Chart(mean_df)
-        .mark_rect()
-        .encode(x="epoch:Q")
-        .add_selection(interval_epoch)
+        alt.Chart(mean_df).mark_rect().encode(x="epoch:Q").add_selection(interval_epoch)
     ).properties(width=400)
 
     timetick_sel = (
@@ -386,7 +445,12 @@ def plot_hs04_fig11(mean_df, metric="acc"):
     bar = (
         alt.Chart(mean_df)
         .mark_bar()
-        .encode(x="img:N", y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale), color="img:N", column="fc:N")
+        .encode(
+            x="img:N",
+            y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
+            color="img:N",
+            column="fc:N",
+        )
         .transform_filter(interval_epoch)
         .transform_filter(interval_timetick)
         .properties(width=50, height=200)
@@ -424,17 +488,15 @@ def plot_hs04_fig14(mean_df, output=None, metric="acc"):
 
     return timetick_sel & line
 
+
 def plot_activation_by_target(df, output):
-    df = df.loc[df.output_name==output]
+    df = df.loc[df.output_name == output]
 
     interval_epoch = alt.selection_interval(init={"epoch": (305, 315)})
     interval_timetick = alt.selection_interval(init={"timetick": (4, 12)})
 
     epoch_selection = (
-        alt.Chart(df)
-        .mark_rect()
-        .encode(x="epoch:Q")
-        .add_selection(interval_epoch)
+        alt.Chart(df).mark_rect().encode(x="epoch:Q").add_selection(interval_epoch)
     ).properties(width=400)
 
     timetick_sel = (
@@ -445,13 +507,23 @@ def plot_activation_by_target(df, output):
     ).properties(width=400)
 
     plot_activation = (
-        alt.Chart(df).mark_point().encode(
-        x=alt.X("act1:Q", scale=alt.Scale(domain=(0,1)), title="Activation for target node = 1"),
-        y=alt.Y("act0:Q", scale=alt.Scale(reverse=True, domain=(0,1)), title="Activation for target node = 0"),
-        color="task:N",
-        detail="word:N",
-        column=alt.Column("acc:N", title="Prediction accuracy"),
-        tooltip=['word', 'acc', 'sse', 'act0', 'act1' ]
+        alt.Chart(df)
+        .mark_point()
+        .encode(
+            x=alt.X(
+                "act1:Q",
+                scale=alt.Scale(domain=(0, 1)),
+                title="Activation for target node = 1",
+            ),
+            y=alt.Y(
+                "act0:Q",
+                scale=alt.Scale(reverse=True, domain=(0, 1)),
+                title="Activation for target node = 0",
+            ),
+            color="task:N",
+            detail="word:N",
+            column=alt.Column("acc:N", title="Prediction accuracy"),
+            tooltip=["word", "acc", "sse", "act0", "act1"],
         )
         .transform_filter(interval_epoch)
         .transform_filter(interval_timetick)
@@ -460,17 +532,56 @@ def plot_activation_by_target(df, output):
 
     return epoch_selection & timetick_sel & plot_activation
 
+
+
+def plot_acc_by_difficulty(mean_df, metric="acc"):
+    """A quick and dirty plot to check the impact of item difficulty on task performance"""
+
+    interval = alt.selection_interval()
+    metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
+
+    timetick_sel = (
+        alt.Chart(mean_df)
+        .mark_rect()
+        .encode(x="timetick:O", color=f"mean({metric}):Q")
+        .add_selection(interval)
+    ).properties(width=400)
+
+    main = (
+        alt.Chart(mean_df)
+        .mark_line(point=True)
+        .encode(
+            x="epoch:Q",
+            y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
+            color=alt.Color("cond:O", sort=['hi', 'mid', 'low'], title='difficulty'),
+            column="output_name:N",
+            row="task:N",
+        )
+        .transform_filter(interval)
+    )
+
+    return timetick_sel & main
+
 ################################################################################
 
 TEST_MAP = {
-    1: run_test1, 2: run_test2, 3: run_test3, 
-    4: run_test4, 5: run_test5, 6: run_test6,
-    7: run_test7, 8: run_test8, 9: run_test9,
+    1: run_test1,
+    2: run_test2,
+    3: run_test3,
+    4: run_test4,
+    5: run_test5,
+    6: run_test6,
+    7: run_test7,
+    8: run_test8,
+    9: run_test9,
+    10: run_test10,
+    11: run_test6r,
 }
+
 
 def main(code_name):
     """Run the frequently used tests (except high res test 5)"""
-    for i in (1, 2, 3, 4, 6, 7, 8, 9):
+    for i in (1, 2, 3, 4, 6, 7, 8, 9, 10, 11):
         TEST_MAP[i](code_name)
 
 
