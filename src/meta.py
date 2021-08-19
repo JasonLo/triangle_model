@@ -5,57 +5,41 @@ import uuid
 import tensorflow as tf
 from dataclasses import dataclass
 
-# Use dataclass to replace manual config registry.
-# # Parameters registry
-# CORE_CONFIGS = (
-#     "code_name",
-#     "tf_root",
-#     "ort_units",
-#     "pho_units",
-#     "sem_units",
-#     "hidden_os_units",
-#     "hidden_op_units",
-#     "hidden_ps_units",
-#     "hidden_sp_units",
-#     "pho_cleanup_units",
-#     "sem_cleanup_units",
-#     "pho_noise_level",
-#     "sem_noise_level",
-#     "activation",
-#     "tau",
-#     "max_unit_time",
-#     "inject_error_ticks",
-#     "output_ticks",
-#     "learning_rate",
-#     "zero_error_radius",
-#     "save_freq",
-# )
-
-# ENV_CONFIGS = (
-#     "tasks",
-#     "wf_compression",
-#     "wf_clip_low",
-#     "wf_clip_high",
-#     "oral_start_pct",
-#     "oral_end_pct",
-#     "oral_sample",
-#     "oral_tasks_ps",
-#     "transition_sample",
-#     "reading_sample",
-#     "reading_tasks_ps",
-#     "batch_size",
-#     "rng_seed",
-# )
-
-# OPTIONAL_CONFIGS = (
-#     "batch_name",
-#     "batch_unique_setting_string",
-#     "pretrained_checkpoint",
-# )
-
-
 @dataclass
 class ModelConfig:
+    """ ModelConfig Class contains all the information needed to run a model.
+
+    args:
+        code_name: name of the run
+        tf_root: project root folder
+        uuid: unique identifier for the run (optional: auto generated if not provided)
+        batch_name: name of the batch if running in batch mode
+        batch_unique_setting_string: unique setting string for the batch
+
+        ort_units: number of orthographic units
+        pho_units: number of phonological units
+        sem_units: number of semantic units
+        hidden_os_units: number of hidden units in O to S
+        hidden_op_units: number of hidden units in O to P
+        hidden_ps_units: number of hidden units in P to S
+        hidden_sp_units: number of hidden units in S to P
+        pho_clean_units: number of cleanup (hidden) units in phonology attractor
+        sem_clean_units: number of cleanup (hidden) units in semantic attractor
+        pho_noise_level: Gaussian noise level at phonology system measured in SD (also see: modeling._inject_noise_to_all_pho())
+        sem_noise_level: Gaussian noise level at semantic system measured in SD (also see: modeling._inject_noise_to_all_sem())
+        activation: name of activation function for all layers
+
+        tau: time constant in time averaged input
+        max_unit_time: maximum unit time in time averaged input
+        output_ticks: number of ticks to output
+        inject_error_ticks: number of ticks to inject error, start from last ticks
+        
+        learning_rate: learning rate for optimizer
+        zero_error_radius: whether to use zero error radius or not and if so, what radius to use (e.g., None or 0.1)
+        save_freq: how often to save model weights (in epochs)
+
+        [TO BE ADDED]
+    """
     code_name: str
     tf_root: str = "/home/jupyter/triangle_model"
     uuid: str = None
