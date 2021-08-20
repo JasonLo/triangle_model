@@ -1,10 +1,15 @@
 import meta, data_wrangling, modeling, evaluate
 import random, os
 import pandas as pd
+import numpy as np
 import altair as alt
 import helper as H
 from matplotlib import pyplot as plt
+from typing import List
 
+def tick1_input(weight: np.array) -> float:
+    """Get the first tick input of a weight"""
+    return 0.5 * np.sum(weight, axis=0).mean()
 
 class MikeNetWeight:
     name_map = {
@@ -33,6 +38,7 @@ class MikeNetWeight:
         "Bias -> osh": "bias_hos",
     }
 
+
     def __init__(self, file: str = None, useful_start_idx: int = 25):
         self.weights = self.parse_weight(file)
 
@@ -41,6 +47,55 @@ class MikeNetWeight:
         self.nonweight_keys = list(self.weights.keys())[:useful_start_idx]
         print(f"Weight Keys: {self.weight_keys}\n")
         print(f"Non-weight Keys: {self.nonweight_keys}")
+
+        # Get dimensions from biases
+        self.sem_units = len(self.weights["Bias -> Semantics"])
+        self.pho_units = len(self.weights["Bias -> Phono"])
+        self.pho_cleanup_units = len(self.weights["Bias -> PhoCleanup"])
+        self.sem_cleanup_units = len(self.weights["Bias -> SemCleanup"])
+        self.hidden_os_units = len(self.weights["Bias -> osh"])
+        self.hidden_op_units = len(self.weights["Bias -> oph"])
+        self.hidden_ps_units = len(self.weights["Bias -> psh"])
+        self.hidden_sp_units = len(self.weights["Bias -> sph"])
+
+        self.ort_units = int(len(self.weights["Ortho -> oph"])/self.hidden_op_units)
+
+        self.shape_map = self.create_weights_shapes()
+        self.weights_2d = self.reshape_all_weights()
+
+
+
+
+
+    @staticmethod
+    def reshape_weight(weight, shape: tuple) -> np.array:
+        """Reshape a weight into a matrix"""
+        return np.array(weight).reshape(shape)
+
+    def create_weights_shapes(self):
+        """Create a dictionary that consists of all the proper shape of each weights"""
+        shape_map = {
+            "Phono -> psh": (self.pho_units, self.hidden_ps_units),
+            "psh -> Semantics": (self.hidden_ps_units, self.sem_units),
+            "Semantics -> SemCleanup": (self.sem_units, self.sem_cleanup_units),
+            "SemCleanup -> Semantics": (self.sem_cleanup_units, self.sem_units),
+            "Semantics -> sph": (self.sem_units, self.hidden_sp_units),
+            "sph -> Phono": (self.hidden_sp_units, self.pho_units),
+            "Phono -> PhoCleanup": (self.pho_units, self.pho_cleanup_units),
+            "PhoCleanup -> Phono": (self.pho_cleanup_units, self.pho_units),
+            "Ortho -> oph": (self.ort_units, self.hidden_op_units),
+            "Ortho -> osh": (self.ort_units, self.hidden_os_units),
+            "oph -> Phono": (self.hidden_op_units, self.pho_units),
+            "osh -> Semantics": (self.hidden_os_units, self.sem_units),
+        }
+        return shape_map
+
+
+    def reshape_all_weights(self):
+        """Reshape all the weights"""           
+        return {k: self.reshape_weight(self.weights[k], v) for k, v in self.shape_map.items()}
+
+
 
     @staticmethod
     def parse_weight(file: str = None) -> dict:
@@ -78,6 +133,7 @@ class MikeNetWeight:
 
     def __repr__(self):
         return "\n".join([f"{i}: {x}" for i, x in enumerate(self.weights.keys())])
+
 
     def plot(
         self, weight_name: str, ax: plt.axes = None, xlim: tuple = None
