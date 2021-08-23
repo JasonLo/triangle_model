@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import altair as alt
 import helper as H
+import tensorflow as tf
 from matplotlib import pyplot as plt
 from typing import List
 
@@ -62,6 +63,7 @@ class MikeNetWeight:
 
         self.shape_map = self.create_weights_shapes()
         self.weights_2d = self.reshape_all_weights()
+        self.weights_tf = self.convert_all_weights_to_tf()
 
 
 
@@ -71,6 +73,13 @@ class MikeNetWeight:
     def reshape_weight(weight, shape: tuple) -> np.array:
         """Reshape a weight into a matrix"""
         return np.array(weight).reshape(shape)
+
+    @staticmethod
+    def convert_to_tf_weights(weight2d, name) -> tf.Variable:
+        """Convert a weight matrix into tensorflow format"""
+        x = tf.Variable(weight2d, dtype=tf.float32, name=name)
+        return x
+
 
     def create_weights_shapes(self):
         """Create a dictionary that consists of all the proper shape of each weights"""
@@ -87,6 +96,14 @@ class MikeNetWeight:
             "Ortho -> osh": (self.ort_units, self.hidden_os_units),
             "oph -> Phono": (self.hidden_op_units, self.pho_units),
             "osh -> Semantics": (self.hidden_os_units, self.sem_units),
+            "Bias -> oph": (self.hidden_op_units,),
+            "Bias -> osh": (self.hidden_os_units,),
+            "Bias -> Semantics": (self.sem_units,),
+            "Bias -> Phono": (self.pho_units,),
+            "Bias -> psh": (self.hidden_ps_units,),
+            "Bias -> sph": (self.hidden_sp_units,),
+            "Bias -> SemCleanup": (self.sem_cleanup_units,),
+            "Bias -> PhoCleanup": (self.pho_cleanup_units,),
         }
         return shape_map
 
@@ -95,6 +112,10 @@ class MikeNetWeight:
         """Reshape all the weights"""           
         return {k: self.reshape_weight(self.weights[k], v) for k, v in self.shape_map.items()}
 
+    def convert_all_weights_to_tf(self):
+        """Convert all the weights to tensorflow format"""
+
+        return {self.as_tf_name(k): self.convert_to_tf_weights(v, self.as_tf_name(k)) for k, v in self.weights_2d.items()}
 
 
     @staticmethod
