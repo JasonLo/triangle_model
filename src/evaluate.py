@@ -21,7 +21,8 @@ class TestSet:
     """
 
     METRICS_MAP = {
-        "acc": {'pho': metrics.PhoAccuracy(), 'sem':metrics.RightSideAccuracy()},
+        # "acc": {'pho': metrics.PhoAccuracy(), 'sem':metrics.RightSideAccuracy()},
+        "acc": {'pho': metrics.RightSideAccuracy(), 'sem':metrics.RightSideAccuracy()},
         "sse": metrics.SumSquaredError(),
         "act0": metrics.OutputOfZeroTarget(),
         "act1": metrics.OutputOfOneTarget()
@@ -37,71 +38,69 @@ class TestSet:
         task: 1 of 9 task option in triangle model
         output: pandas dataframe with all the evaluation results
         """
-        try:
-            df = self.load(testset_name, task, save_file_prefix)
-            print(f"Eval results found, load from saved csv")
-        except (FileNotFoundError, IOError):
 
-            df = pd.DataFrame()
-            ts_path = "dataset/testsets"
-            testset_package = data_wrangling.load_testset(
-                os.path.join(ts_path, f"{testset_name}.pkl.gz")
+        df = pd.DataFrame()
+        ts_path = "dataset/testsets"
+        testset_package = data_wrangling.load_testset(
+            os.path.join(ts_path, f"{testset_name}.pkl.gz")
+        )
+
+        # Enforceing batch_size dim to match wiht test case
+        inputs = testset_package[modeling.IN_OUT[task][0]]
+        self.cfg.batch_size = inputs.shape[0]
+        
+        # Build model and switch task
+        model = modeling.MyModel(self.cfg)
+        model.set_active_task(task)
+
+        # for epoch in tqdm(
+        #     self.cfg.saved_epoches, desc=f"Evaluating {testset_name}:{task}"
+        # ):
+            # for epoch in tqdm(range(250, 291, 10)):
+            # w = self.cfg.saved_weights_fstring.format(epoch=epoch)
+            # model.load_weights(w)
+        epoch = 0
+
+        y_pred = model([inputs] * self.cfg.n_timesteps)
+
+        for timetick_idx in range(self.cfg.output_ticks):
+            if task == "triangle":
+                for output_name in ("pho", "sem"):
+                    df = self._try_to_run_eval(
+                        df,
+                        y_pred,
+                        testset_name,
+                        task,
+                        epoch,
+                        output_name,
+                        timetick_idx,
+                        testset_package,
+                    )
+            else:
+                output_name = modeling.IN_OUT[task][1]
+                df = self._try_to_run_eval(
+                    df,
+                    y_pred,
+                    testset_name,
+                    task,
+                    epoch,
+                    output_name,
+                    timetick_idx,
+                    testset_package,
+                )
+
+        # Save evaluation
+        if save_file_prefix is not None:
+            csv_name = os.path.join(
+                self.cfg.eval_folder,
+                f"{save_file_prefix}_{testset_name}_{task}.csv",
+            )
+        else:
+            csv_name = os.path.join(
+                self.cfg.eval_folder, f"{testset_name}_{task}.csv"
             )
 
-            # Enforceing batch_size dim to match wiht test case
-            inputs = testset_package[modeling.IN_OUT[task][0]]
-            self.cfg.batch_size = inputs.shape[0]
-            
-            # Build model and switch task
-            model = modeling.MyModel(self.cfg)
-            model.set_active_task(task)
-
-            for epoch in tqdm(
-                self.cfg.saved_epoches, desc=f"Evaluating {testset_name}:{task}"
-            ):
-                # for epoch in tqdm(range(250, 291, 10)):
-                w = self.cfg.saved_weights_fstring.format(epoch=epoch)
-                model.load_weights(w)
-                y_pred = model([inputs] * self.cfg.n_timesteps)
-
-                for timetick_idx in range(self.cfg.output_ticks):
-                    if task == "triangle":
-                        for output_name in ("pho", "sem"):
-                            df = self._try_to_run_eval(
-                                df,
-                                y_pred,
-                                testset_name,
-                                task,
-                                epoch,
-                                output_name,
-                                timetick_idx,
-                                testset_package,
-                            )
-                    else:
-                        output_name = modeling.IN_OUT[task][1]
-                        df = self._try_to_run_eval(
-                            df,
-                            y_pred,
-                            testset_name,
-                            task,
-                            epoch,
-                            output_name,
-                            timetick_idx,
-                            testset_package,
-                        )
-
-            # Save evaluation
-            if save_file_prefix is not None:
-                csv_name = os.path.join(
-                    self.cfg.eval_folder,
-                    f"{save_file_prefix}_{testset_name}_{task}.csv",
-                )
-            else:
-                csv_name = os.path.join(
-                    self.cfg.eval_folder, f"{testset_name}_{task}.csv"
-                )
-
-            df.to_csv(csv_name)
+        df.to_csv(csv_name)
         return df
 
     def _try_to_run_eval(
@@ -160,11 +159,12 @@ class TestSet:
 
         this_y_true = y_true[tag["output_name"]]
 
-        try:
-            if tag["output_name"] == "pho":
-                this_y_true_phoneme = y_true["phoneme"]
-        except:
-            print("Cannot find phoneme in y_true dictionary")
+        # try:
+        #     if tag["output_name"] == "pho":
+        #         this_y_true_phoneme = y_true["phoneme"]
+        # except:
+        #     print("Cannot find phoneme in y_true dictionary")
+
         # shape: (item, *maybe n ans, output nodes)
 
         acc = self.METRICS_MAP["acc"][tag["output_name"]]
@@ -174,7 +174,8 @@ class TestSet:
 
         if type(this_y_true) is list:
             # List mode (for glushko)
-            out["acc"] = acc.item_metric_multi_list(this_y_true_phoneme, this_y_pred)
+            # out["acc"] = acc.item_metric_multi_list(this_y_true_phoneme, this_y_pred)
+            out["acc"] = acc.item_metric_multi_list(this_y_true, this_y_pred)
             out["sse"] = sse.item_metric_multi_list(this_y_true, this_y_pred)
             # TODO: add act0 and act1
         elif tf.rank(this_y_true) == 3:
@@ -190,8 +191,8 @@ class TestSet:
             out["act1"] = act1.item_metric(this_y_true, this_y_pred)
 
         # Write prediction if output is pho
-        if tag["output_name"] == "pho":
-            out["pho_pred"] = H.get_batch_pronunciations_fast(this_y_pred)
+        # if tag["output_name"] == "pho":
+        #     out["pho_pred"] = H.get_batch_pronunciations_fast(this_y_pred)
 
         # Write tag to df
         for k, v in tag.items():

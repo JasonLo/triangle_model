@@ -66,13 +66,23 @@ class MikeNetWeight:
         self.weights_tf = self.convert_all_weights_to_tf()
 
 
+    @staticmethod
+    def plot_weight_heatmap(weight_name):
+        """Plot weight in 3 orders, to help guessing MN weight order format"""
 
+        fig, axs = plt.subplots(1, 3, figsize=(10, 6))
 
+        for ax, order in zip(axs, ['F', 'C', 'A']):
+            w = np.reshape(mn_weight.weights[weight_name], mn_weight.shape_map[weight_name], order=order)
+            ax.imshow(w, cmap='hot', interpolation='none')
+            ax.set_title(f"{weight_name}: {order}")
+
+        fig.patch.set_facecolor('white')
 
     @staticmethod
     def reshape_weight(weight, shape: tuple) -> np.array:
         """Reshape a weight into a matrix"""
-        return np.array(weight).reshape(shape)
+        return np.reshape(weight, shape, 'F')
 
     @staticmethod
     def convert_to_tf_weights(weight2d, name) -> tf.Variable:
@@ -230,7 +240,7 @@ class Diagnosis:
         batch_size = len(self.testset_package["item"])
         self.model = modeling.MyModel(cfg=self.cfg, batch_size_override=batch_size)
 
-        self.model.load_weights(self.cfg.saved_weights_fstring.format(epoch=epoch))
+        # self.model.load_weights(self.cfg.saved_weights_fstring.format(epoch=epoch))
         self.model.set_active_task(task)
         input_name = modeling.IN_OUT[task][0]
         self.y_pred = self.model(
@@ -291,11 +301,11 @@ class Diagnosis:
         else:
             return self.y_pred[output_name][timetick, self.target_word_idx, :].numpy()
 
-    @property
-    def list_output_phoneme(self) -> list:
-        """Get output phoneme from model output activation pattern"""
-        assert self.target_word is not None
-        return H.get_batch_pronunciations_fast(self.get_output("pho"))
+    # @property
+    # def list_output_phoneme(self) -> list:
+    #     """Get output phoneme from model output activation pattern"""
+    #     assert self.target_word is not None
+    #     return H.get_batch_pronunciations_fast(self.get_output("pho"))
 
     def set_target_word(self, word: str) -> pd.DataFrame:
         self.target_word = word
@@ -303,9 +313,9 @@ class Diagnosis:
         self.word_sem_df = self.make_output_diagnostic_df(word, "sem")
         self.word_pho_df = self.make_output_diagnostic_df(word, "pho")
 
-        print(
-            f"Target pronounciation is: {self.testset_package['phoneme'][self.target_word_idx]}"
-        )
+        # print(
+        #     f"Target pronounciation is: {self.testset_package['phoneme'][self.target_word_idx]}"
+        # )
         return self.df.loc[
             (self.df.word == self.target_word)
             & (self.df.timetick == self.df.timetick.max())
@@ -327,7 +337,7 @@ class Diagnosis:
         df_dict = {}
         df_dict["target_act"] = self.testset_package[layer][
             self.target_word_idx, :
-        ].numpy()
+        ]
         df_dict["bias"] = [
             w.numpy() for w in self.model.weights if w.name.endswith(bias_name)
         ][0]
@@ -344,7 +354,7 @@ class Diagnosis:
                 df_dict = {}
                 df_dict[name_map[output_name]] = self.y_pred[output_name][
                     t, self.target_word_idx, :
-                ].numpy()
+                ]
                 this_step_df = pd.DataFrame.from_dict(df_dict)
                 this_step_df["timetick"] = t
                 this_step_df["unit"] = this_step_df.index
