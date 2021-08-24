@@ -2,6 +2,7 @@
 import data_wrangling
 import numpy as np
 import os
+from typing import List
 
 os.chdir('/home/jupyter/triangle_model/')
 
@@ -48,7 +49,7 @@ class MikeNetPattern:
                 if line.startswith("TARGET Semantics"):
                     self.sparse_sem_pattern[word] = self.get_pattern(lines, i+1, i+2)
 
-    def save(self):
+    def save(self, items:List, output_file:str = None):
         """Save r100 testset to file mn_r100.pkl.gz
 
         # Pack into my TF data format
@@ -56,12 +57,10 @@ class MikeNetPattern:
         # I did not account for multi meaning items
         """
 
-        mn_r100 = {}
+        ts = {}
+        ts['item'] = items
 
-        items = data_wrangling.load_testset('train_r100')['item']
-        mn_r100['item'] = items
-
-        n = len(mn_r100['item'])
+        n = len(ts['item'])
         np_ort = np.zeros(shape=(n, self.ort_units))
         np_pho = np.zeros(shape=(n, self.pho_units))
         np_sem = np.zeros(shape=(n, self.sem_units))
@@ -71,12 +70,12 @@ class MikeNetPattern:
             np_pho[idx,:] = np.array(self.pho_pattern[item])
             np_sem[idx,:] = self.sparse_to_dense(self.sparse_sem_pattern[item], self.sem_units)
 
-        mn_r100['ort'] = np_ort
-        mn_r100['pho'] = np_pho
-        mn_r100['sem'] = np_sem
-        mn_r100['cond'] = None
+        ts['ort'] = np_ort
+        ts['pho'] = np_pho
+        ts['sem'] = np_sem
+        ts['cond'] = None
 
-        data_wrangling.save_testset(mn_r100, 'dataset/testsets/mn_r100.pkl.gz')
+        data_wrangling.save_testset(ts, f'dataset/testsets/{output_file}.pkl.gz')
 
 
 
@@ -102,4 +101,5 @@ class MikeNetPattern:
 # %% Do the works
 
 mn_pattern = MikeNetPattern()
-mn_pattern.save()
+mn_pattern.save(items=mn_pattern.items, output_file='mn_train')
+# %%
