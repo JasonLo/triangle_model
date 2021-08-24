@@ -7,12 +7,12 @@ import meta, modeling
 import tensorflow as tf
 
 #%% Create MikeNet weight object
-mn_weight = troubleshooting.MikeNetWeight("mikenet/Reading_Weight_v1") 
+mn_weight = troubleshooting.MikeNetWeight("mikenet/Reading_Weight_v10") 
 
 
 #%% Create a TF model
 
-code_name = "surgery"
+code_name = "surgery_v10"
 batch_name = None
 tf_root = "/home/jupyter/triangle_model"
 
@@ -86,3 +86,5 @@ for weight in model.weights:
 
 weight_path = cfg.saved_weights_fstring.format(epoch=1)
 model.save_weights(weight_path, overwrite=True, save_format="tf")
+
+# %%
