@@ -11,7 +11,7 @@ import random
 def init(code_name, tau_override=None):
 
     cfg_json = os.path.join("models", code_name, "model_config.json")
-    cfg = meta.ModelConfig.from_json(cfg_json)
+    cfg = meta.Config.from_json(cfg_json)
 
     # Force output to 13:
     cfg.output_ticks = 13
