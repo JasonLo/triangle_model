@@ -91,14 +91,15 @@ class Config:
         self.__dict__.pop("model_config")
         self.__dict__.pop("environment_config")
 
+        os.makedirs(self.weight_folder, exist_ok=True)
+        os.makedirs(self.eval_folder, exist_ok=True)
+        os.makedirs(self.plot_folder, exist_ok=True)
+
         if self.uuid is None:
             print("UUID not found, regenerating.")
             self.uuid = uuid.uuid4().hex
             self.save()
 
-        os.makedirs(self.weight_folder, exist_ok=True)
-        os.makedirs(self.eval_folder, exist_ok=True)
-        os.makedirs(self.plot_folder, exist_ok=True)
 
     @classmethod
     def from_json(cls, json_file):
