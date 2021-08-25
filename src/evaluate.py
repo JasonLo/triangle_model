@@ -57,7 +57,7 @@ class TestSet:
             model.set_active_task(task)
 
             for epoch in tqdm(
-                self.cfg.saved_epoches, desc=f"Evaluating {testset_name}:{task}"
+                self.cfg.saved_epochs, desc=f"Evaluating {testset_name}:{task}"
             ):
                 # for epoch in tqdm(range(250, 291, 10)):
                 w = self.cfg.saved_weights_fstring.format(epoch=epoch)
@@ -268,7 +268,7 @@ class TestSet_Old:
 
     def eval_all(self, label_dict=None):
         df = pd.DataFrame()
-        for epoch in tqdm(self.cfg.saved_epoches, desc=f"Evaluating {self.name}"):
+        for epoch in tqdm(self.cfg.saved_epochs, desc=f"Evaluating {self.name}"):
             output = {}
             output[epoch] = self._eval_one_epoch(epoch)
             this_epoch_df = self._convert_dict_to_df(output)

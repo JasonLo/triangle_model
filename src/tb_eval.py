@@ -117,7 +117,7 @@ strain = BaseTestSet(
     cfg, 
     name='strain', 
     conds=('hf_con_hi', 'hf_con_li', 'hf_inc_hi', 'hf_inc_li', 'lf_con_hi', 'lf_con_li', 'lf_inc_hi', 'lf_inc_li'),
-    tasks=cfg.tasks
+    tasks=cfg.task_names
 )
 
 
