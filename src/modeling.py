@@ -13,7 +13,6 @@ WEIGHTS_AND_BIASES = {}
 WEIGHTS_AND_BIASES["pho_sem"] = (
     "w_hps_ph",
     "w_hps_hs",
-    "w_ss",
     "w_sc",
     "w_cs",
     "bias_hps",
@@ -23,7 +22,6 @@ WEIGHTS_AND_BIASES["pho_sem"] = (
 WEIGHTS_AND_BIASES["sem_pho"] = (
     "w_hsp_sh",
     "w_hsp_hp",
-    "w_pp",
     "w_pc",
     "w_cp",
     "bias_hsp",
@@ -32,8 +30,8 @@ WEIGHTS_AND_BIASES["sem_pho"] = (
 )
 WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
-WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "w_ss", "bias_hos", "bias_s")
-WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "w_pp", "bias_hop", "bias_p")
+WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
+WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop", "bias_p")
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
     "w_hos_hs",
@@ -43,12 +41,10 @@ WEIGHTS_AND_BIASES["triangle"] = (
     "bias_hop",
     "w_pc",
     "w_cp",
-    "w_pp",
     "bias_p",
     "bias_cpp",
     "w_sc",
     "w_cs",
-    "w_ss",
     "bias_s",
     "bias_css",
     "w_hps_ph",
@@ -95,11 +91,9 @@ class MyModel(tf.keras.Model):
         "input_sem",
         "input_pho",
         "input_hps_hs",
-        "input_sem_ss",
         "input_css_cs",
         "input_hos_hs",
         "input_hsp_hp",
-        "input_pho_pp",
         "input_cpp_cp",
         "input_hop_hp",
     )
@@ -155,11 +149,9 @@ class MyModel(tf.keras.Model):
         INPUT_SHAPES["input_css"] = (batch_size, self.sem_cleanup_units)
         INPUT_SHAPES["input_cpp"] = (batch_size, self.pho_cleanup_units)
         INPUT_SHAPES["input_hps_hs"] = (batch_size, self.sem_units)
-        INPUT_SHAPES["input_sem_ss"] = (batch_size, self.sem_units)
         INPUT_SHAPES["input_css_cs"] = (batch_size, self.sem_units)
         INPUT_SHAPES["input_hos_hs"] = (batch_size, self.sem_units)
         INPUT_SHAPES["input_hsp_hp"] = (batch_size, self.pho_units)
-        INPUT_SHAPES["input_pho_pp"] = (batch_size, self.pho_units)
         INPUT_SHAPES["input_cpp_cp"] = (batch_size, self.pho_units)
         INPUT_SHAPES["input_hop_hp"] = (batch_size, self.pho_units)
 
@@ -184,13 +176,6 @@ class MyModel(tf.keras.Model):
         self.w_hsp_hp = self.add_weight(
             name="w_hsp_hp",
             shape=(self.hidden_sp_units, self.pho_units),
-            initializer=weight_initializer,
-            trainable=True,
-        )
-
-        self.w_pp = self.add_weight(
-            name="w_pp",
-            shape=(self.pho_units, self.pho_units),
             initializer=weight_initializer,
             trainable=True,
         )
@@ -241,13 +226,6 @@ class MyModel(tf.keras.Model):
         self.w_hps_hs = self.add_weight(
             name="w_hps_hs",
             shape=(self.hidden_ps_units, self.sem_units),
-            initializer=weight_initializer,
-            trainable=True,
-        )
-
-        self.w_ss = self.add_weight(
-            name="w_ss",
-            shape=(self.sem_units, self.sem_units),
             initializer=weight_initializer,
             trainable=True,
         )
@@ -361,8 +339,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (PS) #####
             self.input_hps = self.input_hps.write(
@@ -376,9 +354,6 @@ class MyModel(tf.keras.Model):
             self.input_hps_hs = self.input_hps_hs.write(
                 t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
             )
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -388,7 +363,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hps_hs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
                     + bias_s
                 )
@@ -414,13 +388,10 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ### Semantic ###
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -429,7 +400,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_css_cs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + bias_s
                 )
                 + (1 - self.tau) * self.input_sem.read(t),
@@ -461,8 +431,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (SP) #####
             self.input_hsp = self.input_hsp.write(
@@ -475,9 +445,7 @@ class MyModel(tf.keras.Model):
             self.input_hsp_hp = self.input_hsp_hp.write(
                 t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
             )
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
-            )
+
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
             )
@@ -486,7 +454,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hsp_hp.read(t + 1)
-                    # + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
                     + bias_p
                 )
@@ -511,13 +478,10 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             # Phonological unit
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
-            )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
             )
@@ -526,7 +490,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_cpp_cp.read(t + 1)
-                    # + self.input_pho_pp.read(t + 1)
                     + bias_p
                 )
                 + (1 - self.tau) * self.input_pho.read(t),
@@ -558,8 +521,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
             self.input_hos = self.input_hos.write(
@@ -569,9 +532,6 @@ class MyModel(tf.keras.Model):
             )
 
             ##### Semantic layer #####
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -584,7 +544,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_css_cs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + self.input_hos_hs.read(t + 1)
                     + bias_s
                 )
@@ -610,7 +569,7 @@ class MyModel(tf.keras.Model):
 
         # Recurrent structure over time ticks (Time averaged input)
         for t in range(self.n_timesteps):
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
             ##### Hidden layer (OS) #####
             self.input_hos = self.input_hos.write(
                 t + 1,
@@ -641,8 +600,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OP) #####
             self.input_hop = self.input_hop.write(
@@ -652,9 +611,6 @@ class MyModel(tf.keras.Model):
             )
 
             ##### Phonology layer #####
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
-            )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
             )
@@ -667,7 +623,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_cpp_cp.read(t + 1)
-                    # + self.input_pho_pp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
                     + bias_p
                 )
@@ -692,8 +647,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
             self.input_hos = self.input_hos.write(
@@ -713,9 +668,6 @@ class MyModel(tf.keras.Model):
             self.input_hps_hs = self.input_hps_hs.write(
                 t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
             )
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -728,7 +680,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hps_hs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
                     + self.input_hos_hs.read(t + 1)
                     + bias_s
@@ -739,9 +690,6 @@ class MyModel(tf.keras.Model):
             ##### Phonology layer #####
             self.input_hsp_hp = self.input_hsp_hp.write(
                 t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            )
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
             )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
@@ -755,7 +703,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hsp_hp.read(t + 1)
-                    # + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
                     + bias_p
@@ -803,8 +750,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
             self.input_hos = self.input_hos.write(
@@ -824,9 +771,6 @@ class MyModel(tf.keras.Model):
             self.input_hps_hs = self.input_hps_hs.write(
                 t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
             )
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -839,7 +783,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hps_hs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
                     # + self.input_hos_hs.read(t + 1) [LESION]
                     + bias_s
@@ -850,9 +793,6 @@ class MyModel(tf.keras.Model):
             ##### Phonology layer #####
             self.input_hsp_hp = self.input_hsp_hp.write(
                 t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            )
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
             )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
@@ -866,7 +806,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hsp_hp.read(t + 1)
-                    # + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
                     + bias_p
@@ -916,8 +855,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
             self.input_hos = self.input_hos.write(
@@ -937,9 +876,6 @@ class MyModel(tf.keras.Model):
             self.input_hps_hs = self.input_hps_hs.write(
                 t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
             )
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -952,7 +888,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hps_hs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
                     + self.input_hos_hs.read(t + 1)
                     + bias_s
@@ -963,9 +898,6 @@ class MyModel(tf.keras.Model):
             ##### Phonology layer #####
             self.input_hsp_hp = self.input_hsp_hp.write(
                 t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            )
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
             )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
@@ -980,7 +912,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hsp_hp.read(t + 1)
-                    # + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
                     # + self.input_hop_hp.read(t + 1) [LESION]
                     + bias_p
@@ -1032,8 +963,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
             self.input_hos = self.input_hos.write(
@@ -1053,9 +984,6 @@ class MyModel(tf.keras.Model):
             self.input_hps_hs = self.input_hps_hs.write(
                 t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
             )
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -1069,7 +997,6 @@ class MyModel(tf.keras.Model):
                 * (
                     # self.input_hps_hs.read(t + 1) [LESION]
                     self.input_css_cs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + self.input_hos_hs.read(t + 1)
                     + bias_s
                 )
@@ -1079,9 +1006,6 @@ class MyModel(tf.keras.Model):
             ##### Phonology layer #####
             self.input_hsp_hp = self.input_hsp_hp.write(
                 t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            )
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
             )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
@@ -1095,7 +1019,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hsp_hp.read(t + 1)
-                    # + self.input_pho_pp.read(t + 1)
                     + self.input_cpp_cp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
                     + bias_p
@@ -1144,8 +1067,8 @@ class MyModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pp, w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_ss, w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
+            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
+            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
             self.input_hos = self.input_hos.write(
@@ -1165,9 +1088,6 @@ class MyModel(tf.keras.Model):
             self.input_hps_hs = self.input_hps_hs.write(
                 t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
             )
-            self.input_sem_ss = self.input_sem_ss.write(
-                t + 1, tf.matmul(self.sem.read(t), w_ss)
-            )
             self.input_css_cs = self.input_css_cs.write(
                 t + 1, tf.matmul(self.css.read(t), w_cs)
             )
@@ -1180,7 +1100,6 @@ class MyModel(tf.keras.Model):
                 self.tau
                 * (
                     self.input_hps_hs.read(t + 1)
-                    # + self.input_sem_ss.read(t + 1)
                     + self.input_css_cs.read(t + 1)
                     + self.input_hos_hs.read(t + 1)
                     + bias_s
@@ -1191,9 +1110,6 @@ class MyModel(tf.keras.Model):
             ##### Phonology layer #####
             self.input_hsp_hp = self.input_hsp_hp.write(
                 t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            )
-            self.input_pho_pp = self.input_pho_pp.write(
-                t + 1, tf.matmul(self.pho.read(t), w_pp)
             )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
@@ -1208,7 +1124,6 @@ class MyModel(tf.keras.Model):
                 * (
                     self.input_cpp_cp.read(t + 1)
                     # self.input_hsp_hp.read(t + 1) [LESION]
-                    # + self.input_pho_pp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
                     + bias_p
                 )
@@ -1292,11 +1207,7 @@ class MyModel(tf.keras.Model):
 
     def _inject_noise_to_all_pho(self, training):
         """inject noise to all PHO relate weights and biases"""
-        w_pp = K.in_train_phase(
-            self._inject_noise(self.w_pp, self.pho_noise_level),
-            self.w_pp,
-            training=training,
-        )
+
         w_pc = K.in_train_phase(
             self._inject_noise(self.w_pc, self.pho_noise_level),
             self.w_pc,
@@ -1318,15 +1229,11 @@ class MyModel(tf.keras.Model):
             training=training,
         )
 
-        return w_pp, w_pc, w_cp, bias_cpp, bias_p
+        return w_pc, w_cp, bias_cpp, bias_p
 
     def _inject_noise_to_all_sem(self, training):
         """inject noise to all SEM relate weights and biases"""
-        w_ss = K.in_train_phase(
-            self._inject_noise(self.w_ss, self.sem_noise_level),
-            self.w_ss,
-            training=training,
-        )
+
         w_sc = K.in_train_phase(
             self._inject_noise(self.w_sc, self.sem_noise_level),
             self.w_sc,
@@ -1348,7 +1255,7 @@ class MyModel(tf.keras.Model):
             training=training,
         )
 
-        return w_ss, w_sc, w_cs, bias_css, bias_s
+        return w_sc, w_cs, bias_css, bias_s
 
     def _update_activations(self, timetick: int, act: str):
         """Update the activation"""
