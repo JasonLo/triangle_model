@@ -4,18 +4,14 @@ import os
 import uuid
 import tensorflow as tf
 from dataclasses import dataclass
+from environment import EnvironmentConfig
+
 
 @dataclass
 class ModelConfig:
-    """ ModelConfig Class contains all the information needed to run a model.
+    """ ModelConfig Class contains all the information about the model architecture and training
 
     args:
-        code_name: name of the run
-        tf_root: project root folder
-        uuid: unique identifier for the run (optional: auto generated if not provided)
-        batch_name: name of the batch if running in batch mode
-        batch_unique_setting_string: unique setting string for the batch
-
         ort_units: number of orthographic units
         pho_units: number of phonological units
         sem_units: number of semantic units
@@ -36,15 +32,8 @@ class ModelConfig:
         
         learning_rate: learning rate for optimizer
         zero_error_radius: whether to use zero error radius or not and if so, what radius to use (e.g., None or 0.1)
-        save_freq: how often to save model weights (in epochs)
-
-        [TO BE ADDED]
     """
-    code_name: str
-    tf_root: str = "/home/jupyter/triangle_model"
-    uuid: str = None
-    batch_name: str = None
-    batch_unique_setting_string: str = None
+
 
     # Model configs
     ort_units: int = 119
@@ -68,32 +57,7 @@ class ModelConfig:
     # Training
     learning_rate: float = 0.005
     zero_error_radius: float = None
-    save_freq: int = 10
-
-    # Environment
-    tasks: tuple = ("pho_sem", "sem_pho", "pho_pho", "sem_sem", "triangle")
-    wf_compression: str = "log"
-    wf_clip_low: int = 0
-    wf_clip_high: int = 999_999_999
-    oral_start_pct: float = 0.02
-    oral_end_pct: float = 0.5
-    oral_sample: int = 900_000
-    oral_tasks_ps: tuple = (0.4, 0.4, 0.1, 0.1, 0.0)
-    transition_sample: int = 400_000
-    reading_sample: int = 3_100_000
-    reading_tasks_ps: tuple = (0.2, 0.2, 0.05, 0.05, 0.5)
-    batch_size: int = 100
-    rng_seed: int = 2021
-
-    def __post_init__(self):
-        os.makedirs(self.weight_folder, exist_ok=True)
-        os.makedirs(self.eval_folder, exist_ok=True)
-        os.makedirs(self.plot_folder, exist_ok=True)
-
-        if self.uuid is None:
-            print("UUID not found, regenerating.")
-            self.uuid = uuid.uuid4().hex
-            self.save()
+    
 
     @classmethod
     def from_json(cls, json_file):
@@ -109,41 +73,42 @@ class ModelConfig:
         config_dict = {k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()}
         return cls(**config_dict)
 
-    def save(self, json_file=None):
-        """Save run config to json file"""
-        if json_file is None:
-            json_file = os.path.join(self.model_folder, "model_config.json")
-
-        with open(json_file, "w") as f:
-            json.dump(self.__dict__, f)
-            
-        print(f"Saved config json to {json_file}")
 
     # Inferred training time properties
-    @property
-    def n_timesteps(self) -> int:
-        return int(self.max_unit_time * (1 / self.tau))
 
-    @property
-    def total_sample(self) -> int:
-        return self.oral_sample + self.reading_sample
 
-    @property
-    def total_number_of_epoch(self) -> int:
-        return int(self.total_sample / 10000)
-    
-    @property
-    def steps_per_epoch(self) -> int:
-        return int(10000 / self.batch_size)
 
-    @property
-    def saved_epoches(self) -> list:
-        # oral_first_10 = list(range(1, 11))
-        # first_read_epoch = int((self.oral_sample / 10000) + 1)
-        # read_first_10 = list(range(first_read_epoch, first_read_epoch + 10))
-        # other = list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
-        # return sorted(list(set(oral_first_10 + read_first_10 + other)))
-        return list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
+@dataclass
+class Config:
+    """ Composed class for storing all configurations """
+
+    code_name: str
+    model_config: ModelConfig = None
+    environment_config: EnvironmentConfig = None
+
+    rng_seed: int = 2021
+    save_freq: int = 10
+
+    uuid: str = None
+    batch_name: str = None
+    batch_unique_setting_string: str = None
+    tf_root: str = "/home/jupyter/triangle_model"
+
+    def __post_init__(self):
+        self.__dict__.update(self.model_config.__dict__)
+        self.__dict__.update(self.environment_config.__dict__)
+        self.__dict__.pop("model_config")
+        self.__dict__.pop("environment_config")
+
+        if self.uuid is None:
+            print("UUID not found, regenerating.")
+            self.uuid = uuid.uuid4().hex
+            self.save()
+
+        os.makedirs(self.weight_folder, exist_ok=True)
+        os.makedirs(self.eval_folder, exist_ok=True)
+        os.makedirs(self.plot_folder, exist_ok=True)
+
 
     # Path related config properties
     @property
@@ -175,12 +140,38 @@ class ModelConfig:
 
     @property
     def saved_weights(self) -> list:
-        return [os.path.join(self.weight_folder, f"ep{epoch:04d}") for epoch in self.saved_epoches]
+        return [os.path.join(self.weight_folder, f"ep{epoch:04d}") for epoch in self.saved_epochs]
 
     @property
     def config_json(self) -> str:
         return os.path.join(self.model_folder, 'config.json')
 
+    @property
+    def n_timesteps(self) -> int:
+        return int(self.max_unit_time * (1 / self.tau))
+
+    @property
+    def steps_per_epoch(self) -> int:
+        return int(10000 / self.batch_size)
+
+    @property
+    def total_number_of_epoch(self) -> int:
+        return int(self.total_sample / 10000)
+
+    @property
+    def saved_epochs(self) -> list:
+        return list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
+
+
+    def save(self, json_file=None):
+        """Save run config to json file"""
+        if json_file is None:
+            json_file = os.path.join(self.model_folder, "model_config.json")
+
+        with open(json_file, "w") as f:
+            json.dump(self.__dict__, f)
+            
+        print(f"Saved config json to {json_file}")
 
 
 # %% Batch related functions
