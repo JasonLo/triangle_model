@@ -60,15 +60,6 @@ class ModelConfig:
     
 
     @classmethod
-    def from_json(cls, json_file):
-        """Create ModelConfig from json file"""
-        print(f"Loaded config from {json_file}")
-        with open(json_file) as f:
-            config_dict = json.load(f)
-
-        return cls(**config_dict)
-
-    @classmethod
     def from_global(cls, globals_dict):
         config_dict = {k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()}
         return cls(**config_dict)
@@ -109,6 +100,22 @@ class Config:
         os.makedirs(self.eval_folder, exist_ok=True)
         os.makedirs(self.plot_folder, exist_ok=True)
 
+    @classmethod
+    def from_json(cls, json_file):
+        """Create ModelConfig from json file"""
+        print(f"Loaded config from {json_file}")
+        with open(json_file) as f:
+            config_dict = json.load(f)
+
+        model_config_keys = ModelConfig.__annotations__.keys()   
+        model_config = ModelConfig(**{k: config_dict[k] for k in model_config_keys})    
+
+        environment_config_keys = EnvironmentConfig.__annotations__.keys()
+        environment_config = EnvironmentConfig(**{k: config_dict[k] for k in environment_config_keys}) 
+
+        base_config = {k: config_dict[k] for k in config_dict if k in cls.__annotations__.keys()}
+
+        return cls(model_config=model_config, environment_config=environment_config, **base_config)
 
     # Path related config properties
     @property
