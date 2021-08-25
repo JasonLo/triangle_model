@@ -10,13 +10,13 @@ class EnvironmentConfig:
     """ EnvironmentConfig Class constains all the experience related information """
     # TODO: Add support multiple stages and non-stationary support
 
-    task_names: tuple
-    wf_compression: str
-    wf_clip_low: int
-    wf_clip_high: int
-    total_sample: int
-    tasks_ps: tuple
-    batch_size: int 
+    task_names: tuple = None
+    wf_compression: str = None
+    wf_clip_low: int = None
+    wf_clip_high: int = None
+    total_sample: int = None
+    tasks_ps: tuple = None
+    batch_size: int = None
 
     @classmethod
     def from_global(cls, globals_dict):
