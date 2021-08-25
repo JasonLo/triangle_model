@@ -30,8 +30,10 @@ WEIGHTS_AND_BIASES["sem_pho"] = (
 )
 WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
-WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
-WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop", "bias_p")
+# WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
+# WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop", "bias_p")
+WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "bias_hos")
+WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop")
 # WEIGHTS_AND_BIASES["triangle"] = (
 #     "w_hos_oh",
 #     "w_hos_hs",
@@ -63,8 +65,8 @@ WEIGHTS_AND_BIASES["triangle"] = (
     "w_hop_oh",
     "w_hop_hp",
     "bias_hop",
-    "bias_p",
-    "bias_s",
+    # "bias_p",
+    # "bias_s",
 )
 
 IN_OUT = {}
