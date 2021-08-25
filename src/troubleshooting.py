@@ -200,7 +200,6 @@ class Diagnosis:
     SEM_NAME_MAP = {
         "input_hps_hs": "PS",
         "input_css_cs": "CS",
-        "input_sem_ss": "SS",
         "input_hos_hs": "OS",
         "input_sem": "input",
         "sem": "act",
@@ -208,7 +207,6 @@ class Diagnosis:
     PHO_NAME_MAP = {
         "input_hsp_hp": "SP",
         "input_cpp_cp": "CP",
-        "input_pho_pp": "PP",
         "input_hop_hp": "OP",
         "input_pho": "input",
         "pho": "act",
