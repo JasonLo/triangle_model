@@ -88,8 +88,6 @@ class Config:
     def __post_init__(self):
         self.__dict__.update(self.model_config.__dict__)
         self.__dict__.update(self.environment_config.__dict__)
-        self.__dict__.pop("model_config")
-        self.__dict__.pop("environment_config")
 
         os.makedirs(self.weight_folder, exist_ok=True)
         os.makedirs(self.eval_folder, exist_ok=True)
@@ -118,6 +116,12 @@ class Config:
 
         return cls(model_config=model_config, environment_config=environment_config, **base_config)
 
+    @classmethod
+    def from_global(cls, globals_dict):
+        config_dict = {k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()}
+        return cls(**config_dict)
+
+        
     # Path related config properties
     @property
     def model_folder(self) -> str:
@@ -173,6 +177,10 @@ class Config:
 
     def save(self, json_file=None):
         """Save run config to json file"""
+
+        self.__dict__.pop("model_config")   # Get rid of non-serializable object
+        self.__dict__.pop("environment_config") # Get rid of non-serializable object
+
         if json_file is None:
             json_file = os.path.join(self.model_folder, "model_config.json")
 
