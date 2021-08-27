@@ -1,30 +1,32 @@
 import os, argparse
-import tensorflow as tf
 from tqdm import tqdm
-from time import sleep
+import tensorflow as tf
 import meta, data_wrangling, metrics, modeling, benchmark_hs04
 import environment as env
 
 
-def main(json_file):
-    """Run a TF modeling training with json config file"""
+def main(json_file: str):
+    """Run a TF modeling training with json config file
+    Changing CPU visibility doesn't work on bash
+    Workaround on bash:
+    CUDA_VISIBLE_DEVICES=x python3 quick_run.py -f "path_to_json"
+    """
 
     cfg = meta.Config.from_json(json_file)
 
-    # %% Build all supporting elements 
+    # Build all supporting elements
     tf.random.set_seed(cfg.rng_seed)
     data = data_wrangling.MyData()
 
-    # Architechture
     model = modeling.MyModel(cfg)
     model.build()
 
-    # Non-stationary Environment
     experience = env.Experience.from_config(cfg.environment_config)
     sampler = env.Sampler(cfg, data, experience)
     batch_generator = sampler.generator()
 
-    weight_file = os.path.join("models", "Perfect_pretrain", "weights", "ep3000") 
+    # Load pretraining
+    weight_file = os.path.join("models", "Perfect_pretrain", "weights", "ep3000")
     model.load_weights(weight_file)
 
     optimizers = {}
@@ -75,8 +77,12 @@ def main(json_file):
             ):
                 """Train a batch, log loss and metrics (last time step only)"""
 
-                train_weights_name = [x + ":0" for x in modeling.WEIGHTS_AND_BIASES[task]]
-                train_weights = [x for x in model.weights if x.name in train_weights_name]
+                train_weights_name = [
+                    x + ":0" for x in modeling.WEIGHTS_AND_BIASES[task]
+                ]
+                train_weights = [
+                    x for x in model.weights if x.name in train_weights_name
+                ]
 
                 # TF Automatic differentiation
                 with tf.GradientTape() as tape:
@@ -100,8 +106,12 @@ def main(json_file):
             def train_step(
                 x, y, model, task, loss_fn, optimizer, train_metrics, train_losses
             ):
-                train_weights_name = [x + ":0" for x in modeling.WEIGHTS_AND_BIASES[task]]
-                train_weights = [x for x in model.weights if x.name in train_weights_name]
+                train_weights_name = [
+                    x + ":0" for x in modeling.WEIGHTS_AND_BIASES[task]
+                ]
+                train_weights = [
+                    x for x in model.weights if x.name in train_weights_name
+                ]
 
                 with tf.GradientTape() as tape:
                     y_pred = model(x, training=True)
@@ -113,12 +123,11 @@ def main(json_file):
 
         return train_step
 
-
     train_steps = {task: get_train_step(task) for task in cfg.task_names}
 
     def write_weight_histogram_to_tensorboard(step):
         """Weight histogram"""
-        [tf.summary.histogram(f"{x.name}",   x, step=step) for x in model.weights]
+        [tf.summary.histogram(f"{x.name}", x, step=step) for x in model.weights]
 
     train_summary_writer = tf.summary.create_file_writer(
         os.path.join(cfg.tensorboard_folder, "train")
@@ -127,7 +136,9 @@ def main(json_file):
     for epoch in tqdm(range(cfg.total_number_of_epoch)):
         for step in range(cfg.steps_per_epoch):
             # Draw task, create batch
-            task, exposed_words_idx, x_batch_train, y_batch_train = next(batch_generator)
+            task, exposed_words_idx, x_batch_train, y_batch_train = next(
+                batch_generator
+            )
 
             # task switching must be done outside train_step function (will crash otherwise)
             model.set_active_task(task)
@@ -160,7 +171,7 @@ def main(json_file):
 
 if __name__ == "__main__":
     """Command line entry point, take code_name and testcase to run tests"""
-    parser = argparse.ArgumentParser(description="Run HS04 test cases")
-    parser.add_argument("json_file")
+    parser = argparse.ArgumentParser(description="Train TF model with config json")
+    parser.add_argument("-f", "--json_file", required=True, type=str)
     args = parser.parse_args()
     main(args.json_file)
