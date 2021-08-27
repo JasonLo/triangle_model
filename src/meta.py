@@ -74,8 +74,8 @@ class Config:
     """ Composed class for storing all configurations """
 
     code_name: str
-    model_config: ModelConfig = None
-    environment_config: EnvironmentConfig = None
+    model_config: ModelConfig
+    environment_config: EnvironmentConfig
 
     rng_seed: int = 2021
     save_freq: int = 10
@@ -98,6 +98,19 @@ class Config:
             self.uuid = uuid.uuid4().hex
             self.save()
 
+    @classmethod
+    def from_all_keys(cls, **kwargs):
+        """Create Config from all available keys, including base, env, and model"""
+
+        base_config = {k: kwargs[k] for k in kwargs if k in cls.__annotations__.keys()}
+        
+        model_config_keys = ModelConfig.__annotations__.keys()   
+        model_config = ModelConfig(**{k: kwargs[k] for k in model_config_keys})
+
+        environment_config_keys = EnvironmentConfig.__annotations__.keys()
+        environment_config = EnvironmentConfig(**{k: kwargs[k] for k in environment_config_keys}) 
+
+        return cls(model_config=model_config, environment_config=environment_config, **base_config)
 
     @classmethod
     def from_json(cls, json_file):
@@ -106,15 +119,7 @@ class Config:
         with open(json_file) as f:
             config_dict = json.load(f)
 
-        model_config_keys = ModelConfig.__annotations__.keys()   
-        model_config = ModelConfig(**{k: config_dict[k] for k in model_config_keys})    
-
-        environment_config_keys = EnvironmentConfig.__annotations__.keys()
-        environment_config = EnvironmentConfig(**{k: config_dict[k] for k in environment_config_keys}) 
-
-        base_config = {k: config_dict[k] for k in config_dict if k in cls.__annotations__.keys()}
-
-        return cls(model_config=model_config, environment_config=environment_config, **base_config)
+        return cls.from_all_keys(**config_dict)
 
     @classmethod
     def from_global(cls, globals_dict):
@@ -178,14 +183,15 @@ class Config:
     def save(self, json_file=None):
         """Save run config to json file"""
 
-        self.__dict__.pop("model_config")   # Get rid of non-serializable object
-        self.__dict__.pop("environment_config") # Get rid of non-serializable object
+        self_dict_copy = self.__dict__.copy()
+        self_dict_copy.pop("model_config")   # Get rid of non-serializable object
+        self_dict_copy.pop("environment_config") # Get rid of non-serializable object
 
         if json_file is None:
             json_file = os.path.join(self.model_folder, "model_config.json")
 
         with open(json_file, "w") as f:
-            json.dump(self.__dict__, f)
+            json.dump(self_dict_copy, f)
             
         print(f"Saved config json to {json_file}")
 
@@ -206,7 +212,7 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
     else:
         # Make batch_cfgs from given parameters
 
-        # Check duplicate keys
+        # Check no duplicate keys
         for key in static_hpar.keys():
             if key in param_grid.keys():
                 raise ValueError(
@@ -233,7 +239,7 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
             )
 
             # Pass into ModelConfig to catch error early
-            ModelConfig(**this_hpar, just_chk=True)
+            Config.from_all_keys(**this_hpar)
 
             batch_cfg = dict(
                 sn=i,
