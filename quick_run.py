@@ -1,16 +1,21 @@
 import os, argparse
 from tqdm import tqdm
-import tensorflow as tf
-import meta, data_wrangling, metrics, modeling, benchmark_hs04
-import environment as env
 
+def main(json_file: str, which_gpu:int = 0):
+    """Run a TF modeling training with json config file.
 
-def main(json_file: str):
-    """Run a TF modeling training with json config file
-    Changing CPU visibility doesn't work on bash
-    Workaround on bash:
-    CUDA_VISIBLE_DEVICES=x python3 quick_run.py -f "path_to_json"
+    args:
+        json_file: path to config.json
+        which_gpu (optional): choose which gpu the model will train on (only for multi-gpus system). Check nvidia-smi to see which gpu is in use or not. 
     """
+    os.environ["CUDA_VISIBLE_DEVICES"] = which_gpu
+    import tensorflow as tf
+    # gpus = tf.config.list_physical_devices('GPU')
+    # tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
+
+    # These user imports will invoke tf device, therefore need to import after set_visible_devices()
+    import meta, data_wrangling, metrics, modeling, benchmark_hs04
+    import environment as env
 
     cfg = meta.Config.from_json(json_file)
 
@@ -173,5 +178,10 @@ if __name__ == "__main__":
     """Command line entry point, take code_name and testcase to run tests"""
     parser = argparse.ArgumentParser(description="Train TF model with config json")
     parser.add_argument("-f", "--json_file", required=True, type=str)
+    parser.add_argument("-g", "--which_gpu", required=False, type=str)
     args = parser.parse_args()
-    main(args.json_file)
+
+    if args.which_gpu:
+        main(args.json_file, args.which_gpu)
+    else:
+        main(args.json_file)
