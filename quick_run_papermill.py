@@ -31,7 +31,11 @@ def main(batch_json, which_gpu: int = 0):
         batch_cfgs = json.load(f)
 
     for cfg in tqdm(batch_cfgs):
-        run_batch(cfg, which_gpu)
+        try:
+            if cfg['sn'] > 0:
+                run_batch(cfg, which_gpu)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
