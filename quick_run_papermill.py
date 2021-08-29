@@ -27,12 +27,13 @@ def main(batch_json, which_gpu: int = 0):
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
     """
+
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
 
     for cfg in tqdm(batch_cfgs):
         try:
-            if cfg['sn'] > 0:
+            if cfg['sn'] > 1:
                 run_batch(cfg, which_gpu)
         except Exception:
             pass
