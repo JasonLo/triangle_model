@@ -300,6 +300,25 @@ def check_gpu():
         print("GPU is NOT AVAILABLE \n")
 
 
+def split_gpu(which_gpu:int, n_splits:int=2):
+    """
+    Split GPU usage across multiple GPUs
+    """
+    import tensorflow as tf
+
+    gpus = tf.config.list_physical_devices('GPU')
+    memory_size = int(11000/n_splits) # Titan X on Uconn server
+    logical_gpus = [tf.config.LogicalDeviceConfiguration(memory_limit=memory_size) for _ in range(n_splits)]
+
+    try:
+        # Use only selected GPU(s)
+        tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[which_gpu], logical_gpus)
+
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        pass
+
 def limit_gpu_memory_use(limit_MB=7168):
     """
     Set GPU memory cap per python kernal for parallel run
