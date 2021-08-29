@@ -1,6 +1,25 @@
 import os, argparse, papermill, json
 from tqdm import tqdm
 
+def split_gpu(which_gpu:int, n_splits:int=2):
+    """
+    Split GPU usage across multiple GPUs
+    """
+    import tensorflow as tf
+
+    gpus = tf.config.list_physical_devices('GPU')
+    memory_size = int(11000/n_splits) # Titan X on Uconn server
+    logical_gpus = [tf.config.LogicalDeviceConfiguration(memory_limit=memory_size) for _ in range(n_splits)]
+
+    try:
+        # Use only selected GPU(s)
+        tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
+        tf.config.set_logical_device_configuration(gpus[which_gpu], logical_gpus)
+
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        pass
+
 
 
 def main(json_file, which_gpu: int = 0):
@@ -8,15 +27,7 @@ def main(json_file, which_gpu: int = 0):
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
     """
-    import tensorflow as tf
-
-    gpus = tf.config.list_physical_devices('GPU')
-    try:
-        # Use only selected GPU(s)
-        tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
-    except:
-        # Invalid device or cannot modify virtual devices once initialized.
-        pass
+    split_gpu(which_gpu)
 
     import meta, benchmark_hs04
 
