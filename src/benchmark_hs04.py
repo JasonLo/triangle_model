@@ -154,6 +154,28 @@ def run_test6(code_name, testset="train_r100"):
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
     test5b.save(os.path.join(test.cfg.plot_folder, f"test6_pho_{testset}.html"))
 
+def run_test6_cosine(code_name, testset="train_r100"):
+    """Test 6 using cosine accuracy in SEM"""
+    test = init(code_name)
+    import metrics
+    # Override semantic accuracy with cosine accuracy
+    test.METRICS_MAP["acc"]["sem"] = metrics.CosineSemanticAccuracy()
+
+    # Override tf_root
+    test.cfg.tf_root = os.path.join("/home/jupyter/triangle_model")
+
+    # SEM (same as HS04)
+    df_intact = test.eval(testset, "triangle", save_file_prefix="cos")
+    df_os_lesion = test.eval(testset, "exp_ops", save_file_prefix="cos")
+    df_ops_lesion = test.eval(testset, "ort_sem", save_file_prefix="cos")
+
+    df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
+    mdf_sem = make_mean_df(df_sem)
+    test5a = plot_hs04_fig14(mdf_sem, output="sem")
+    test5a.save(os.path.join(test.cfg.plot_folder, f"test6_sem_cosine_{testset}.html"))
+
+
+
 def run_test6r(code_name, testset="train_r300_difficulty"):
     """Lesioning with high_mid_low difficulty"""
     test = init(code_name)
