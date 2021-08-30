@@ -22,15 +22,22 @@ def split_gpu(which_gpu:int, n_splits:int=2):
 
 
 
-def main(model_folder, which_gpu: int = 0):
-    """
-    Using papermill to run parameterized notebook
-    To prevent overwriting, set default overwrite to False if needed
-    """
-    split_gpu(which_gpu)
+def main(json_file, which_gpu: int = 0):
 
-    import benchmark_hs04
-    benchmark_hs04.run_test6_cosine(model_folder)
+    # os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
+
+    import tensorflow as tf
+    gpus = tf.config.list_physical_devices('GPU')
+    tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
+
+    import meta
+    cfg = meta.Config.from_json(json_file)
+
+    import evaluate
+    test = evaluate.TestSet(cfg)
+
+    import benchmark_hs04   
+    benchmark_hs04.run_test6_cosine(cfg.code_name, cfg.batch_name)
 
 
 
