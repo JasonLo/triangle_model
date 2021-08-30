@@ -22,17 +22,17 @@ def split_gpu(which_gpu:int, n_splits:int=2):
 
 
 
-def main(json_file, which_gpu: int = 0):
+def main(model_folder, which_gpu: int = 0):
     """
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
     """
     split_gpu(which_gpu)
 
-    import meta, benchmark_hs04
+    import benchmark_hs04
+    benchmark_hs04.run_test6_cosine(model_folder)
 
-    cfg = meta.Config.from_json(json_file)
-    benchmark_hs04.main(cfg.model_folder)
+
 
 
 if __name__ == "__main__":
