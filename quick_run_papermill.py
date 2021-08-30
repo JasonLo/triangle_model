@@ -33,8 +33,7 @@ def main(batch_json, which_gpu: int = 0):
 
     for cfg in tqdm(batch_cfgs):
         try:
-            if cfg['sn'] > 1:
-                run_batch(cfg, which_gpu)
+            run_batch(cfg, which_gpu)
         except Exception:
             pass
 
