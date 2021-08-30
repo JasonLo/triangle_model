@@ -53,16 +53,16 @@ class TestSet:
             self.cfg.batch_size = inputs.shape[0]
             
             # Build model and switch task
-            model = modeling.MyModel(self.cfg)
-            model.set_active_task(task)
+            self.model = modeling.MyModel(self.cfg, batch_size_override=inputs.shape[0])
+            self.model.set_active_task(task)
 
             for epoch in tqdm(
                 self.cfg.saved_epochs, desc=f"Evaluating {testset_name}:{task}"
             ):
                 # for epoch in tqdm(range(250, 291, 10)):
                 w = self.cfg.saved_weights_fstring.format(epoch=epoch)
-                model.load_weights(w)
-                y_pred = model([inputs] * self.cfg.n_timesteps)
+                self.model.load_weights(w)
+                y_pred = self.model([inputs] * self.cfg.n_timesteps)
 
                 for timetick_idx in range(self.cfg.output_ticks):
                     if task == "triangle":
