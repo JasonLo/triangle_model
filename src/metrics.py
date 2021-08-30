@@ -232,6 +232,75 @@ class RightSideAccuracy(tf.keras.metrics.Metric):
         self.out.assign(0.0)
 
 
+class CosineSemanticAccuracy(tf.keras.metrics.Metric):
+    """Accuracy based on nearest cosine distance in the entire corpus
+    i.e., argmin(cosine(pred, x_i)) == true_idx, where i is the index of an item in the corpus
+    """
+    def __init__(self, name="cos_sem_acc", **kwargs):
+        from data_wrangling import MyData
+
+        super(CosineSemanticAccuracy, self).__init__(name=name, **kwargs)
+        self.out = self.add_weight(name="cos_sem_acc", initializer="zeros")
+
+        self.corpus_sems = MyData().np_representations['sem']
+
+    # TF metrics related: update_state, result, reset_state
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Update the state of the metric at the end of each batch
+        """
+        self.out.assign(
+            tf.reduce_mean(
+                tf.cast(
+                    self._cosine_accuracy(y_true, y_pred),
+                    tf.float32,
+                ),
+                axis=-1,
+            )
+        )
+ 
+
+    def result(self):
+        return self.out
+
+    def reset_state(self):
+        self.out.assign(0.0)
+
+    # Custom functions for outside TF uses
+
+    def item_metric(self, y_true, y_pred):
+        """Item metric for outside TF use, return the cosine nearest item accuracy in each item"""
+        return tf.cast(
+            self._cosine_accuracy(y_true, y_pred),
+            tf.float32,
+        ).numpy()
+
+    def min_cosine_distance_idx(self, pred):
+        """return the index of word that has lowest cosine distance"""
+        all_cosine_dist = [tf.keras.losses.cosine_similarity(pred, x) for x in self.corpus_sems]
+        return tf.math.argmin(all_cosine_dist) 
+
+    def _cosine_accuracy(self, y_true, y_pred):
+        """internal function: return a list of boolean cosine nearest acc"""
+
+        # Target ids vector
+        target_idxs = tf.map_fn(
+            self.min_cosine_distance_idx,
+            y_true,
+            dtype=tf.int64,
+        )
+
+        # Predicted ids vector
+        pred_idxs = tf.map_fn(
+            self.min_cosine_distance_idx,
+            y_pred,
+            dtype=tf.int64,
+        )
+        return tf.math.equal(target_idxs, pred_idxs)
+
+
+
+
+
 class SumSquaredError(tf.keras.metrics.Metric):
     """Accuracy based on all output nodes falls within the right half
     i.e. max(abs(true-pred)) < 0.5 is correct
