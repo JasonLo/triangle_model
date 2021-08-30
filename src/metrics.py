@@ -242,7 +242,11 @@ class CosineSemanticAccuracy(tf.keras.metrics.Metric):
         super(CosineSemanticAccuracy, self).__init__(name=name, **kwargs)
         self.out = self.add_weight(name="cos_sem_acc", initializer="zeros")
 
-        self.corpus_sems = MyData().np_representations['sem']
+        self.corpus_sems = tf.cast(
+            MyData().np_representations['sem'],
+            tf.float32
+        )
+        self.corpus_n = self.corpus_sems.shape[0]
 
     # TF metrics related: update_state, result, reset_state
     def update_state(self, y_true, y_pred, sample_weight=None):
@@ -276,24 +280,24 @@ class CosineSemanticAccuracy(tf.keras.metrics.Metric):
 
     def min_cosine_distance_idx(self, pred):
         """return the index of word that has lowest cosine distance"""
-        all_cosine_dist = [tf.keras.losses.cosine_similarity(pred, x) for x in self.corpus_sems]
+        tiles = tf.tile(pred, [self.corpus_n])
+        expanded_pred = tf.reshape(tiles, self.corpus_sems.shape)
+        all_cosine_dist = tf.keras.losses.cosine_similarity(self.corpus_sems, expanded_pred)
         return tf.math.argmin(all_cosine_dist) 
 
     def _cosine_accuracy(self, y_true, y_pred):
         """internal function: return a list of boolean cosine nearest acc"""
 
         # Target ids vector
-        target_idxs = tf.map_fn(
+        target_idxs = tf.vectorized_map(
             self.min_cosine_distance_idx,
             y_true,
-            dtype=tf.int64,
         )
 
         # Predicted ids vector
-        pred_idxs = tf.map_fn(
+        pred_idxs = tf.vectorized_map(
             self.min_cosine_distance_idx,
             y_pred,
-            dtype=tf.int64,
         )
         return tf.math.equal(target_idxs, pred_idxs)
 
