@@ -8,9 +8,13 @@ import modeling
 import random
 
 
-def init(code_name, tau_override=None):
+def init(code_name, batch_name=None, tau_override=None):
 
-    cfg_json = os.path.join("models", code_name, "model_config.json")
+    if batch_name:
+        cfg_json = os.path.join('models', batch_name, code_name, "model_config.json")
+    else:
+        cfg_json = os.path.join('models', code_name, "model_config.json")
+    
     cfg = meta.Config.from_json(cfg_json)
 
     # Force output to 13:
@@ -154,15 +158,17 @@ def run_test6(code_name, testset="train_r100"):
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
     test5b.save(os.path.join(test.cfg.plot_folder, f"test6_pho_{testset}.html"))
 
-def run_test6_cosine(code_name, testset="train_r100"):
+def run_test6_cosine(code_name, batch_name=None, testset="train_r100"):
     """Test 6 using cosine accuracy in SEM"""
-    test = init(code_name)
+
+    test = init(code_name, batch_name)
+
     import metrics
     # Override semantic accuracy with cosine accuracy
     test.METRICS_MAP["acc"]["sem"] = metrics.CosineSemanticAccuracy()
 
     # Override tf_root
-    test.cfg.tf_root = os.path.join("/home/jupyter/triangle_model")
+    # test.cfg.tf_root = os.path.join("/home/jupyter/triangle_model")
 
     # SEM (same as HS04)
     df_intact = test.eval(testset, "triangle", save_file_prefix="cos")
