@@ -158,10 +158,10 @@ def run_test6(code_name, testset="train_r100"):
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
     test5b.save(os.path.join(test.cfg.plot_folder, f"test6_pho_{testset}.html"))
 
-def run_test6_cosine(code_name, batch_name=None, testset="train_r100"):
+def run_test6_cosine(code_name, testset="train_r100"):
     """Test 6 using cosine accuracy in SEM"""
 
-    test = init(code_name, batch_name)
+    test = init(code_name)
 
     import metrics
     # Override semantic accuracy with cosine accuracy
@@ -604,12 +604,13 @@ TEST_MAP = {
     9: run_test9,
     10: run_test10,
     11: run_test6r,
+    12: run_test6_cosine,
 }
 
 
 def main(code_name):
     """Run the frequently used tests (except high res test 5)"""
-    for i in (1, 2, 3, 4, 6, 7, 8, 9):
+    for i in (1, 2, 3, 4, 6, 7, 8, 9, 12):
         TEST_MAP[i](code_name)
 
 
