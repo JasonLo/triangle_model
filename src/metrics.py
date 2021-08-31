@@ -148,10 +148,12 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         y_true_idx_t = tf.transpose(y_trues_idx, [1, 0, 2])
         y_pred_idx = self.get_pho_idx_batch(y_pred)
         eq = tf.vectorized_map(lambda x: tf.equal(y_pred_idx, x), y_true_idx_t)
-        return tf.cast(tf.reduce_all(tf.reduce_any(eq, axis=0), axis=-1), tf.float32).numpy()
+        return tf.cast(
+            tf.reduce_all(tf.reduce_any(eq, axis=0), axis=-1), tf.float32
+        ).numpy()
 
     def item_metric_multi_list(self, y_trues_phoneme, y_pred):
-        assert type(y_trues_phoneme[0][0]) is str 
+        assert type(y_trues_phoneme[0][0]) is str
         predicted_phoemes = H.get_batch_pronunciations_fast(y_pred)
 
         acc_list = []
@@ -196,7 +198,6 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         return tf.vectorized_map(self.get_pho_idx_item, act)
 
 
-
 class RightSideAccuracy(tf.keras.metrics.Metric):
     """Accuracy based on all output nodes falls within the right half
     i.e. max(abs(true-pred)) < 0.5 is correct
@@ -236,22 +237,19 @@ class CosineSemanticAccuracy(tf.keras.metrics.Metric):
     """Accuracy based on nearest cosine distance in the entire corpus
     i.e., argmin(cosine(pred, x_i)) == true_idx, where i is the index of an item in the corpus
     """
+
     def __init__(self, name="cos_sem_acc", **kwargs):
         from data_wrangling import MyData
 
         super(CosineSemanticAccuracy, self).__init__(name=name, **kwargs)
         self.out = self.add_weight(name="cos_sem_acc", initializer="zeros")
 
-        self.corpus_sems = tf.cast(
-            MyData().np_representations['sem'],
-            tf.float32
-        )
-        self.corpus_n = self.corpus_sems.shape[0]
+        self.corpus_semantics = tf.cast(MyData().np_representations["sem"], tf.float32)
+        self.corpus_n = self.corpus_semantics.shape[0]
 
     # TF metrics related: update_state, result, reset_state
     def update_state(self, y_true, y_pred, sample_weight=None):
-        """Update the state of the metric at the end of each batch
-        """
+        """Update the state of the metric at the end of each batch"""
         self.out.assign(
             tf.reduce_mean(
                 tf.cast(
@@ -261,7 +259,6 @@ class CosineSemanticAccuracy(tf.keras.metrics.Metric):
                 axis=-1,
             )
         )
- 
 
     def result(self):
         return self.out
@@ -278,40 +275,26 @@ class CosineSemanticAccuracy(tf.keras.metrics.Metric):
             tf.float32,
         ).numpy()
 
-
-    def min_cosine_distance_idx(self, pred):
-        """return the index of word that has lowest cosine distance
-        One predicted item to all words in the corpus
+    def _min_cosine_distance_idx(self, pred):
+        """internal function: return the index of word that has lowest cosine distance within the corpus
+        *One item to all words
         """
 
         return tf.math.argmin(
             tf.keras.losses.cosine_similarity(
-                    self.corpus_sems, 
-                    tf.ones([self.corpus_n, 1]) * pred
-                    )
+                self.corpus_semantics, tf.ones([self.corpus_n, 1]) * pred
             )
-
+        )
 
     def _cosine_accuracy(self, y_true, y_pred):
-        """internal function: return a list of boolean cosine nearest acc"""
+        """internal intermediate function: return a list of boolean cosine nearest acc"""
 
         # Target ids vector
-        target_idxs = tf.map_fn(
-            self.min_cosine_distance_idx,
-            y_true,
-            dtype=tf.int64
-        )
+        target_idxs = tf.map_fn(self._min_cosine_distance_idx, y_true, dtype=tf.int64)
 
         # Predicted ids vector
-        pred_idxs = tf.map_fn(
-            self.min_cosine_distance_idx,
-            y_pred,
-            dtype=tf.int64
-        )
+        pred_idxs = tf.map_fn(self._min_cosine_distance_idx, y_pred, dtype=tf.int64)
         return tf.math.equal(target_idxs, pred_idxs)
-
-
-
 
 
 class SumSquaredError(tf.keras.metrics.Metric):
@@ -340,12 +323,13 @@ class SumSquaredError(tf.keras.metrics.Metric):
             tf.float32,
         ).numpy()
 
-
     def item_metric_multi_ans(self, y_trues, y_pred):
         # rearrange dims from (item, ans, node) to (ans, item, node)
-        y_trues_t = tf.transpose(y_trues, [1, 0, 2])  
-        sse = tf.vectorized_map(lambda x: tf.reduce_sum(tf.square(y_pred - x), axis=-1), y_trues_t)
-        
+        y_trues_t = tf.transpose(y_trues, [1, 0, 2])
+        sse = tf.vectorized_map(
+            lambda x: tf.reduce_sum(tf.square(y_pred - x), axis=-1), y_trues_t
+        )
+
         # Min SSE to all possible answers in each item
         return tf.cast(tf.reduce_min(sse, axis=0), tf.float32).numpy()
 
@@ -353,9 +337,7 @@ class SumSquaredError(tf.keras.metrics.Metric):
         sse_list = []
         for i, y in enumerate(y_pred):
             y_true_matrix_list = y_trues_list[i]
-            sse = np.min(
-                [np.sum(np.square(y - ans)) for ans in y_true_matrix_list]
-            )
+            sse = np.min([np.sum(np.square(y - ans)) for ans in y_true_matrix_list])
             sse_list.append(sse)
 
         return sse_list
