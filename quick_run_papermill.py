@@ -1,17 +1,18 @@
 import os, argparse, papermill, json
+from multiprocessing import Pool
 from tqdm import tqdm
 
 
-def run_batch(cfg, which_gpu: int):
+def run_batch(cfg):
     """
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
     """
 
-    print(f"Running model {cfg['code_name']} on GPU: {which_gpu}")
-
     # Inject GPU setting into cfg.params
+    which_gpu = cfg['sn'] % 3
     cfg["params"]["which_gpu"] = which_gpu
+    print(f"Running model {cfg['code_name']} on GPU: {which_gpu}")
 
     os.makedirs(cfg["model_folder"], exist_ok=True)
     papermill.execute_notebook(
@@ -22,7 +23,7 @@ def run_batch(cfg, which_gpu: int):
     clear_output()
 
 
-def main(batch_json, which_gpu: int = 0):
+def main(batch_json):
     """
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
@@ -31,11 +32,8 @@ def main(batch_json, which_gpu: int = 0):
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
 
-    for cfg in tqdm(batch_cfgs):
-        try:
-            run_batch(cfg, which_gpu)
-        except Exception:
-            pass
+    with Pool(3) as p:
+        p.map(run_batch, batch_cfgs)
 
 
 if __name__ == "__main__":
@@ -47,10 +45,6 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description="Train TF model with config json")
     parser.add_argument("-f", "--json_file", required=True, type=str)
-    parser.add_argument("-g", "--which_gpu", required=False, type=int)
     args = parser.parse_args()
 
-    if args.which_gpu:
-        main(args.json_file, args.which_gpu)
-    else:
-        main(args.json_file)
+    main(args.json_file)
