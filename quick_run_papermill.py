@@ -32,7 +32,7 @@ def main(batch_json):
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
 
-    with Pool(3) as p:
+    with Pool(6) as p:
         p.map(run_batch, batch_cfgs)
 
 
