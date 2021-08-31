@@ -212,12 +212,16 @@ class Diagnosis:
         "pho": "act",
     }
 
-    def __init__(self, code_name: str):
+    def __init__(self, code_name: str, tf_root_override: str = None):
         self.code_name = code_name
         self.cfg = meta.Config.from_json(
             os.path.join("models", code_name, "model_config.json")
         )
         self.cfg.output_ticks = 13  # Full export
+
+        if tf_root_override:
+            self.cfg.tf_root = tf_root_override
+            print(self.cfg.saved_weights_fstring)
 
     def eval(self, testset_name: str, task: str, epoch: int):
         self.testset_package = data_wrangling.load_testset(
