@@ -1,5 +1,6 @@
 import os, argparse, papermill, json
 from tqdm import tqdm
+from multiprocessing import Pool
 
 def split_gpu(which_gpu:int, n_splits:int=2):
     """
@@ -21,38 +22,25 @@ def split_gpu(which_gpu:int, n_splits:int=2):
         pass
 
 
-
-def main_one(json_file, which_gpu: int = 0):
-
-    # os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
-
+def run_one_eval(cfg):
     import tensorflow as tf
+    which_gpu = cfg['sn'] % 3
     gpus = tf.config.list_physical_devices('GPU')
     tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
-
-    import meta
-    cfg = meta.Config.from_json(json_file)
-
+    
     import benchmark_hs04   
-    benchmark_hs04.run_test6_cosine(cfg.code_name, cfg.batch_name)
+    cfg["params"]["which_gpu"] = which_gpu
+    print(f"Running model {cfg['code_name']} on GPU: {which_gpu}")
+    benchmark_hs04.run_test6_cosine(cfg['code_name'], cfg['params']['batch_name'])
 
-def main(json_file, which_gpu: int = 0):
-
-    # os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
-
-    import tensorflow as tf
-    gpus = tf.config.list_physical_devices('GPU')
-    tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
-
-    import meta
-    import evaluate
-    import benchmark_hs04   
+def main(json_file, which_gpu: int = 0):  
 
     with open(json_file) as f:
         batch_cfgs = json.load(f)
 
-    for cfg in batch_cfgs:
-        benchmark_hs04.run_test6_cosine(cfg["params"]["code_name"], cfg["params"]["batch_name"])
+    with Pool(3) as p:
+        p.map(run_one_eval, batch_cfgs)
+
 
 
 
@@ -66,10 +54,6 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description="Train TF model with config json")
     parser.add_argument("-f", "--json_file", required=True, type=str)
-    parser.add_argument("-g", "--which_gpu", required=False, type=int)
     args = parser.parse_args()
 
-    if args.which_gpu:
-        main(args.json_file, args.which_gpu)
-    else:
-        main(args.json_file)
+    main(args.json_file)
