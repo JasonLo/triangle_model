@@ -16,7 +16,7 @@ alt.data_transformers.disable_max_rows()
 
 class TestSet:
     """Universal test set object for evaluating model results
-    1. Single condition, single metric, single value output for maximum capatibility
+    1. Single condition, single metric, single value output for maximum compatibility
     2. Model level info should be stored at separate table, and merge it in the end
     """
 
@@ -29,6 +29,7 @@ class TestSet:
 
     def __init__(self, cfg):
         self.cfg = cfg
+        self.model = None # Will create later, based on testset dimension
 
     def eval(self, testset_name, task, save_file_prefix=None):
         """
@@ -48,7 +49,7 @@ class TestSet:
                 os.path.join(ts_path, f"{testset_name}.pkl.gz")
             )
 
-            # Enforceing batch_size dim to match wiht test case
+            # Enforceing batch_size dim to match with test case
             inputs = testset_package[modeling.IN_OUT[task][0]]
             self.cfg.batch_size = inputs.shape[0]
             
@@ -173,7 +174,7 @@ class TestSet:
         act1 = self.METRICS_MAP["act1"]
 
         if type(this_y_true) is list:
-            # List mode (for glushko)
+            # List mode (for Glushko)
             out["acc"] = acc.item_metric_multi_list(this_y_true_phoneme, this_y_pred)
             out["sse"] = sse.item_metric_multi_list(this_y_true, this_y_pred)
             # TODO: add act0 and act1
@@ -199,169 +200,6 @@ class TestSet:
 
         return out
 
-
-class TestSet_Old:
-    """Universal test set object for evaluating model results
-    1. Single condition, single metric, single value output for maximum capatibility
-    2. Model level info should be stored at separate table, and merge it in the end
-    """
-
-    pho_acc = metrics.PhoAccuracy("acc")
-    right_side_acc = metrics.RightSideAccuracy("acc")
-    sse = metrics.SumSquaredError("sse")
-    act1 = metrics.OutputOfOneTarget("act1")
-    act0 = metrics.OutputOfZeroTarget("act0")
-
-    def __init__(
-        self,
-        name,
-        cfg,
-        model,
-        task,
-        testitems,
-        x_test,
-        y_test,
-    ):
-        self.name = name
-        self.cfg = cfg
-        self.model = model
-        self.task = task
-        self.model.set_active_task(self.task)
-
-        self.testitems = testitems
-        self.x_test = x_test
-        self.y_test = y_test
-
-        self._flat_dict = None
-        self.result = None
-
-    def _convert_dict_to_df(self, x):
-
-        # Flatten the nested output dictionary
-        self._flat_dict = {
-            (epoch, y, timetick, item, metric): {
-                "value": x[epoch][y][timetick][metric][item]
-            }
-            for epoch in x.keys()
-            for y in x[epoch].keys()
-            for timetick in x[epoch][y].keys()
-            for metric in x[epoch][y][timetick].keys()
-            for item in x[epoch][y][timetick][metric].keys()
-        }
-
-        # Create pd df and pivot by metric as column
-
-        df = pd.DataFrame.from_dict(self._flat_dict, orient="index")
-        df.index.rename(["epoch", "y", "timetick", "item", "metric"], inplace=True)
-        df = (
-            df.reset_index()
-            .pivot(
-                index=["epoch", "timetick", "y", "item"],
-                columns="metric",
-                values="value",
-            )
-            .reset_index()
-        )
-
-        # automatically convert to best dtype
-        return df.convert_dtypes()
-
-    def eval_all(self, label_dict=None):
-        df = pd.DataFrame()
-        for epoch in tqdm(self.cfg.saved_epochs, desc=f"Evaluating {self.name}"):
-            output = {}
-            output[epoch] = self._eval_one_epoch(epoch)
-            this_epoch_df = self._convert_dict_to_df(output)
-            df = df.append(this_epoch_df, ignore_index=True)
-
-        df["code_name"] = self.cfg.code_name
-        df["testset"] = self.name
-        df["task"] = self.task
-
-        # Attach additional labels
-        try:
-            for k, v in label_dict.items():
-                df[k] = v
-        except AttributeError:
-            pass
-
-        self.result = df
-
-    def _eval_one_epoch(self, epoch):
-        checkpoint = self.cfg.saved_weights_fstring.format(epoch=epoch)
-        self.model.load_weights(checkpoint)
-
-        pred_y = self.model([self.x_test] * self.cfg.n_timesteps)
-
-        output = {}
-        if self.task in ("triangle"):
-            output["pho"] = self._eval_one_y(pred_y[0], self.y_test[0], y_name="pho")
-            output["sem"] = self._eval_one_y(pred_y[1], self.y_test[1], y_name="sem")
-        elif self.task in ("pho_sem", "sem_sem", "ort_sem"):
-            output["sem"] = self._eval_one_y(pred_y, self.y_test, y_name="sem")
-        elif self.task in ("sem_pho", "pho_pho", "ort_pho"):
-            output["pho"] = self._eval_one_y(pred_y, self.y_test, y_name="pho")
-        elif self.task in ("exp_osp"):
-            output["pho"] = self._eval_one_y(
-                pred_y["act_p"], self.y_test[0], y_name="pho"
-            )
-            output["sem"] = self._eval_one_y(
-                pred_y["act_s"], self.y_test[1], y_name="sem"
-            )
-        else:
-            print(f"{self.task} task does not exist in evaluator")
-
-        return output
-
-    def _eval_one_y(self, pred_y, true_y, y_name):
-        output = {}
-        if type(pred_y) is list:
-            # Model with multi time ticks
-            for i, pred_y_at_this_time in enumerate(pred_y):
-                # re-indexing start_tick = n_timesteps - output_ticks + 1
-                # new index tick = start_tick + i
-                # therefore: new index tick = n_timesteps - output_ticks + 1 + i
-                tick = self.cfg.n_timesteps - self.cfg.output_ticks + 1 + i
-                output[tick] = self._eval_one_timetick(
-                    pred_y_at_this_time, true_y, y_name
-                )
-        else:
-            # Model with only one output tick
-            output[self.cfg.n_timesteps] = self._eval_one_timetick(
-                pred_y, true_y, y_name
-            )
-        return output
-
-    def _eval_one_timetick(self, pred_y, true_y, y_name):
-
-        output = {}
-
-        # Use different acc depending on output nature
-        if y_name == "pho":
-            acc = self.pho_acc.item_metric(true_y, pred_y)
-            output["acc"] = dict(zip(self.testitems, acc))
-            output["pho_symbol"] = dict(
-                zip(self.testitems, H.get_batch_pronunciations_fast(pred_y, phon_key))
-            )
-        elif y_name == "sem":
-            acc = self.right_side_acc.item_metric(true_y, pred_y)
-            output["acc"] = dict(zip(self.testitems, acc))
-
-        # SSE
-        sse = self.sse.item_metric(true_y, pred_y)
-        output["sse"] = dict(zip(self.testitems, sse))
-
-        conditional_sse = sse
-        conditional_sse[acc == 0] = np.nan
-        output["conditional_sse"] = dict(zip(self.testitems, conditional_sse))
-
-        # Activations
-        # this_act0 = self.act0.item_metric(true_y, pred_y)
-        # this_act1 = self.act1.item_metric(true_y, pred_y)
-        # output["act0"] = dict(zip(self.testitems, this_act0))
-        # output["act1"] = dict(zip(self.testitems, this_act1))
-
-        return output
 
 
 class Eval:
