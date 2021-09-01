@@ -153,11 +153,11 @@ class Config:
 
     @property
     def saved_weights_fstring(self) -> str:
-        return os.path.join(self.weight_folder, "ep{epoch:04d}")
+        return os.path.join(self.weight_folder, "epoch-{epoch}")
 
     @property
     def saved_weights(self) -> list:
-        return [os.path.join(self.weight_folder, f"ep{epoch:04d}") for epoch in self.saved_epochs]
+        return [os.path.join(self.weight_folder, self.saved_weights_fstring.format(epoch)) for epoch in self.saved_epochs]
 
     @property
     def config_json(self) -> str:
@@ -389,3 +389,8 @@ def csv_to_bigquery(csv_file, dataset_name, table_name):
 
     job.result()
     print(f"Loaded {job.output_rows} rows into {dataset_name}:{table_ref.path}")
+
+
+# Checkpointing
+
+

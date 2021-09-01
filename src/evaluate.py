@@ -30,7 +30,8 @@ class TestSet:
     def __init__(self, cfg):
         self.cfg = cfg
         self.model = None # Will create later, based on testset dimension
-
+        self.ckpt = None # Will create later, based created model
+        
     def eval(self, testset_name, task, save_file_prefix=None):
         """
         Inputs
@@ -55,14 +56,15 @@ class TestSet:
             
             # Build model and switch task
             self.model = modeling.MyModel(self.cfg, batch_size_override=inputs.shape[0])
+            self.ckpt = tf.train.Checkpoint(model=self.model)
             self.model.set_active_task(task)
 
             for epoch in tqdm(
                 self.cfg.saved_epochs, desc=f"Evaluating {testset_name}:{task}"
             ):
                 # for epoch in tqdm(range(250, 291, 10)):
-                w = self.cfg.saved_weights_fstring.format(epoch=epoch)
-                self.model.load_weights(w)
+                saved_checkpoint = self.cfg.saved_weights_fstring.format(epoch=epoch)
+                self.ckpt.restore(saved_checkpoint).expect_partial() # Only load weights
                 y_pred = self.model([inputs] * self.cfg.n_timesteps)
 
                 for timetick_idx in range(self.cfg.output_ticks):

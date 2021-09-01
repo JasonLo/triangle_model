@@ -231,8 +231,11 @@ class Diagnosis:
         # Manual batch_size override
         batch_size = len(self.testset_package["item"])
         self.model = modeling.MyModel(cfg=self.cfg, batch_size_override=batch_size)
+        ckpt = tf.train.Checkpoint(model=self.model)
 
-        self.model.load_weights(self.cfg.saved_weights_fstring.format(epoch=epoch))
+        saved_checkpoint = self.cfg.saved_weights_fstring.format(epoch=epoch)
+        ckpt.restore(saved_checkpoint).expect_partial()
+        
         self.model.set_active_task(task)
         input_name = modeling.IN_OUT[task][0]
         self.y_pred = self.model(
