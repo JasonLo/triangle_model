@@ -3,14 +3,16 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 
-def run_batch(cfg):
+def run_batch(cfg:dict):
     """
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
     """
 
     # Inject GPU setting into cfg.params
-    which_gpu = cfg['sn'] % 3
+    # which_gpu = cfg['sn'] % 3
+    which_gpu = 1
+    
     cfg["params"]["which_gpu"] = which_gpu
     print(f"Running model {cfg['code_name']} on GPU: {which_gpu}")
 
@@ -23,7 +25,7 @@ def run_batch(cfg):
     clear_output()
 
 
-def main(batch_json):
+def main(batch_json:str, resume_from:int = 8, n_pools:int = 2):
     """
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
@@ -32,7 +34,9 @@ def main(batch_json):
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
 
-    with Pool(6) as p:
+    batch_cfgs = batch_cfgs[resume_from:]
+
+    with Pool(n_pools) as p:
         p.map(run_batch, batch_cfgs)
 
 
