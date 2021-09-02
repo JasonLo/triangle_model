@@ -10,9 +10,8 @@ def run_batch(cfg:dict):
     """
 
     # Inject GPU setting into cfg.params
-    # which_gpu = cfg['sn'] % 3
-    which_gpu = 1
-    
+    # which_gpu = 1
+    which_gpu = cfg['sn'] % 3
     cfg["params"]["which_gpu"] = which_gpu
     print(f"Running model {cfg['code_name']} on GPU: {which_gpu}")
 
@@ -25,7 +24,7 @@ def run_batch(cfg:dict):
     clear_output()
 
 
-def main(batch_json:str, resume_from:int = 8, n_pools:int = 2):
+def main(batch_json:str, resume_from:int = 0, n_pools:int = 6):
     """
     Using papermill to run parameterized notebook
     To prevent overwriting, set default overwrite to False if needed
