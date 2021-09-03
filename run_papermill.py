@@ -32,15 +32,16 @@ def run_one(cfg: dict, queue, which_gpu=None) -> int:
     queue.put(which_gpu)  # Record which GPU was used to queue
 
 
-def main(batch_json: str, resume_from: int=6):
+def main(batch_json: str, resume_from: int=None):
     """Run a batch of models."""
-
 
     available_gpus = [0, 1, 1, 2, 2]
     # Load the batch json
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
-    batch_cfgs = batch_cfgs[resume_from:]
+
+    if resume_from is not None:
+        batch_cfgs = batch_cfgs[resume_from:]
 
     # Create logging file and format
     logging.basicConfig(
@@ -80,5 +81,10 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(description="Train TF model with config json")
     parser.add_argument("-f", "--json_file", required=True, type=str)
+    parser.add_argument("-r", "--resume_from", required=False, type=int)
     args = parser.parse_args()
-    main(args.json_file)
+
+    if args.resume_from is None:
+        main(args.json_file)
+    else:
+        main(args.json_file, args.resume_from)
