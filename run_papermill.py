@@ -47,7 +47,7 @@ def main(batch_json: str, resume_from: int=6):
         format='%(asctime)s %(levelname)-8s %(message)s',
         level=logging.INFO,
         datefmt='%Y-%m-%d %H:%M:%S',
-        filename=f"{batch_cfgs[0]['params']['batch_name']}.log"
+        filename=f"models/{batch_cfgs[0]['params']['batch_name']}/batch.log"
     )
 
     # Create a queue to record which GPU was used
