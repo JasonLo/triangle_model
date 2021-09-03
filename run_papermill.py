@@ -1,3 +1,20 @@
+#!/usr/bin/env python3
+
+""" Run a batch of models on multiple GPUs.
+
+    This script will queue up models to run on multiple GPUs.
+
+    Keyword arguments:
+    batch_json -- the json file containing the list of models to run
+    resume_from -- the index of the model to resume from
+
+    Remarks for running on server:
+    1a) Put process to background by using "&"
+    e.g.: python3 quick_run_papermill.py -f models/batch_run/batch_name/batch_config.json -g 1 &
+    1b) Alternatively, "Ctrl+Z" to pause the process, then "bg" to put it in background 
+    2) Avoid job being kill after SSH disconnection by "disown"
+
+"""
 import os, argparse, papermill, json, logging
 from multiprocessing import Queue, Process
 from tqdm import tqdm
@@ -74,13 +91,7 @@ def main(batch_json: str, resume_from: int = None):
 
 
 if __name__ == "__main__":
-    """Command line entry point, run batch with batch cfg
-    If run on server:
-        1a) Put process to background by using "&"
-        e.g.: python3 quick_run_papermill.py -f models/batch_run/batch_name/batch_config.json -g 1 &
-        1b) Alternatively, Ctrl+Z to pause the process, and bg to put it in background 
-        2) Avoid job being kill after disconnection by calling "disown"
-    """
+    """Command line entry point."""
     parser = argparse.ArgumentParser(description="Train TF model with config json")
     parser.add_argument("-f", "--json_file", required=True, type=str)
     parser.add_argument("-r", "--resume_from", required=False, type=int)
