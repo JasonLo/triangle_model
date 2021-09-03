@@ -610,8 +610,12 @@ TEST_MAP = {
 
 def main(code_name):
     """Run the frequently used tests (except high res test 5)"""
-    for i in (1, 2, 3, 4, 6, 7, 8, 9, 12):
-        TEST_MAP[i](code_name)
+    for i in (1, 2, 3, 4, 6, 7, 8, 12):
+        try:
+            TEST_MAP[i](code_name)
+        except Exception:
+            print(f"Test {i} failed")
+            pass
 
 
 if __name__ == "__main__":
