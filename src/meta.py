@@ -9,33 +9,30 @@ from environment import EnvironmentConfig
 
 @dataclass
 class ModelConfig:
-    """ ModelConfig Class contains all the information about the model architecture and training
+    """ModelConfig Class contains all the information about the model architecture and training.
 
-    args:
-        ort_units: number of orthographic units
-        pho_units: number of phonological units
-        sem_units: number of semantic units
-        hidden_os_units: number of hidden units in O to S
-        hidden_op_units: number of hidden units in O to P
-        hidden_ps_units: number of hidden units in P to S
-        hidden_sp_units: number of hidden units in S to P
-        pho_clean_units: number of cleanup (hidden) units in phonology attractor
-        sem_clean_units: number of cleanup (hidden) units in semantic attractor
-        pho_noise_level: Gaussian noise level at phonology system measured in SD (also see: modeling._inject_noise_to_all_pho())
-        sem_noise_level: Gaussian noise level at semantic system measured in SD (also see: modeling._inject_noise_to_all_sem())
-        activation: name of activation function for all layers
-
-        tau: time constant in time averaged input
-        max_unit_time: maximum unit time in time averaged input
-        output_ticks: number of ticks to output
-        inject_error_ticks: number of ticks to inject error, start from last ticks
-        
-        learning_rate: learning rate for optimizer
-        zero_error_radius: whether to use zero error radius or not and if so, what radius to use (e.g., None or 0.1)
+    Keyword arguments:
+        ort_units -- number of orthographic units
+        pho_units -- number of phonological units
+        sem_units -- number of semantic units
+        hidden_os_units -- number of hidden units in O to S
+        hidden_op_units -- number of hidden units in O to P
+        hidden_ps_units -- number of hidden units in P to S
+        hidden_sp_units -- number of hidden units in S to P
+        pho_clean_units -- number of cleanup (hidden) units in phonology attractor
+        sem_clean_units -- number of cleanup (hidden) units in semantic attractor
+        pho_noise_level -- Gaussian noise level at phonology system measured in SD (also see modeling._inject_noise_to_all_pho())
+        sem_noise_level -- Gaussian noise level at semantic system measured in SD (also see modeling._inject_noise_to_all_sem())
+        activation -- name of activation function for all layers
+        tau -- time constant in time averaged input
+        max_unit_time -- maximum unit time in time averaged input
+        output_ticks -- number of ticks to output
+        inject_error_ticks -- number of ticks to inject error, start from last ticks
+        learning_rate -- learning rate for optimizer
+        zero_error_radius -- whether to use zero error radius or not and if so, what radius to use (e.g., None or 0.1)
     """
 
-
-    # Model configs
+    # Architecture
     ort_units: int = 119
     pho_units: int = 250
     sem_units: int = 2446
@@ -49,58 +46,63 @@ class ModelConfig:
     sem_noise_level: float = 0.0
     activation: str = "sigmoid"
 
+    # Time related
     tau: float = 1 / 3
     max_unit_time: float = 4.0
     output_ticks: int = 11
     inject_error_ticks: int = 11
 
-    # Training
+    # Training related
     learning_rate: float = 0.005
     zero_error_radius: float = None
-    
 
     @classmethod
-    def from_global(cls, globals_dict):
-        config_dict = {k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()}
+    def from_global(cls, **kwargs):
+        """Create a ModelConfig from a global dictionary."""
+        config_dict = {
+            k: v for k, v in kwargs.items() if k in cls.__annotations__.keys()
+        }
         return cls(**config_dict)
-
-
-    # Inferred training time properties
-
 
 
 @dataclass
 class Config:
-    """ Composed class for storing all configurations """
+    """Global configuration with training environment, model config, and other misc configurations."""
 
     code_name: str
     model_config: ModelConfig
     environment_config: EnvironmentConfig
-
     rng_seed: int = 2021
     save_freq: int = 10
-
     uuid: str = None
     batch_name: str = None
     batch_unique_setting_string: str = None
     tf_root: str = "/home/jupyter/triangle_model"
 
     def __post_init__(self):
+        # Elevate subsidary configs to class level
         self.__dict__.update(self.model_config.__dict__)
         self.__dict__.update(self.environment_config.__dict__)
 
-        os.makedirs(self.weight_folder, exist_ok=True)
-        os.makedirs(self.eval_folder, exist_ok=True)
-        os.makedirs(self.plot_folder, exist_ok=True)
+        # Create folders
+        all_folders = [
+            self.model_folder,
+            self.weight_folder,
+            self.eval_folder,
+            self.plot_folder,
+            self.tensorboard_folder,
+        ]
+        [os.makedirs(f, exist_ok=True) for f in all_folders]
 
+        # Create unique string for this run
         if self.uuid is None:
             print("UUID not found, regenerating.")
             self.uuid = uuid.uuid4().hex
-            self.save()
+            self.save()  # Only save if created from scratch (without uuid)
 
     @classmethod
-    def from_all_keys(cls, **kwargs):
-        """Create Config from all available keys, including base, env, and model"""
+    def from_global(cls, **kwargs):
+        """Create Config from all available keys, including base, env, and model."""
 
         base_config = {k: kwargs[k] for k in kwargs if k in cls.__annotations__.keys()}
         
@@ -110,7 +112,11 @@ class Config:
         environment_config_keys = EnvironmentConfig.__annotations__.keys()
         environment_config = EnvironmentConfig(**{k: kwargs[k] for k in environment_config_keys}) 
 
-        return cls(model_config=model_config, environment_config=environment_config, **base_config)
+        return cls(
+            model_config=model_config,
+            environment_config=environment_config,
+            **base_config,
+        )
 
     @classmethod
     def from_json(cls, json_file):
@@ -119,14 +125,9 @@ class Config:
         with open(json_file) as f:
             config_dict = json.load(f)
 
-        return cls.from_all_keys(**config_dict)
+        return cls.from_global(**config_dict)
 
-    @classmethod
-    def from_global(cls, globals_dict):
-        config_dict = {k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()}
-        return cls(**config_dict)
 
-        
     # Path related config properties
     @property
     def model_folder(self) -> str:
@@ -157,11 +158,14 @@ class Config:
 
     @property
     def saved_weights(self) -> list:
-        return [os.path.join(self.weight_folder, self.saved_weights_fstring.format(epoch)) for epoch in self.saved_epochs]
+        return [
+            os.path.join(self.weight_folder, self.saved_weights_fstring.format(epoch))
+            for epoch in self.saved_epochs
+        ]
 
     @property
     def config_json(self) -> str:
-        return os.path.join(self.model_folder, 'config.json')
+        return os.path.join(self.model_folder, "config.json")
 
     @property
     def n_timesteps(self) -> int:
@@ -177,22 +181,25 @@ class Config:
 
     @property
     def saved_epochs(self) -> list:
-        return list(range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq))
+        return list(
+            range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
+        )
 
+    def save(self, json_file: str = None):
+        """Save run config to json file."""
 
-    def save(self, json_file=None):
-        """Save run config to json file"""
-
-        self_dict_copy = self.__dict__.copy()
-        self_dict_copy.pop("model_config")   # Get rid of non-serializable object
-        self_dict_copy.pop("environment_config") # Get rid of non-serializable object
+        save_dict = self.__dict__.copy()
+        save_dict.pop("model_config")  # Get rid of non-serializable object
+        save_dict.pop("environment_config")  # Get rid of non-serializable object
 
         if json_file is None:
-            json_file = os.path.join(self.model_folder, "model_config.json")
+            json_file = os.path.join(
+                self.model_folder, "model_config.json"
+            )  # default save location
 
+        # Save config
         with open(json_file, "w") as f:
-            json.dump(self_dict_copy, f)
-            
+            json.dump(save_dict, f)
         print(f"Saved config json to {json_file}")
 
 
@@ -239,7 +246,7 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
             )
 
             # Pass into ModelConfig to catch error early
-            Config.from_all_keys(**this_hpar)
+            Config.from_global(**this_hpar)
 
             batch_cfg = dict(
                 sn=i,
@@ -300,24 +307,28 @@ def check_gpu():
         print("GPU is NOT AVAILABLE \n")
 
 
-def split_gpu(which_gpu:int, n_splits:int=2):
+def split_gpu(which_gpu: int, n_splits: int = 2):
     """
     Split GPU usage across multiple GPUs
     """
     import tensorflow as tf
 
-    gpus = tf.config.list_physical_devices('GPU')
-    memory_size = int(11000/n_splits) # Titan X on Uconn server
-    logical_gpus = [tf.config.LogicalDeviceConfiguration(memory_limit=memory_size) for _ in range(n_splits)]
+    gpus = tf.config.list_physical_devices("GPU")
+    memory_size = int(11000 / n_splits)  # Titan X on Uconn server
+    logical_gpus = [
+        tf.config.LogicalDeviceConfiguration(memory_limit=memory_size)
+        for _ in range(n_splits)
+    ]
 
     try:
         # Use only selected GPU(s)
-        tf.config.set_visible_devices(gpus[which_gpu], 'GPU')
+        tf.config.set_visible_devices(gpus[which_gpu], "GPU")
         tf.config.set_logical_device_configuration(gpus[which_gpu], logical_gpus)
 
     except:
         # Invalid device or cannot modify virtual devices once initialized.
         pass
+
 
 def limit_gpu_memory_use(limit_MB=7168):
     """
@@ -392,5 +403,3 @@ def csv_to_bigquery(csv_file, dataset_name, table_name):
 
 
 # Checkpointing
-
-
