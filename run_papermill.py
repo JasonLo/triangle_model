@@ -1,9 +1,4 @@
-# TODO:
-# 1) Fix unstable eval for cosine acc
-# 2) Add a GPU slot monitoring function for dispatching next run to free GPU
-# 3) Perhaps add a write log to txt file function to record batch run status
-
-import os, argparse, papermill, json
+import os, argparse, papermill, json, logging
 from multiprocessing import Queue, Process
 from tqdm import tqdm
 from time import sleep
@@ -23,7 +18,7 @@ def run_one(cfg: dict, queue, which_gpu=None) -> int:
     # GPU allocation is done by individual notebook
     cfg["params"]["which_gpu"] = which_gpu
 
-    print(f"Running model {cfg['code_name']} on GPU: {which_gpu}")
+    logging.info(f"Start running model {cfg['code_name']} on {which_gpu}")
 
     papermill.execute_notebook(
         cfg["in_notebook"],
@@ -31,19 +26,29 @@ def run_one(cfg: dict, queue, which_gpu=None) -> int:
         parameters=cfg["params"],
     )
 
-    clear_output()
-    print(f"Finished running model {cfg['code_name']}, run next after 15s... releasing GPU {which_gpu}")
+    logging.info(f"Finished running model {cfg['code_name']} on {which_gpu}")
+
     sleep(10)  # Allows GPU memory to release
     queue.put(which_gpu)  # Record which GPU was used to queue
 
 
-def main(batch_json: str, resume_from: int=0):
-    """Run a batch of models"""
+def main(batch_json: str, resume_from: int=6):
+    """Run a batch of models."""
 
+
+    available_gpus = [0, 1, 1, 2, 2]
     # Load the batch json
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
     batch_cfgs = batch_cfgs[resume_from:]
+
+    # Create logging file and format
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        level=logging.INFO,
+        datefmt='%Y-%m-%d %H:%M:%S',
+        filename=f"{batch_cfgs[0]['params']['batch_name']}.log"
+    )
 
     # Create a queue to record which GPU was used
     q = Queue()
@@ -51,9 +56,10 @@ def main(batch_json: str, resume_from: int=0):
 
     # Run the model
     for i, cfg in enumerate(batch_cfgs):
-        if i < 6:
+        if i < 5:
             # Cold start with default GPU allocations (which_gpu=None)
-            ps.append(Process(target=run_one, args=(cfg, q, i%3)))
+            # ps.append(Process(target=run_one, args=(cfg, q, i%3)))
+            ps.append(Process(target=run_one, args=(cfg, q, available_gpus[i])))
             ps[i].start()
             sleep(1)
         else:
