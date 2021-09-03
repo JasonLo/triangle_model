@@ -34,8 +34,8 @@ def run_one(cfg: dict, queue, which_gpu=None) -> int:
 
 def main(batch_json: str, resume_from: int=None):
     """Run a batch of models."""
-
-    available_gpus = [0, 1, 1, 2, 2]
+    # Set available GPUs for models to run on
+    available_gpus = [0, 0, 1, 1, 2, 2]
     # Load the batch json
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
@@ -53,22 +53,22 @@ def main(batch_json: str, resume_from: int=None):
 
     # Create a queue to record which GPU was used
     q = Queue()
-    ps = []
+    processes = []
 
     # Run the model
     for i, cfg in enumerate(batch_cfgs):
-        if i < 5:
+        if i < 6:
             # Cold start with default GPU allocations (which_gpu=None)
-            # ps.append(Process(target=run_one, args=(cfg, q, i%3)))
-            ps.append(Process(target=run_one, args=(cfg, q, available_gpus[i])))
-            ps[i].start()
+            # processes.append(Process(target=run_one, args=(cfg, q, i%3)))
+            processes.append(Process(target=run_one, args=(cfg, q, available_gpus[i])))
+            processes[i].start()
             sleep(1)
         else:
             # Warm start with next available GPU
-            [p.join() for p in ps] # Detect finished process
+            [p.join() for p in processes] # Detect finished process
             released_gpu = q.get()
-            ps.append(Process(target=run_one, args=(cfg, q, released_gpu)))
-            ps[i].start()
+            processes.append(Process(target=run_one, args=(cfg, q, released_gpu)))
+            processes[i].start()
             sleep(1)
 
 
