@@ -4,10 +4,6 @@
 
     This script will queue up models to run on multiple GPUs.
 
-    Keyword arguments:
-    batch_json -- the json file containing the list of models to run
-    resume_from -- the index of the model to resume from
-
     Remarks for running on server:
     1a) Put process to background by using "&"
     e.g.: python3 quick_run_papermill.py -f models/batch_run/batch_name/batch_config.json -g 1 &
@@ -15,10 +11,10 @@
     2) Avoid job being kill after SSH disconnection by "disown"
 
 """
-import os, argparse, papermill, json, logging
+import argparse, papermill, json, logging
 from multiprocessing import Queue, Process
-from tqdm import tqdm
 from time import sleep
+from typing import List
 
 
 def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
@@ -48,11 +44,12 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     free_gpu_queue.put(which_gpu)  # Release GPU
 
 
-def main(batch_json: str, resume_from: int = None):
+def main(batch_json: str, resume_from: int = None, available_gpus: List[int] = None):
     """Run a batch of models."""
     # Set available GPUs for models to run on
-    available_gpus = [0, 0, 1, 1, 2, 2]
-    
+    if available_gpus is None:
+        available_gpus = [0, 0, 1, 1, 2, 2]
+
     # Load the batch json
     with open(batch_json) as f:
         batch_cfgs = json.load(f)
@@ -78,26 +75,25 @@ def main(batch_json: str, resume_from: int = None):
             job = Process(target=run_one, args=(cfg, free_gpu_queue, available_gpus[i]))
             job.start()
         else:
-            # Queue for next run: Wait for a GPU to be available and run the remaining models
+            # Queue for next run: Wait for a free GPU and run the remaining models
             while True:
                 try:
                     free_gpu = free_gpu_queue.get()
                     job = Process(target=run_one, args=(cfg, free_gpu_queue, free_gpu))
                     job.start()
-                    break # Run suc
+                    break  # Run successfuly, break the while loop and continue with next model (for loop)
                 except:
-                    sleep(5) # Check every 5 seconds
+                    sleep(5)  # Check every 5 seconds
                     continue
 
 
 if __name__ == "__main__":
     """Command line entry point."""
-    parser = argparse.ArgumentParser(description="Train TF model with config json")
-    parser.add_argument("-f", "--json_file", required=True, type=str)
-    parser.add_argument("-r", "--resume_from", required=False, type=int)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument("json_file", type=str, help="path to batch_config.json")
+    parser.add_argument("-r", "--resume_from", type=int, help="resume run from this index")
+    parser.add_argument("-g", "--available_gpus", type=int, nargs='+', help="list of available GPUs")
     args = parser.parse_args()
-
-    if args.resume_from is None:
-        main(args.json_file)
-    else:
-        main(args.json_file, args.resume_from)
+    main(args.json_file, args.resume_from, args.available_gpus)
