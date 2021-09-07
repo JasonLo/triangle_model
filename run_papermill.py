@@ -11,10 +11,22 @@
     2) Avoid job being kill after SSH disconnection by "disown"
 
 """
-import argparse, papermill, json, logging
+import argparse, papermill, json, logging, os, meta
 from multiprocessing import Queue, Process
 from time import sleep
 from typing import List
+
+
+def run_json(json: str, gpu: int = 0):
+    """Run a single model."""
+    # Load the json
+    cfg = meta.Config.from_json(json)
+
+    papermill.execute_notebook(
+        os.path.join(cfg.tf_root, "master.ipynb"),
+        os.path.join(cfg.model_folder, "output.ipynb"),
+        parameters=cfg.papermill_cfg,
+    )
 
 
 def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
