@@ -19,6 +19,9 @@ class EnvironmentConfig:
     tasks_ps: tuple = None
     batch_size: int = None
 
+    # tasks_start_ps: tuple = None
+    # tasks_end_ps: tuple = None
+
     @classmethod
     def from_global(cls, globals_dict):
         config_dict = {
@@ -115,13 +118,61 @@ class Experience:
         self.total_sample = sum(x.stage_sample for x in self.stages)
 
     @classmethod
-    def from_config(cls, config: EnvironmentConfig):
+    def nonstationary_pretrain(cls, config:EnvironmentConfig):
+        """Non-stationary pretraining environment constructor"""
+        stages = []
+
+        # Ramp-up stage
+        speed = 100/10_000_000 # 100% per 10M sample
+        tasks_s1 = [Task(x, progress_start=5, progress_slope=speed) for x in config.task_names]
+        stages.append(Stage(
+            name="rampup",
+            tasks=tasks_s1,
+            stage_sample=4_500_000,
+            task_probability_start=config.tasks_ps,
+        ))
+
+        # Sustain stage
+        tasks_s2 = [Task(x, progress_start=50) for x in config.task_names]
+
+        stages.append(Stage(
+            name="sustain",
+            tasks=tasks_s2,
+            stage_sample=1_000_000,
+            task_probability_start=config.tasks_ps,
+        ))
+
+        return cls(stages)
+
+
+    @classmethod
+    def stationary_from_config(cls, config: EnvironmentConfig):
         """Create a new experience from config"""
 
         tasks = [Task(x) for x in config.task_names]
         stages = [
             Stage("one", tasks, config.total_sample, config.tasks_ps)
         ]  # Stationary
+
+        return cls(stages)
+
+    @classmethod
+    def non_stationary_from_config(cls, config: EnvironmentConfig):
+        """Create a new experience from config"""
+
+        # Create transition stage where task probablity ramp up to
+
+        tasks = []
+        for name in config.task_names:
+            if name is 'triangle':
+                tasks.append(Task(name, progress_start=5, progress_slope=100/5_000_000))
+            else:
+                tasks.append(Task(name, progress_start=50, progress_slope=100/5_000_000))
+
+        stages = [
+            Stage("Transition", tasks, 1_000_000, config.tasks_start_ps, config.tasks_end_ps),
+            Stage("Reading", tasks, config.total_sample - 1_000_000, config.tasks_end_ps),
+        ]  # Non-Stationary
 
         return cls(stages)
 
@@ -156,7 +207,7 @@ class Experience:
                 stage.get_task_probability(sample * scale_x)
                 for sample in range(int(samples / scale_x))
             ]
-            ax = fig.add_subplot(self.n_stages, 1, i + 1)
+            ax = fig.add_subplot(1, self.n_stages, i + 1)
 
             for j, task in enumerate(stage.tasks):
                 task_p = [p[j] for p in ps]
@@ -175,6 +226,7 @@ class Experience:
         cumulative_sample = 0
         sample_at_stage = sample
 
+        # Walk through all stages and return the stage and sample_at_stage
         for stage in self.stages:
             if sample <= cumulative_sample + stage.stage_sample:
                 return stage, sample_at_stage
