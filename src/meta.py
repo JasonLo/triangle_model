@@ -185,12 +185,17 @@ class Config:
             range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
         )
 
+    @property
+    def papermill_cfg(self) -> dict:
+        cfg = self.__dict__.copy()
+        # Get rid of non-serializable objects
+        cfg.pop("model_config")  
+        cfg.pop("environment_config")
+        return cfg
+
+
     def save(self, json_file: str = None):
         """Save run config to json file."""
-
-        save_dict = self.__dict__.copy()
-        save_dict.pop("model_config")  # Get rid of non-serializable object
-        save_dict.pop("environment_config")  # Get rid of non-serializable object
 
         if json_file is None:
             json_file = os.path.join(
@@ -199,7 +204,7 @@ class Config:
 
         # Save config
         with open(json_file, "w") as f:
-            json.dump(save_dict, f)
+            json.dump(self.papermill_cfg, f)
         print(f"Saved config json to {json_file}")
 
 
