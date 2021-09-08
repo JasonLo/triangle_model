@@ -9,16 +9,18 @@ from dataclasses import dataclass
 class EnvironmentConfig:
     """EnvironmentConfig Class constains all the experience related information"""
 
-    # TODO: Add support multiple stages and non-stationary support
+    # TODO: Add better support multiple stages and non-stationary support
 
     task_names: tuple = None
     wf_compression: str = None
     wf_clip_low: int = None
     wf_clip_high: int = None
     total_sample: int = None
-    tasks_ps: tuple = None
     batch_size: int = None
+    tasks_ps_oral: int = None
+    tasks_ps_reading: int = None
 
+    # tasks_ps: tuple = None
     # tasks_start_ps: tuple = None
     # tasks_end_ps: tuple = None
 
@@ -118,32 +120,38 @@ class Experience:
         self.total_sample = sum(x.stage_sample for x in self.stages)
 
     @classmethod
-    def nonstationary_pretrain(cls, config:EnvironmentConfig):
+    def nonstationary_pretrain(cls, config: EnvironmentConfig):
         """Non-stationary pretraining environment constructor"""
         stages = []
 
         # Ramp-up stage
-        speed = 100/10_000_000 # 100% per 10M sample
-        tasks_s1 = [Task(x, progress_start=5, progress_slope=speed) for x in config.task_names]
-        stages.append(Stage(
-            name="rampup",
-            tasks=tasks_s1,
-            stage_sample=4_500_000,
-            task_probability_start=config.tasks_ps,
-        ))
+        speed = 100 / 10_000_000  # 100% per 10M sample
+        tasks_s1 = [
+            Task(x, progress_start=5, progress_slope=speed) for x in config.task_names
+        ]
+
+        stages.append(
+            Stage(
+                name="rampup",
+                tasks=tasks_s1,
+                stage_sample=4_500_000,
+                task_probability_start=config.tasks_ps,
+            )
+        )
 
         # Sustain stage
         tasks_s2 = [Task(x, progress_start=50) for x in config.task_names]
 
-        stages.append(Stage(
-            name="sustain",
-            tasks=tasks_s2,
-            stage_sample=1_000_000,
-            task_probability_start=config.tasks_ps,
-        ))
+        stages.append(
+            Stage(
+                name="sustain",
+                tasks=tasks_s2,
+                stage_sample=config.total_sample - 4_500_000,
+                task_probability_start=config.tasks_ps,
+            )
+        )
 
         return cls(stages)
-
 
     @classmethod
     def stationary_from_config(cls, config: EnvironmentConfig):
@@ -160,23 +168,53 @@ class Experience:
     def non_stationary_from_config(cls, config: EnvironmentConfig):
         """Create a new experience from config"""
 
-        # Create transition stage where task probablity ramp up to
+        stages = []
+        # Transition stage (1M)
+        ## Task mixing changes linear from start (oral) to end (reading)
+        ## And keep the corpus ramp up at a constant speed
 
-        tasks = []
-        for name in config.task_names:
-            if name is 'triangle':
-                tasks.append(Task(name, progress_start=5, progress_slope=100/5_000_000))
-            else:
-                tasks.append(Task(name, progress_start=50, progress_slope=100/5_000_000))
+        transition_sample = 1_000_000
+        speed = 100 / 5_000_000  # 100% per 5M sample
+        tasks_s1 = [
+            Task(x, progress_start=50, progress_slope=speed)
+            if x != "triangle"
+            else Task(x, progress_start=0, progress_slope=speed)
+            for x in config.task_names
+        ]
 
-        stages = [
-            Stage("Transition", tasks, 1_000_000, config.tasks_start_ps, config.tasks_end_ps),
-            Stage("Reading", tasks, config.total_sample - 1_000_000, config.tasks_end_ps),
-        ]  # Non-Stationary
+        stages.append(
+            Stage(
+                name="transition",
+                tasks=tasks_s1,
+                stage_sample=transition_sample,
+                task_probability_start=config.tasks_ps_oral,
+                task_probability_end=config.tasks_ps_reading,
+            )
+        )
+
+        # Reading stage (Remaining)
+        s2_oral_start_pc = 50 + speed * (transition_sample)
+        s2_reading_start_pc = 0 + speed * (transition_sample)
+
+        tasks_s2 = [
+            Task(x, progress_start=s2_oral_start_pc, progress_slope=speed)
+            if x != "triangle"
+            else Task(x, progress_start=s2_reading_start_pc, progress_slope=speed)
+            for x in config.task_names
+        ]
+
+        stages.append(
+            Stage(
+                name="reading",
+                tasks=tasks_s2,
+                stage_sample=config.total_sample - transition_sample,
+                task_probability_start=config.tasks_ps_reading,
+            )
+        )
 
         return cls(stages)
 
-    def plot_corpus(self, scale_x=1000):
+    def plot_corpus(self, scale_x=10000):
         """Plot the corpus opening progress in each stage"""
         fig = plt.figure()
 
@@ -197,7 +235,7 @@ class Experience:
                 ax.set_ylabel("Progress (%)")
                 ax.set_ylim([0, 101])
 
-    def plot_task_probability(self, scale_x=1000):
+    def plot_task_probability(self, scale_x=10000):
         """Plot task probability in each stage"""
         fig = plt.figure()
 
