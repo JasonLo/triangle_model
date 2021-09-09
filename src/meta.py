@@ -105,12 +105,14 @@ class Config:
         """Create Config from all available keys, including base, env, and model."""
 
         base_config = {k: kwargs[k] for k in kwargs if k in cls.__annotations__.keys()}
-        
-        model_config_keys = ModelConfig.__annotations__.keys()   
+
+        model_config_keys = ModelConfig.__annotations__.keys()
         model_config = ModelConfig(**{k: kwargs[k] for k in model_config_keys})
 
         environment_config_keys = EnvironmentConfig.__annotations__.keys()
-        environment_config = EnvironmentConfig(**{k: kwargs[k] for k in environment_config_keys}) 
+        environment_config = EnvironmentConfig(
+            **{k: kwargs[k] for k in environment_config_keys}
+        )
 
         return cls(
             model_config=model_config,
@@ -126,7 +128,6 @@ class Config:
             config_dict = json.load(f)
 
         return cls.from_global(**config_dict)
-
 
     # Path related config properties
     @property
@@ -189,10 +190,9 @@ class Config:
     def papermill_cfg(self) -> dict:
         cfg = self.__dict__.copy()
         # Get rid of non-serializable objects
-        cfg.pop("model_config")  
+        cfg.pop("model_config")
         cfg.pop("environment_config")
         return cfg
-
 
     def save(self, json_file: str = None):
         """Save run config to json file."""
