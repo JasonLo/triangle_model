@@ -11,10 +11,10 @@ import random
 def init(code_name, batch_name=None, tau_override=None):
 
     if batch_name:
-        cfg_json = os.path.join('models', batch_name, code_name, "model_config.json")
+        cfg_json = os.path.join("models", batch_name, code_name, "model_config.json")
     else:
-        cfg_json = os.path.join('models', code_name, "model_config.json")
-    
+        cfg_json = os.path.join("models", code_name, "model_config.json")
+
     cfg = meta.Config.from_json(cfg_json)
 
     # Force output to 13:
@@ -158,12 +158,14 @@ def run_test6(code_name, testset="train_r100"):
     test5b = plot_hs04_fig14(mdf_pho, output="pho")
     test5b.save(os.path.join(test.cfg.plot_folder, f"test6_pho_{testset}.html"))
 
+
 def run_test6_cosine(code_name, testset="train_r100"):
     """Test 6 using cosine accuracy in SEM"""
 
     test = init(code_name)
 
     import metrics
+
     # Override semantic accuracy with cosine accuracy
     test.METRICS_MAP["acc"]["sem"] = metrics.CosineSemanticAccuracy()
 
@@ -181,14 +183,13 @@ def run_test6_cosine(code_name, testset="train_r100"):
     test5a.save(os.path.join(test.cfg.plot_folder, f"test6_sem_cosine_{testset}.html"))
 
 
-
 def run_test6r(code_name, testset="train_r300_difficulty"):
     """Lesioning with high_mid_low difficulty"""
     test = init(code_name)
 
     # Get word to condition mapping
     ts = data_wrangling.load_testset(testset)
-    word_to_cond = dict(zip(ts['item'], ts['cond']))
+    word_to_cond = dict(zip(ts["item"], ts["cond"]))
 
     # SEM (same as HS04)
     df_intact = test.eval(testset, "triangle")
@@ -196,24 +197,28 @@ def run_test6r(code_name, testset="train_r300_difficulty"):
     df_ops_lesion = test.eval(testset, "ort_sem")
 
     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
-    df_sem['cond'] = df_sem['word'].map(word_to_cond)
+    df_sem["cond"] = df_sem["word"].map(word_to_cond)
     mdf_sem = make_cond_mean_df(df_sem)
 
     for diff in ["hi", "mid", "low"]:
         test5a = plot_hs04_fig14(mdf_sem.loc[mdf_sem.cond == diff], output="sem")
-        test5a.save(os.path.join(test.cfg.plot_folder, f"test6r_sem_{diff}_{testset}.html"))
+        test5a.save(
+            os.path.join(test.cfg.plot_folder, f"test6r_sem_{diff}_{testset}.html")
+        )
 
     # PHO (extra)
     df_op_lesion = test.eval(testset, "exp_osp")
     df_osp_lesion = test.eval(testset, "ort_pho")
 
     df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
-    df_pho['cond'] = df_pho['word'].map(word_to_cond)
+    df_pho["cond"] = df_pho["word"].map(word_to_cond)
     mdf_pho = make_cond_mean_df(df_pho)
 
     for diff in ["hi", "mid", "low"]:
         test5b = plot_hs04_fig14(mdf_pho.loc[mdf_pho.cond == diff], output="pho")
-        test5b.save(os.path.join(test.cfg.plot_folder, f"test6r_pho_{diff}_{testset}.html"))
+        test5b.save(
+            os.path.join(test.cfg.plot_folder, f"test6r_pho_{diff}_{testset}.html")
+        )
 
 
 def run_test7(code_name):
@@ -288,7 +293,6 @@ def run_test9(code_name, epoch=None):
             pass
 
 
-
 def run_test10(code_name):
     """Test 10: Evaluate the accuracy in each task over epoch with 3 levels of difficulties"""
 
@@ -296,7 +300,7 @@ def run_test10(code_name):
 
     testset = "train_r300_difficulty"
     ts = data_wrangling.load_testset(testset)
-    
+
     tasks = ["triangle", "pho_pho", "sem_sem", "sem_pho", "pho_sem"]
 
     # Evaluate all tasks
@@ -304,13 +308,12 @@ def run_test10(code_name):
     df = pd.concat(all_eval, ignore_index=True)
 
     # Post process the data
-    word_to_cond = dict(zip(ts['item'], ts['cond']))
-    df['cond'] = df['word'].map(word_to_cond)
+    word_to_cond = dict(zip(ts["item"], ts["cond"]))
+    df["cond"] = df["word"].map(word_to_cond)
     mdf = make_cond_mean_df(df)
 
     # Plot and save
     plot_acc_by_difficulty(mdf).save(os.path.join(test.cfg.plot_folder, "test10.html"))
-
 
 
 ########## Support functions ##########
@@ -561,7 +564,6 @@ def plot_activation_by_target(df, output):
     return epoch_selection & timetick_sel & plot_activation
 
 
-
 def plot_acc_by_difficulty(mean_df, metric="acc"):
     """A quick and dirty plot to check the impact of item difficulty on task performance"""
 
@@ -581,7 +583,7 @@ def plot_acc_by_difficulty(mean_df, metric="acc"):
         .encode(
             x="epoch:Q",
             y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
-            color=alt.Color("cond:O", sort=['hi', 'mid', 'low'], title='difficulty'),
+            color=alt.Color("cond:O", sort=["hi", "mid", "low"], title="difficulty"),
             column="output_name:N",
             row="task:N",
         )
@@ -589,6 +591,7 @@ def plot_acc_by_difficulty(mean_df, metric="acc"):
     )
 
     return timetick_sel & main
+
 
 ################################################################################
 
