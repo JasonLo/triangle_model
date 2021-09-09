@@ -3,6 +3,7 @@ import pandas as pd
 from PIL import Image
 from typing import List
 
+
 def gen_pkey(p_file="dataset/mappingv2.txt"):
     """Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
@@ -11,7 +12,6 @@ def gen_pkey(p_file="dataset/mappingv2.txt"):
     mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
     m_dict = mapping.set_index(0).T.to_dict("list")
     return m_dict
-
 
 
 def get_pronunciation_fast(act, phon_key=None):
@@ -36,7 +36,7 @@ def get_batch_pronunciations_fast(act, phon_key=None):
     return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
 
 
-def stitch_fig(images:List[str], rows:int, columns:int) -> Image:
+def stitch_fig(images: List[str], rows: int, columns: int) -> Image:
     """Stitch images in a grid"""
     assert len(images) <= (rows * columns)
 
@@ -50,14 +50,14 @@ def stitch_fig(images:List[str], rows:int, columns:int) -> Image:
     max_height = max(heights)
 
     # Stitching
-    stitched_image = Image.new('RGB', (max_width * columns, max_height * rows))
+    stitched_image = Image.new("RGB", (max_width * columns, max_height * rows))
 
     x_offset = 0
     y_offset = 0
 
     for i, im in enumerate(images):
         stitched_image.paste(im, (x_offset, y_offset))
-        if (i+1) % columns == 0:
+        if (i + 1) % columns == 0:
             # New row every {columns} images
             y_offset += max_height
             x_offset = 0
