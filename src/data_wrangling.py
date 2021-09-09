@@ -17,9 +17,10 @@ def gen_pkey(p_file="dataset/mappingv2.txt"):
     m_dict = mapping.set_index(0).T.to_dict("list")
     return m_dict
 
+
 class Sampler:
     """v2 Sampler for tf model v4
-    Features: 
+    Features:
     1) Smooth non-stationary environment
     2) Visualizing enviroment change with plot_env()
     3) Visualizing relative testset exposure with plot_testset_on_env()
@@ -34,7 +35,7 @@ class Sampler:
         self.wf_clip_high = cfg.wf_clip_high
         self.wf_compression = cfg.wf_compression
         self.oral_start_pct = cfg.oral_start_pct
-        self.oral_end_pct = cfg.oral_end_pct 
+        self.oral_end_pct = cfg.oral_end_pct
         self.oral_sample = cfg.oral_sample
         self.oral_tasks_ps = cfg.oral_tasks_ps
         self.transition_sample = cfg.transition_sample
@@ -43,9 +44,9 @@ class Sampler:
         self.batch_size = cfg.batch_size
         self.n_timesteps = cfg.n_timesteps
         self.inject_error_ticks = cfg.inject_error_ticks
-        
+
         np.random.seed(cfg.rng_seed)
-        
+
         self.data = data
         self.current_sample = 0
 
@@ -56,74 +57,103 @@ class Sampler:
         self.ps = {}
         self._calculate_task_ps()
 
-        # Progress dictionary 
+        # Progress dictionary
         self.progress = {}
         self._calculate_progress_dict()
 
     def plot_env(self, ax=None):
 
         if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=(7,5))
+            fig, ax = plt.subplots(1, 1, figsize=(7, 5))
 
         """Plot an easy to understand environment progression figure"""
-        ax.plot(self.progress['oral'], label='oral corpus')
-        ax.plot(self.progress['reading'], label='reading corpus')
+        ax.plot(self.progress["oral"], label="oral corpus")
+        ax.plot(self.progress["reading"], label="reading corpus")
 
-        reading_p = [self.task_ps[i][-1] if type(self.task_ps[i]) is list or tuple else self.task_ps[i] for i in range(self.total_batches)]
+        reading_p = [
+            self.task_ps[i][-1]
+            if type(self.task_ps[i]) is list or tuple
+            else self.task_ps[i]
+            for i in range(self.total_batches)
+        ]
         # print(reading_p)
-        ax.plot(reading_p, label='reading_p', linestyle='dashdot', color='black')
+        ax.plot(reading_p, label="reading_p", linestyle="dashdot", color="black")
 
-        ax.axvline(x=self.oral_batches, ymin=0, ymax=1, linestyle = 'dotted', color='red', label='transition start')
-        ax.axvline(x=self.oral_batches + self.transition_batches, ymin=0, ymax=1, linestyle = 'dotted', color='green', label = 'transition end')
+        ax.axvline(
+            x=self.oral_batches,
+            ymin=0,
+            ymax=1,
+            linestyle="dotted",
+            color="red",
+            label="transition start",
+        )
+        ax.axvline(
+            x=self.oral_batches + self.transition_batches,
+            ymin=0,
+            ymax=1,
+            linestyle="dotted",
+            color="green",
+            label="transition end",
+        )
         ax.text(x=10, y=0.8, s=f"oral phase task ps \n{self.oral_tasks_ps}")
-        ax.text(x=self.total_batches*0.5, y=0.8, s=f"reading phase task ps \n(after transition) \n{self.reading_tasks_ps}")
-        ax.set_xlabel('batch')
-        ax.set_ylabel('percetile rank of word frequency')
+        ax.text(
+            x=self.total_batches * 0.5,
+            y=0.8,
+            s=f"reading phase task ps \n(after transition) \n{self.reading_tasks_ps}",
+        )
+        ax.set_xlabel("batch")
+        ax.set_ylabel("percetile rank of word frequency")
 
         ax.legend(loc="lower right")
-        ax.set_title('Corpus opening progression (%)')
-
+        ax.set_title("Corpus opening progression (%)")
 
     def plot_testset_on_env(self):
         """Combined env plot to show testset exposure on env"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharey=True, gridspec_kw={'width_ratios': [2, 1]})
+        fig, (ax1, ax2) = plt.subplots(
+            1, 2, figsize=(12, 5), sharey=True, gridspec_kw={"width_ratios": [2, 1]}
+        )
         self.plot_env(ax1)
         self._plot_testset_pct_taraban(ax2)
 
-        
-
-    def _plot_testset_pct_taraban(self, ax = None):
+    def _plot_testset_pct_taraban(self, ax=None):
         """Plot violin pct distribution in Taraban"""
         df = self._join_testset_pct("taraban")
 
         if ax is None:
-            fig, ax = plt.subplots(1, 1, figsize=(7,5))
+            fig, ax = plt.subplots(1, 1, figsize=(7, 5))
 
-        ax.violinplot(dataset = [
-            df.loc[df.cond=='High-frequency exception', 'pct'],
-            df.loc[df.cond=='Regular control for High-frequency exception', 'pct'],
-            df.loc[df.cond=='Low-frequency exception', 'pct'],
-            df.loc[df.cond=='Regular control for Low-frequency exception', 'pct']
-            ], showmeans=True)
+        ax.violinplot(
+            dataset=[
+                df.loc[df.cond == "High-frequency exception", "pct"],
+                df.loc[
+                    df.cond == "Regular control for High-frequency exception", "pct"
+                ],
+                df.loc[df.cond == "Low-frequency exception", "pct"],
+                df.loc[df.cond == "Regular control for Low-frequency exception", "pct"],
+            ],
+            showmeans=True,
+        )
 
         def set_axis_style(ax):
-            labels = ['HF-EXC', 'HF-REG', 'LF-EXC', 'LF-REG']
-            ax.xaxis.set_tick_params(direction='out')
-            ax.xaxis.set_ticks_position('bottom')
+            labels = ["HF-EXC", "HF-REG", "LF-EXC", "LF-REG"]
+            ax.xaxis.set_tick_params(direction="out")
+            ax.xaxis.set_ticks_position("bottom")
             ax.set_xticks(np.arange(1, len(labels) + 1))
             ax.set_xticklabels(labels)
             ax.set_xlim(0.25, len(labels) + 0.75)
-            ax.set_xlabel('conditions')
-            ax.set_title('Taraban')
+            ax.set_xlabel("conditions")
+            ax.set_title("Taraban")
 
         set_axis_style(ax)
 
     def _join_testset_pct(self, testset_name):
         """Create a temp df for plotting testset on env"""
-        f = os.path.join(self.cfg.tf_root, "dataset", "testsets", f"{testset_name}.pkl.gz")
+        f = os.path.join(
+            self.cfg.tf_root, "dataset", "testsets", f"{testset_name}.pkl.gz"
+        )
         ts = load_testset(f)
-        ts_sel = {key:ts[key] for key in ('item', 'cond')}
-        ts_sel['pct'] = [self.rank_pct_wf_dict[x] for x in ts_sel['item']]
+        ts_sel = {key: ts[key] for key in ("item", "cond")}
+        ts_sel["pct"] = [self.rank_pct_wf_dict[x] for x in ts_sel["item"]]
         return pd.DataFrame(ts_sel)
 
     def _calculate_aux_variables(self):
@@ -132,52 +162,65 @@ class Sampler:
         self.total_batches = self.sample_to_batch(self.total_sample)
         self.oral_batches = self.sample_to_batch(self.oral_sample)
         self.transition_batches = self.sample_to_batch(self.transition_sample)
-        self.remaining_batches = self.total_batches - self.oral_batches - self.transition_batches
+        self.remaining_batches = (
+            self.total_batches - self.oral_batches - self.transition_batches
+        )
 
         # Word frequency related
         if self.wf_clip_low is None:
             self.wf_clip_low = 0
-        
+
         if self.wf_clip_high is None:
-            self.wf_clip_high = 999999999            
-            
+            self.wf_clip_high = 999999999
+
         clip_wf = self.data.df_train.wf.clip(self.wf_clip_low, self.wf_clip_high).copy()
         self.rank_pct_wf = clip_wf.rank(pct=True, ascending=False)
         self.rank_pct_wf_dict = dict(zip(self.data.df_train.word, self.rank_pct_wf))
 
-        assert self.wf_compression in ('log', 'root')
-        self.compressed_wf = np.log(clip_wf + 1) if self.wf_compression == 'log' else np.sqrt(clip_wf)
+        assert self.wf_compression in ("log", "root")
+        self.compressed_wf = (
+            np.log(clip_wf + 1) if self.wf_compression == "log" else np.sqrt(clip_wf)
+        )
 
     def _calculate_task_ps(self):
-        """Task probabililty store all task probabilities in a single dictionary (epoch, ps) """
+        """Task probabililty store all task probabilities in a single dictionary (epoch, ps)"""
 
         # Oral
-        self.task_ps = {i:self.oral_tasks_ps for i in range(self.oral_batches)}
+        self.task_ps = {i: self.oral_tasks_ps for i in range(self.oral_batches)}
 
         # Transition
-        tps = np.linspace(self.oral_tasks_ps, self.reading_tasks_ps, self.transition_batches)
-        tran_ps = {i + self.oral_batches: tuple(tps[i]) for i in range(self.transition_batches)}
+        tps = np.linspace(
+            self.oral_tasks_ps, self.reading_tasks_ps, self.transition_batches
+        )
+        tran_ps = {
+            i + self.oral_batches: tuple(tps[i]) for i in range(self.transition_batches)
+        }
         self.task_ps.update(tran_ps)
 
         # Remaining
-        remain_ps = {i + self.oral_batches + self.transition_batches: self.reading_tasks_ps for i in range(self.remaining_batches)}
+        remain_ps = {
+            i + self.oral_batches + self.transition_batches: self.reading_tasks_ps
+            for i in range(self.remaining_batches)
+        }
         self.task_ps.update(remain_ps)
 
     def _calculate_progress_dict(self):
         """Progress dictionary storing all %max progress at each epoch in oral and reading stage"""
         # Oral progress
         opg = np.linspace(self.oral_start_pct, self.oral_end_pct, self.oral_batches)
-        self.progress['oral'] = self._extrapolate_ps(opg)
+        self.progress["oral"] = self._extrapolate_ps(opg)
 
         # Reading progress
-        self.progress['reading'] = self._right_shift_ps(self.progress['oral'])         
+        self.progress["reading"] = self._right_shift_ps(self.progress["oral"])
 
     def _extrapolate_ps(self, array):
         """Extrapolate an array to the number of batches long"""
         d = array[1] - array[0]
         e = array[-1]
         n = len(array)
-        ex_array = [array[i] if i < n  else e + (i-n) * d for i in range(self.total_batches)]
+        ex_array = [
+            array[i] if i < n else e + (i - n) * d for i in range(self.total_batches)
+        ]
         return np.clip(ex_array, 0, 1)
 
     def _right_shift_ps(self, oral_progress):
@@ -191,49 +234,56 @@ class Sampler:
 
     def wf_to_ps(self, wf):
         """convert squashed compressed word frequncy to probabilty"""
-        return np.array(wf/np.sum(wf), dtype="float32")
+        return np.array(wf / np.sum(wf), dtype="float32")
 
     def sample_to_batch(self, sample):
         """Convert sample to batch in 0-indexing format"""
-        return int(sample/self.batch_size)
+        return int(sample / self.batch_size)
 
     def get_sampling_p(self, current_sample, task):
         current_batch = self.sample_to_batch(current_sample)
 
-        if task == 'triangle':
-            progress = self.progress['reading'][current_batch]
+        if task == "triangle":
+            progress = self.progress["reading"][current_batch]
         else:
-            progress = self.progress['oral'][current_batch]
+            progress = self.progress["oral"][current_batch]
 
         # Create selection mask
         mask = self.rank_pct_wf < progress
-    
+
         return self.wf_to_ps(self.compressed_wf * mask)
 
     def generator(self):
-        """ Generator that draw task and sample idx 
-        """
+        """Generator that draw task and sample idx"""
         x_ticks = self.n_timesteps
         y_ticks = self.inject_error_ticks
-        
+
         while True:
             current_batch = self.sample_to_batch(self.current_sample)
-            task = np.random.choice(self.tasks, p=self.task_ps[current_batch]) if type(self.tasks) is tuple or list else self.tasks
-            idx = np.random.choice(self.data.df_train.index, self.batch_size, p=self.get_sampling_p(self.current_sample, task))
-            
+            task = (
+                np.random.choice(self.tasks, p=self.task_ps[current_batch])
+                if type(self.tasks) is tuple or list
+                else self.tasks
+            )
+            idx = np.random.choice(
+                self.data.df_train.index,
+                self.batch_size,
+                p=self.get_sampling_p(self.current_sample, task),
+            )
+
             x, y = modeling.IN_OUT[task]
             batch_x = [self.data.np_representations[x][idx]] * x_ticks
 
             if type(y) is list:
-                    batch_y = {yi: [self.data.np_representations[yi][idx]] * y_ticks for yi in y}
+                batch_y = {
+                    yi: [self.data.np_representations[yi][idx]] * y_ticks for yi in y
+                }
             else:
                 # Single output
                 batch_y = [self.data.np_representations[y][idx]] * y_ticks
-            
-            
+
             self.current_sample += self.batch_size
             yield task, idx, batch_x, batch_y
-     
 
 
 class OldSampling:
@@ -614,7 +664,7 @@ class MyData:
         with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
 
-        self.phon_key = gen_pkey(p_file=os.path.join(input_path, 'mappingv2.txt'))
+        self.phon_key = gen_pkey(p_file=os.path.join(input_path, "mappingv2.txt"))
 
     def word_to_idx(self, word, cond=None, skip_duplicates=True):
         # TODO: Handle duplicate later
@@ -641,9 +691,10 @@ class MyData:
             "ort": tf.constant(self.np_representations["ort"][idx], dtype=tf.float32),
             "pho": tf.constant(self.np_representations["pho"][idx], dtype=tf.float32),
             "sem": tf.constant(self.np_representations["sem"][idx], dtype=tf.float32),
-            "phoneme": H.get_batch_pronunciations_fast(self.np_representations["pho"][idx])
+            "phoneme": H.get_batch_pronunciations_fast(
+                self.np_representations["pho"][idx]
+            ),
         }
-
 
     def load_all_testsets(self):
 
@@ -660,7 +711,7 @@ def load_testset(file):
         with gzip.open(file, "rb") as f:
             testset = pickle.load(f)
     except Exception:
-        _maybe_file = os.path.join('dataset', 'testsets', f"{file}.pkl.gz")
+        _maybe_file = os.path.join("dataset", "testsets", f"{file}.pkl.gz")
         with gzip.open(_maybe_file, "rb") as f:
             testset = pickle.load(f)
     return testset
@@ -669,6 +720,7 @@ def load_testset(file):
 def save_testset(testset, file):
     with gzip.open(file, "wb") as f:
         pickle.dump(testset, f)
+
 
 ##### Experimentals #####
 class FastSampling_uniform:
@@ -771,15 +823,15 @@ class NodeStats:
     def __init__(self, testset_name):
         self.testset = load_testset(testset_name)
 
-    def get_words_from_pho_unit(self, unit:int) -> list:
+    def get_words_from_pho_unit(self, unit: int) -> list:
         """unit is 0-indexing position in pho representation"""
-        p_unit = self.testset['pho'][:, unit]
-        p_unit_is_on = (p_unit == 1)
-        words = list(self.testset['item'].values())
+        p_unit = self.testset["pho"][:, unit]
+        p_unit_is_on = p_unit == 1
+        words = list(self.testset["item"].values())
         return words[p_unit_is_on]
 
-    def get_words_from_sem_unit(self, unit:int) -> list:
-        s_unit = self.testset['sem'][:, unit]
-        s_unit_is_on = (s_unit == 1)
-        words = list(self.testset['item'].values())
+    def get_words_from_sem_unit(self, unit: int) -> list:
+        s_unit = self.testset["sem"][:, unit]
+        s_unit_is_on = s_unit == 1
+        words = list(self.testset["item"].values())
         return words[p_unit_is_on]
