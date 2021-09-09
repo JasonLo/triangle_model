@@ -17,7 +17,7 @@ from time import sleep
 from typing import List
 
 
-def run_json(json: str, gpu: int = 0):
+def run_json(json: str):
     """Run a single model."""
     # Load the json
     cfg = meta.Config.from_json(json)
