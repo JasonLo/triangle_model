@@ -13,6 +13,7 @@ def gen_pkey(p_file="dataset/mappingv2.txt"):
     return m_dict
 
 
+
 def get_pronunciation_fast(act, phon_key=None):
     if phon_key is None:
         phon_key = gen_pkey()
