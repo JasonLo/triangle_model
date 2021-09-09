@@ -17,10 +17,10 @@ class EnvironmentConfig:
     wf_clip_high: int = None
     total_sample: int = None
     batch_size: int = None
-    # tasks_ps_oral: int = None
-    # tasks_ps_reading: int = None
+    tasks_ps_oral: int = None
+    tasks_ps_reading: int = None
 
-    tasks_ps: tuple = None
+    # tasks_ps: tuple = None
     # tasks_start_ps: tuple = None
     # tasks_end_ps: tuple = None
 
