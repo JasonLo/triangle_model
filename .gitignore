@@ -17,3 +17,6 @@ sim_df.csv.gz
 *.Rproj
 pretrain_train_item_df.csv
 docs
+node_modules
+package-lock.json
+package.json
