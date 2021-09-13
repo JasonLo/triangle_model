@@ -5,6 +5,7 @@ import uuid
 import tensorflow as tf
 from dataclasses import dataclass
 from environment import EnvironmentConfig
+import pandas as pd
 
 
 @dataclass
@@ -234,6 +235,7 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
         # Iterate and create batch level super object: batch_cfgs
         batch_cfgs = []
         varying_hpar_names, varying_hpar_values = zip(*param_grid.items())
+
         for i, v in enumerate(itertools.product(*varying_hpar_values)):
             code_name = batch_name + "_r{:04d}".format(i)
 
@@ -275,6 +277,39 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
 
     return batch_cfgs
 
+def batch_json_to_df(json_file:str, tf_root:str=None) -> pd.DataFrame:
+    """
+    Convert batch json to dataframe
+    """
+    # Load json
+    with open(json_file) as f:
+        batch_cfgs = json.load(f)
+    
+    df = pd.DataFrame()
+
+    for i, cfg in enumerate(batch_cfgs):
+        # Override tf_root
+        if tf_root is not None:
+            cfg["params"]["tf_root"] = tf_root
+
+        # get_uuid from saved model_json
+        model_config_json = os.path.join(
+            cfg["params"]["tf_root"], cfg["model_folder"], "model_config.json"
+        )
+
+        # Copy uuid from model config to batch config
+        with open(model_config_json) as f:
+            model_config = json.load(f)
+        cfg["params"]["uuid"] = model_config["uuid"]
+
+        # Remove tuples
+        cfg["params"] = {k: v for k, v in cfg["params"].items() if type(v) is not list}
+
+        # Stitch
+        this_record = pd.DataFrame(cfg["params"], index=[i])
+        df = df.append(this_record)
+
+    return df
 
 # Broken
 # def parse_batch_results(cfgs):
