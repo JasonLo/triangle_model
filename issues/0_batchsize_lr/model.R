@@ -12,9 +12,16 @@ get_f <- function(epsilon, trainset_size, batch_size){
 df <- read.csv("taraban80.csv") %>% 
     mutate(f = get_f(learning_rate, 5861, batch_size))
 
+
+glm(acc ~ freq * reg, family=binomial, data=filter(df, code_name=='task_effect_r0020')) %>% 
+    standardize_parameters()
+
 mdf <- df %>% 
     group_by(code_name, batch_size, learning_rate, freq, reg) %>% 
     summarise(macc = mean(acc), msse=mean(sse))
+
+
+
 
 glm(macc~learning_rate + batch_size + freq + reg, data=mdf) %>% 
     standardize_parameters()
