@@ -30,14 +30,17 @@ def init(code_name, batch_name=None, tau_override=None):
     return test
 
 
-def run_test1(code_name, testset="train_r100"):
-    test = init(code_name)
+def run_test1(code_name, batch_name=None, testset="train_r100"):
+    test = init(code_name, batch_name)
+    test.cfg.tf_root = '/home/jupyter/triangle_model'
     df = test.eval(testset, "triangle")
     mdf = make_mean_df(df)
     fig9 = plot_hs04_fig9(mdf, metric="acc")
-    fig9_sse = plot_hs04_fig9(mdf, metric="csse")
+    fig9_sse = plot_hs04_fig9(mdf, metric="sse")
+    fig9_csse = plot_hs04_fig9(mdf, metric="csse")
     fig9.save(os.path.join(test.cfg.plot_folder, "test1_acc.html"))
     fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1_sse.html"))
+    fig9_csse.save(os.path.join(test.cfg.plot_folder, "test1_csse.html"))
 
     # Extras Oral tasks
     mdf_pp = make_mean_df(test.eval(testset, "pho_pho"))
@@ -47,10 +50,12 @@ def run_test1(code_name, testset="train_r100"):
 
     df_oral = pd.concat([mdf_pp, mdf_ss, mdf_sp, mdf_ps], ignore_index=True)
     test1_oral_plot_acc = plot_hs04_fig14(df_oral, metric="acc")
-    test1_oral_plot_sse = plot_hs04_fig14(df_oral, metric="csse")
+    test1_oral_plot_sse = plot_hs04_fig14(df_oral, metric="sse")
+    test1_oral_plot_csse = plot_hs04_fig14(df_oral, metric="csse")
 
     test1_oral_plot_acc.save(os.path.join(test.cfg.plot_folder, "test1_oral_acc.html"))
     test1_oral_plot_sse.save(os.path.join(test.cfg.plot_folder, "test1_oral_sse.html"))
+    test1_oral_plot_csse.save(os.path.join(test.cfg.plot_folder, "test1_oral_csse.html"))
 
 
 def run_test2(code_name, task="triangle"):
@@ -416,7 +421,9 @@ def plot_hs04_fig9(mean_df, metric="acc"):
             x="epoch:Q",
             y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
             color="output_name:N",
+            tooltip=[f"mean({metric})"]
         )
+        .interactive()
         .transform_filter(interval)
     )
 
