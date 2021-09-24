@@ -183,9 +183,10 @@ class Config:
 
     @property
     def saved_epochs(self) -> list:
-        return list(
-            range(self.save_freq, self.total_number_of_epoch + 1, self.save_freq)
-        )
+        # Save in every epoch in the first 50 epochs
+        first_50 = list(range(1, 51)) 
+        remaining = [i for i in range(1, self.total_number_of_epoch) if (i % self.save_freq == 0)]
+        return list(set(first_50 + remaining))
 
     @property
     def papermill_cfg(self) -> dict:
