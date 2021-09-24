@@ -32,7 +32,7 @@ def init(code_name, batch_name=None, tau_override=None):
 
 def run_test1(code_name, batch_name=None, testset="train_r100"):
     test = init(code_name, batch_name)
-    test.cfg.tf_root = '/home/jupyter/triangle_model'
+    # test.cfg.tf_root = '/home/jupyter/triangle_model'
     df = test.eval(testset, "triangle")
     mdf = make_mean_df(df)
     fig9 = plot_hs04_fig9(mdf, metric="acc")
