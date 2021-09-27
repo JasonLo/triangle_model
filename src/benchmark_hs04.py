@@ -7,6 +7,9 @@ import meta, evaluate, troubleshooting, data_wrangling
 import modeling
 import random
 
+ON_UCONN_SERVER = False
+TF_ROOT = "/home/jal21012/triangle_model" if ON_UCONN_SERVER else "/home/jupyter/triangle_model"
+
 
 def init(code_name, batch_name=None, tau_override=None):
 
@@ -16,7 +19,7 @@ def init(code_name, batch_name=None, tau_override=None):
         cfg_json = os.path.join("models", code_name, "model_config.json")
 
     cfg = meta.Config.from_json(cfg_json)
-
+    cfg.tf_root = TF_ROOT
     # Force output to 13:
     cfg.output_ticks = 13
 
@@ -58,8 +61,8 @@ def run_test1(code_name, batch_name=None, testset="train_r100"):
     test1_oral_plot_csse.save(os.path.join(test.cfg.plot_folder, "test1_oral_csse.html"))
 
 
-def run_test2(code_name, task="triangle"):
-    test = init(code_name)
+def run_test2(code_name, batch_name=None, task="triangle"):
+    test = init(code_name, batch_name)
     df = test.eval("taraban", task)
     mdf = make_cond_mean_df(df)
 
@@ -90,8 +93,8 @@ def run_test2(code_name, task="triangle"):
     fig10_sse.save(os.path.join(test.cfg.plot_folder, f"test2_sse_{task}.html"))
 
 
-def run_test3(code_name):
-    test = init(code_name)
+def run_test3(code_name, batch_name=None):
+    test = init(code_name, batch_name)
     df = test.eval("glushko", "triangle")
     mdf = make_cond_mean_df(df)
     test3_acc = plot_conds(mdf, "acc")
@@ -101,8 +104,8 @@ def run_test3(code_name):
     test3_sse.save(os.path.join(test.cfg.plot_folder, "test3_sse.html"))
 
 
-def run_test4(code_name):
-    test = init(code_name)
+def run_test4(code_name, batch_name=None):
+    test = init(code_name, batch_name)
     df = test.eval("hs04_img_240", "triangle")
     mdf = make_cond_mean_df(df)
     mdf["fc"] = mdf.cond.apply(lambda x: x[:5])
@@ -114,9 +117,9 @@ def run_test4(code_name):
     test4_sse.save(os.path.join(test.cfg.plot_folder, "test4_sse.html"))
 
 
-def run_test5(code_name):
+def run_test5(code_name, batch_name=None):
     tau = 1.0 / 12.0
-    test = init(code_name, tau_override=tau)
+    test = init(code_name, batch_name, tau_override=tau)
 
     # SEM (same as HS04)
     df_intact = test.eval("train_r100", "triangle", save_file_prefix="hi_res")
@@ -139,9 +142,9 @@ def run_test5(code_name):
     test5b.save(os.path.join(test.cfg.plot_folder, "test5_pho.html"))
 
 
-def run_test6(code_name, testset="train_r100"):
+def run_test6(code_name, batch_name=None, testset="train_r100"):
     """Test 5 without resizing tau"""
-    test = init(code_name)
+    test = init(code_name, batch_name)
 
     # SEM (same as HS04)
     df_intact = test.eval(testset, "triangle")
@@ -164,10 +167,10 @@ def run_test6(code_name, testset="train_r100"):
     test5b.save(os.path.join(test.cfg.plot_folder, f"test6_pho_{testset}.html"))
 
 
-def run_test6_cosine(code_name, testset="train_r100"):
+def run_test6_cosine(code_name, batch_name=None, testset="train_r100"):
     """Test 6 using cosine accuracy in SEM"""
 
-    test = init(code_name)
+    test = init(code_name, batch_name)
     test.cfg.tf_root = "/home/jupyter/triangle_model"
     import metrics
 
@@ -187,10 +190,10 @@ def run_test6_cosine(code_name, testset="train_r100"):
     test5a = plot_hs04_fig14(mdf_sem, output="sem")
     test5a.save(os.path.join(test.cfg.plot_folder, f"test6_sem_cosine_{testset}.html"))
 
-def run_test6_cosine_split(code_name, testset="train_r100"):
+def run_test6_cosine_split(code_name, batch_name=None, testset="train_r100"):
     """Test 6 using cosine accuracy in SEM and median split by cond"""
 
-    test = init(code_name)
+    test = init(code_name, batch_name)
     test.cfg.tf_root = "/home/jupyter/triangle_model"
     import metrics
 
@@ -221,9 +224,9 @@ def run_test6_cosine_split(code_name, testset="train_r100"):
         os.path.join(test.cfg.plot_folder, f"test6_sem_cosine_lf_{testset}.html")
         )
 
-def run_test6r(code_name, testset="train_r300_difficulty"):
+def run_test6r(code_name, batch_name=None, testset="train_r300_difficulty"):
     """Lesioning with high_mid_low difficulty"""
-    test = init(code_name)
+    test = init(code_name, batch_name)
 
     # Get word to condition mapping
     ts = data_wrangling.load_testset(testset)
@@ -259,9 +262,9 @@ def run_test6r(code_name, testset="train_r300_difficulty"):
         )
 
 
-def run_test7(code_name):
+def run_test7(code_name, batch_name=None):
     """Activation by target signal"""
-    test = init(code_name)
+    test = init(code_name, batch_name)
     # SEM (same as HS04)
     df1_sem = test.eval("train_r100", "triangle")
     df2_sem = test.eval("train_r100", "exp_ops")
@@ -280,9 +283,10 @@ def run_test7(code_name):
     p_pho.save(os.path.join(test.cfg.plot_folder, "test7_pho.html"))
 
 
-def run_test8(code_name, epoch=None):
+def run_test8(code_name, batch_name=None, epoch=None):
     """10 random word raw input temporal dynamics"""
     d = troubleshooting.Diagnosis(code_name)
+    d.cfg.tf_root = TF_ROOT
 
     if epoch is None:
         # Use last epoch if no epoch is provided
@@ -306,9 +310,10 @@ def run_test8(code_name, epoch=None):
     )
 
 
-def run_test9(code_name, epoch=None):
+def run_test9(code_name, batch_name=None, epoch=None):
     """Compare weight with mikenet"""
     d = troubleshooting.Diagnosis(code_name)
+    d.cfg.tf_root = TF_ROOT
 
     if epoch is None:
         # Use last epoch if no epoch is provided
@@ -331,10 +336,10 @@ def run_test9(code_name, epoch=None):
             pass
 
 
-def run_test10(code_name):
+def run_test10(code_name, batch_name=None):
     """Test 10: Evaluate the accuracy in each task over epoch with 3 levels of difficulties"""
 
-    test = init(code_name)
+    test = init(code_name, batch_name)
 
     testset = "train_r300_difficulty"
     ts = data_wrangling.load_testset(testset)
@@ -651,11 +656,11 @@ TEST_MAP = {
 }
 
 
-def main(code_name):
+def main(code_name: str, batch_name: str=None):
     """Run the frequently used tests (except high res test 5)"""
     for i in (1, 2, 3, 4, 6, 7, 8, 12):
         try:
-            TEST_MAP[i](code_name)
+            TEST_MAP[i](code_name, batch_name)
         except Exception:
             print(f"Test {i} failed")
             pass
@@ -665,5 +670,6 @@ if __name__ == "__main__":
     """Command line entry point, take code_name and testcase to run tests"""
     parser = argparse.ArgumentParser(description="Run HS04 test cases")
     parser.add_argument("-n", "--code_name", required=True, type=str)
+    parser.add_argument("-b", "--batch_name", type=str)
     args = parser.parse_args()
-    main(args.code_name)
+    main(args.code_name, args.batch_name)
