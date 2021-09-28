@@ -56,11 +56,11 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     free_gpu_queue.put(which_gpu)  # Release GPU
 
 
-def main(batch_json: str, resume_from: int = None, available_gpus: List[int] = None):
+def main(batch_json: str, resume_from: int = None, gpus: List[int] = None):
     """Run a batch of models."""
     # Set available GPUs for models to run on
-    if available_gpus is None:
-        available_gpus = [0, 0, 1, 1, 2, 2]
+    if gpus is None:
+        gpus = [0, 0, 1, 1, 2, 2]
 
     # Load the batch json
     with open(batch_json) as f:
@@ -82,9 +82,10 @@ def main(batch_json: str, resume_from: int = None, available_gpus: List[int] = N
 
     # Run the model
     for i, cfg in enumerate(batch_cfgs):
-        if i < len(available_gpus):
+
+        if i < len(gpus):
             # Allocate one model to each available GPU
-            job = Process(target=run_one, args=(cfg, free_gpu_queue, available_gpus[i]))
+            job = Process(target=run_one, args=(cfg, free_gpu_queue, gpus[i]))
             job.start()
         else:
             # Queue for next run: Wait for a free GPU and run the remaining models
@@ -105,7 +106,7 @@ if __name__ == "__main__":
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("json_file", type=str, help="path to batch_config.json")
-    parser.add_argument("-r", "--resume_from", type=int, help="resume run from this index")
-    parser.add_argument("-g", "--available_gpus", type=int, nargs='+', help="list of available GPUs")
+    parser.add_argument("-r", "--resume_from", type=int, help="resume run from")
+    parser.add_argument("-g", "--gpus", type=int, nargs="+", help="list of GPUs")
     args = parser.parse_args()
-    main(args.json_file, args.resume_from, args.available_gpus)
+    main(args.json_file, args.resume_from, args.gpus)
