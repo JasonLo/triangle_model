@@ -29,8 +29,8 @@ class TestSet:
 
     def __init__(self, cfg):
         self.cfg = cfg
-        self.model = None # Will create later, based on testset dimension
-        self.ckpt = None # Will create later, based created model
+        self.model = None # Will create in eval()
+        self.ckpt = None # Will create in eval()
         
     def eval(self, testset_name, task, save_file_prefix=None):
         """
@@ -63,7 +63,7 @@ class TestSet:
                 self.cfg.saved_epochs, desc=f"Evaluating {testset_name}:{task}"
             ):
                 # for epoch in tqdm(range(250, 291, 10)):
-                saved_checkpoint = self.cfg.saved_weights_fstring.format(epoch=epoch)
+                saved_checkpoint = self.cfg.saved_checkpoints_fstring.format(epoch=epoch)
                 self.ckpt.restore(saved_checkpoint).expect_partial() # Only load weights
                 y_pred = self.model([inputs] * self.cfg.n_timesteps)
 

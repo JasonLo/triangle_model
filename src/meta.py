@@ -143,6 +143,10 @@ class Config:
         return os.path.join(self.model_folder, "weights")
 
     @property
+    def checkpoint_folder(self) -> str:
+        return os.path.join(self.model_folder, "checkpoints")
+
+    @property
     def eval_folder(self) -> str:
         return os.path.join(self.model_folder, "eval")
 
@@ -157,6 +161,10 @@ class Config:
     @property
     def saved_weights_fstring(self) -> str:
         return os.path.join(self.weight_folder, "epoch-{epoch}")
+
+    @property
+    def saved_checkpoints_fstring(self) -> str:
+        return os.path.join(self.checkpoint_folder, "epoch-{epoch}")
 
     @property
     def saved_weights(self) -> list:
