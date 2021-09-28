@@ -361,8 +361,9 @@ def check_gpu():
 
 
 def split_gpu(which_gpu: int, n_splits: int = 2):
-    """
-    Split GPU usage across multiple GPUs
+    """Split a physical GPU into multiple logical GPUs.
+    Some of the models does't require the whole GPU to run, so we can split it into multiple logical GPUs and parallelize on it.
+    IMPORTANT: Do not import tensorflow before this function.
     """
     import tensorflow as tf
 
@@ -378,9 +379,10 @@ def split_gpu(which_gpu: int, n_splits: int = 2):
         tf.config.set_visible_devices(gpus[which_gpu], "GPU")
         tf.config.set_logical_device_configuration(gpus[which_gpu], logical_gpus)
 
-    except:
+    except Exception:
         # Invalid device or cannot modify virtual devices once initialized.
-        pass
+        raise Exception
+        print('Virtual GPU cannot be created')
 
 
 def limit_gpu_memory_use(limit_MB=7168):
