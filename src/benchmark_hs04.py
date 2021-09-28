@@ -7,7 +7,7 @@ import meta, evaluate, troubleshooting, data_wrangling
 import modeling
 import random
 
-ON_UCONN_SERVER = False
+ON_UCONN_SERVER = True
 TF_ROOT = "/home/jal21012/triangle_model" if ON_UCONN_SERVER else "/home/jupyter/triangle_model"
 
 
