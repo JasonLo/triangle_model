@@ -4,4 +4,4 @@
 - version 2.9: Changing environment sampler
 - version 3.0: Environment sampler completed
 - version 3.1: New dynamic semantic equation
-- hs04: working on implementing hs04
+- version 4.0: HS04 full implementation completed

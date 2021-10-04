@@ -1,3 +1,3 @@
-# Minimal install script for new VM
+# Required python packages
 altair
 papermill
