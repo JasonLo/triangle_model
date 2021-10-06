@@ -4,14 +4,11 @@
 from tqdm import tqdm
 import os
 import tensorflow as tf
-import metrics, modeling, data_wrangling
-import helper as H
+import metrics, modeling
+from data_wrangling import load_testset
+from helper import get_batch_pronunciations_fast
 import pandas as pd
 import numpy as np
-import altair as alt
-from IPython.display import clear_output
-
-alt.data_transformers.disable_max_rows()
 
 
 class TestSet:
@@ -20,17 +17,19 @@ class TestSet:
     2. Model level info should be stored at separate table, and merge it in the end
     """
 
-    METRICS_MAP = {
-        "acc": {"pho": metrics.PhoAccuracy(), "sem": metrics.RightSideAccuracy()},
-        "sse": metrics.SumSquaredError(),
-        "act0": metrics.OutputOfZeroTarget(),
-        "act1": metrics.OutputOfOneTarget(),
-    }
+
 
     def __init__(self, cfg):
         self.cfg = cfg
         self.model = None  # Will create in eval()
         self.ckpt = None  # Will create in eval()
+        self.metrics = {
+            "acc": {"pho": metrics.PhoAccuracy(), "sem": metrics.RightSideAccuracy()},
+            "sse": metrics.SumSquaredError(),
+            "act0": metrics.OutputOfZeroTarget(),
+            "act1": metrics.OutputOfOneTarget(),
+        }
+
 
     def eval_full_train(self, task: str, n: int = 12):
         """Evaluate the full training set with batching."""
@@ -55,7 +54,7 @@ class TestSet:
 
             df = pd.DataFrame()
             ts_path = "dataset/testsets"
-            testset_package = data_wrangling.load_testset(
+            testset_package = load_testset(
                 os.path.join(ts_path, f"{testset_name}.pkl.gz")
             )
 
@@ -184,10 +183,10 @@ class TestSet:
             print("Cannot find phoneme in y_true dictionary")
         # shape: (item, *maybe n ans, output nodes)
 
-        acc = self.METRICS_MAP["acc"][tag["output_name"]]
-        sse = self.METRICS_MAP["sse"]
-        act0 = self.METRICS_MAP["act0"]
-        act1 = self.METRICS_MAP["act1"]
+        acc = self.metrics["acc"][tag["output_name"]]
+        sse = self.metrics["sse"]
+        act0 = self.metrics["act0"]
+        act1 = self.metrics["act1"]
 
         if type(this_y_true) is list:
             # List mode (for Glushko)
@@ -208,7 +207,7 @@ class TestSet:
 
         # Write prediction if output is pho
         if tag["output_name"] == "pho":
-            out["pho_pred"] = H.get_batch_pronunciations_fast(this_y_pred)
+            out["pho_pred"] = get_batch_pronunciations_fast(this_y_pred)
 
         # Write tag to df
         for k, v in tag.items():
@@ -217,685 +216,685 @@ class TestSet:
         return out
 
 
-class Eval:
-    TESTSETS_NAME = ("strain", "grain")
-
-    def __init__(self, cfg, model, data):
-        self.cfg = cfg
-        self.data = data
-        self.model = model
-
-    def _load_results_from_file(self):
-        for testset_name in self.TESTSETS_NAME:
-            with os.path.join(self.cfg.eval_folder, f"{testset_name}_mean_df.csv") as f:
-                try:
-                    setattr(self, f"{testset_name}_mean_df", pd.read_csv(f))
-                except (FileNotFoundError, IOError):
-                    pass
-
-    def _eval_tasks(self, task, testset_name):
-        """The oral evaluations consists of multiple tasks, sp, ps, pp, ss
-        This function will:
-        1. Create the four tasks (TestSet object) based on testset_name
-        2. Evaluate the tasks
-        3. Concatenate all results into output df
-        """
-        df = pd.DataFrame()
-        x, y = modeling.IN_OUT[task]
-        this_test = TestSet(
-            name=testset_name,
-            cfg=self.cfg,
-            model=self.model,
-            task=task,
-            testitems=self.data.testsets[testset_name]["item"],
-            x_test=self.data.testsets[testset_name][x],
-            y_test=self.data.testsets[testset_name][y],
-        )
-
-        this_test.eval_all()
-        df = df.append(this_test.result, ignore_index=True)
-
-        return df
-
-
-class EvalOral:
-    """Bundle of testsets for Oral stage
-    Not finished... only have train strain and taraban cortese img
-    """
-
-    TESTSETS_NAME = ("train", "strain", "taraban")
-
-    def __init__(self, cfg, model, data):
-        self.cfg = cfg
-        self.model = model
-        self.data = data
-
-        self.train_mean_df = None
-        self.strain_mean_df = None
-        self.grain_mean_df = None
-        self.taraban_mean_df = None
-        self.cortese_mean_df = None
-        self.cortese_img_mean_df = None
-        self.homophone_mean_df = None
-
-        # Load eval results from file
-        for _testset_name in self.TESTSETS_NAME:
-            try:
-                _file = os.path.join(
-                    self.cfg.model_folder,
-                    "eval",
-                    f"{_testset_name}_mean_df.csv",
-                )
-                setattr(self, f"{_testset_name}_mean_df", pd.read_csv(_file))
-            except (FileNotFoundError, IOError):
-                pass
-
-        # Bundle testsets into dictionary
-        self.run_eval = {
-            "train": self._eval_train,
-            "strain": self._eval_strain,
-            "taraban": self._eval_taraban,
-            "cortese_img": self._eval_img,
-            "homophone": self._eval_homophone,
-        }
-
-    def eval(self, testset_name):
-        """Run eval and push to dat"""
-        if getattr(self, f"{testset_name}_mean_df") is None:
-            results = self.run_eval[testset_name]()
-        else:
-            print("Evaluation results found, loaded from file.")
-
-    def _eval_oral_tasks(self, testset_name):
-        """The oral evalution consists of multiple tasks, sp, ps, pp, ss
-        This function will:
-        1. Create the four tasks (TestSet object) based on testset_name
-        2. Evaluate the tasks
-        3. Concatenate all results into output df
-        """
-
-        df = pd.DataFrame()
-
-        tasks = ("pho_sem", "sem_pho", "sem_sem", "pho_pho")
-
-        for this_task in tasks:
-
-            x, y = this_task.split("_")
-            this_testset_object = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task=this_task,
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name][x],
-                y_test=self.data.testsets[testset_name][y],
-            )
-
-            this_testset_object.eval_all()
-            df = df.append(this_testset_object.result, ignore_index=True)
-
-        return df
-
-    # Different _eval_xxx bundle has slightly differnt post-processing needs,
-    # separate into multiple functions
-    def _eval_train(self):
-        testset_name = "train"
-        df = self._eval_oral_tasks(testset_name)
-
-        # Write item level results
-        df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_item_df.csv")
-        )
-
-        # Aggregate
-        mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
-            .mean()
-            .reset_index()
-        )
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_mean_df.csv")
-        )
-
-        self.train_mean_df = mean_df
-
-        return df
-
-    def _eval_homophone(self):
-        df = pd.DataFrame()
-        testsets = ("non_homophone", "homophone")
-
-        for testset_name in testsets:
-            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
-
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "homophone_item_df.csv"))
-
-        mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
-            .mean()
-            .reset_index()
-        )
-
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", "homophone_mean_df.csv")
-        )
-
-        return df
-
-    def _eval_img(self):
-        df = pd.DataFrame()
-        testsets = (
-            "cortese_3gp_high_img",
-            "cortese_3gp_med_img",
-            "cortese_3gp_low_img",
-        )
-
-        for testset_name in testsets:
-            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
-
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "img_item_df.csv"))
-
-        return df
-
-    def _eval_strain(self):
-        df = pd.DataFrame()
-        testsets = (
-            "strain_hf_con_hi",
-            "strain_hf_inc_hi",
-            "strain_hf_con_li",
-            "strain_hf_inc_li",
-            "strain_lf_con_hi",
-            "strain_lf_inc_hi",
-            "strain_lf_con_li",
-            "strain_lf_inc_li",
-        )
-
-        for testset_name in testsets:
-            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
-
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "strain_item_df.csv"))
-
-        # Condition level aggregate
-        mean_df = (
-            df.groupby(
-                [
-                    "code_name",
-                    "task",
-                    "testset",
-                    "epoch",
-                    "timetick",
-                    "y",
-                ]
-            )
-            .mean()
-            .reset_index()
-        )
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", "strain_mean_df.csv")
-        )
-        self.strain_mean_df = mean_df
-
-        return df
-
-    def _eval_taraban(self):
-
-        testsets = (
-            "taraban_hf-exc",
-            "taraban_hf-reg-inc",
-            "taraban_lf-exc",
-            "taraban_lf-reg-inc",
-            "taraban_ctrl-hf-exc",
-            "taraban_ctrl-hf-reg-inc",
-            "taraban_ctrl-lf-exc",
-            "taraban_ctrl-lf-reg-inc",
-        )
-
-        df = pd.DataFrame()
-
-        for testset_name in testsets:
-            df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
-
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "taraban_item_df.csv"))
-
-        mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
-            .mean()
-            .reset_index()
-        )
-
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", "taraban_mean_df.csv")
-        )
-
-        self.taraban_mean_df = mean_df
-
-        return df
-
-
-class EvalReading:
-    """Bundle of testsets"""
-
-    TESTSETS_NAME = ("strain", "grain")
-
-    def __init__(self, cfg, model, data):
-        self.cfg = cfg
-        self.model = model
-        self.data = data
-
-        self.strain_mean_df = None
-        self.grain_mean_df = None
-
-        # Load eval results from file
-        for _testset_name in self.TESTSETS_NAME:
-            try:
-                _file = os.path.join(
-                    self.cfg.model_folder,
-                    "eval",
-                    f"{_testset_name}_mean_df.csv",
-                )
-                setattr(self, f"{_testset_name}_mean_df", pd.read_csv(_file))
-            except (FileNotFoundError, IOError):
-                pass
-
-        # Bundle testsets into dictionary
-        self.run_eval = {
-            "train": self._eval_train,
-            "strain": self._eval_strain,
-            "grain": self._eval_grain,
-            "taraban": self._eval_taraban,
-            "cortese": self._eval_cortese,
-        }
-
-    def eval(self, testset_name):
-        """Run eval and push to dat"""
-        if getattr(self, f"{testset_name}_mean_df") is None:
-            results = self.run_eval[testset_name]()
-        else:
-            print("Evaluation results found, loaded from file.")
-
-    def _eval_train(self):
-        testset_name = "train"
-        t = TestSet(
-            name=testset_name,
-            cfg=self.cfg,
-            model=self.model,
-            task="triangle",
-            testitems=self.data.testsets[testset_name]["item"],
-            x_test=self.data.testsets[testset_name]["ort"],
-            y_test=[
-                self.data.testsets[testset_name]["pho"],
-                self.data.testsets[testset_name]["sem"],
-            ],
-        )
-        t.eval_all()
-        df = t.result
-        df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_item_df.csv")
-        )
-
-        # Aggregate
-        mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
-            .mean()
-            .reset_index()
-        )
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_mean_df.csv")
-        )
-
-        self.train_mean_df = mean_df
-
-        return df
-
-    def _eval_strain(self):
-
-        df = pd.DataFrame()
-        testsets = (
-            "strain_hf_con_hi",
-            "strain_hf_inc_hi",
-            "strain_hf_con_li",
-            "strain_hf_inc_li",
-            "strain_lf_con_hi",
-            "strain_lf_inc_hi",
-            "strain_lf_con_li",
-            "strain_lf_inc_li",
-        )
-
-        for testset_name in testsets:
-            t = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task="triangle",
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["ort"],
-                y_test=[
-                    self.data.testsets[testset_name]["pho"],
-                    self.data.testsets[testset_name]["sem"],
-                ],
-            )
-
-            t.eval_all()
-            df = pd.concat([df, t.result])
-
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "strain_item_df.csv"))
-
-        # Condition level aggregate
-        mean_df = (
-            df.groupby(
-                [
-                    "code_name",
-                    "task",
-                    "testset",
-                    "epoch",
-                    "timetick",
-                    "y",
-                ]
-            )
-            .mean()
-            .reset_index()
-        )
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", "strain_mean_df.csv")
-        )
-        self.strain_mean_df = mean_df
-
-        return df
-
-    def _eval_grain(self):
-        df = pd.DataFrame()
-        for testset_name in ("grain_unambiguous", "grain_ambiguous"):
-            for grain_size in ("pho_small_grain", "pho_large_grain"):
-                t = TestSet(
-                    name=testset_name,
-                    cfg=self.cfg,
-                    model=self.model,
-                    task="triangle",
-                    testitems=self.data.testsets[testset_name]["item"],
-                    x_test=self.data.testsets[testset_name]["ort"],
-                    y_test=[
-                        self.data.testsets[testset_name][grain_size],
-                        self.data.testsets[testset_name]["sem"],
-                    ],
-                )
-
-                t.eval_all()
-                t.result["y_test"] = grain_size
-                df = pd.concat([df, t.result])
-
-        # Pho only
-        pho_df = df.loc[df.y == "pho"]
-
-        # Calculate pho acc by summing large and small grain response
-        pho_acc_df = (
-            pho_df.groupby(
-                ["code_name", "task", "y", "testset", "epoch", "timetick", "item"]
-            )
-            .sum()
-            .reset_index()
-        )
-
-        pho_acc_df["y_test"] = "pho"
-
-        # Sem only (Because we have evaluated semantic twice, we need to remove the duplicates)
-        sem_df = df.loc[(df.y == "sem") & (df.y_test == "pho_small_grain")]
-        sem_df = sem_df.drop(columns="y_test")
-        sem_df["y_test"] = "sem"
-
-        df = pd.concat([pho_df, pho_acc_df, sem_df])
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "grain_item_df.csv"))
-
-        mean_df = (
-            df.groupby(
-                ["code_name", "task", "testset", "epoch", "timetick", "y", "y_test"]
-            )
-            .mean()
-            .reset_index()
-        )
-        mean_df.to_csv(os.path.join(self.cfg.model_folder, "eval", "grain_mean_df.csv"))
-
-        self.grain_mean_df = mean_df
-
-        return df
-
-    def _eval_taraban(self):
-
-        testsets = (
-            "taraban_hf-exc",
-            "taraban_hf-reg-inc",
-            "taraban_lf-exc",
-            "taraban_lf-reg-inc",
-            "taraban_ctrl-hf-exc",
-            "taraban_ctrl-hf-reg-inc",
-            "taraban_ctrl-lf-exc",
-            "taraban_ctrl-lf-reg-inc",
-        )
-
-        df = pd.DataFrame()
-
-        for testset_name in testsets:
-
-            t = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task="triangle",
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["ort"],
-                y_test=[
-                    self.data.testsets[testset_name]["pho"],
-                    self.data.testsets[testset_name]["sem"],
-                ],
-            )
-
-            t.eval_all()
-            df = pd.concat([df, t.result])
-
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "taraban_item_df.csv"))
-
-        mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
-            .mean()
-            .reset_index()
-        )
-
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", "taraban_mean_df.csv")
-        )
-
-        self.taraban_mean_df = mean_df
-
-        return df
-
-    def _eval_cortese(self):
-
-        df = pd.DataFrame()
-        for testset_name in ("cortese_hi_img", "cortese_low_img"):
-            t = TestSet(
-                name=testset_name,
-                cfg=self.cfg,
-                model=self.model,
-                task="triangle",
-                testitems=self.data.testsets[testset_name]["item"],
-                x_test=self.data.testsets[testset_name]["ort"],
-                y_test=[
-                    self.data.testsets[testset_name]["pho"],
-                    self.data.testsets[testset_name]["sem"],
-                ],
-            )
-
-            t.eval_all()
-            df = pd.concat([df, t.result])
-
-        df.to_csv(os.path.join(self.cfg.model_folder, "eval", "cortese_item_df.csv"))
-
-        mean_df = (
-            df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
-            .mean()
-            .reset_index()
-        )
-
-        mean_df.to_csv(
-            os.path.join(self.cfg.model_folder, "eval", "cortese_mean_df.csv")
-        )
-
-        self.cortese_mean_df = mean_df
-
-        return df
-
-    def plot_reading_acc(self, df):
-        timetick_selection = alt.selection_single(
-            bind=alt.binding_range(min=0, max=self.cfg.n_timesteps, step=1),
-            fields=["timetick"],
-            init={"timetick": self.cfg.n_timesteps},
-            name="timetick",
-        )
-
-        p = (
-            alt.Chart(df)
-            .mark_line()
-            .encode(
-                x="epoch:Q",
-                y=alt.Y("acc:Q", scale=alt.Scale(domain=(0, 1))),
-                color="y",
-            )
-            .add_selection(timetick_selection)
-            .transform_filter(timetick_selection)
-        )
-
-        return p
-
-    def plot_grain_by_resp(self):
-        df = self.grain_mean_df.loc[
-            self.grain_mean_df.y_test.isin(["pho_large_grain", "pho_small_grain"])
-        ]
-        p = self.plot_reading_acc(df).encode(color="testset", strokeDash="y_test")
-        return p
-
-
-# New set of plots
-
-
-def plot_reading_acc(df):
-    timetick_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=12, step=1),
-        fields=["timetick"],
-        init={"timetick": 12},
-        name="timetick",
-    )
-
-    y_selection = alt.selection_single(
-        bind=alt.binding_select(options=["pho", "sem"]),
-        fields=["y"],
-    )
-
-    return (
-        alt.Chart(df)
-        .mark_line()
-        .encode(
-            x="epoch:Q",
-            y=alt.Y("mean(acc):Q", scale=alt.Scale(domain=(0, 1))),
-            color="testset",
-        )
-        .add_selection(timetick_selection)
-        .add_selection(y_selection)
-        .transform_filter(timetick_selection)
-        .transform_filter(y_selection)
-    )
-
-
-def plot_grain_acceptable(df):
-
-    df = df.loc[df.y_test.isin(["pho", "sem"]) & (df.y == "pho")]
-
-    timetick_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=cfg.n_timesteps, step=1),
-        fields=["timetick"],
-        init={"timetick": cfg.n_timesteps},
-        name="timetick",
-    )
-
-    return (
-        alt.Chart(df)
-        .mark_line()
-        .encode(
-            x="epoch:Q",
-            y=alt.Y("acc:Q", scale=alt.Scale(domain=(0, 1))),
-            color="testset",
-        )
-        .add_selection(timetick_selection)
-        .transform_filter(timetick_selection)
-    )
-
-
-def plot_grain_by_resp(df):
-    df = df.loc[df.y_test.isin(["pho_large_grain", "pho_small_grain"])]
-    p = plot_reading_acc(df).encode(color="testset", strokeDash="y_test")
-    return p
-
-
-def plot_contrast(df, use_y="acc", y_max=1, task="triangle"):
-    df = df.loc[(df.task == task)]
-
-    timetick_selection = alt.selection_single(
-        bind=alt.binding_range(min=0, max=12, step=1),
-        fields=["timetick"],
-        init={"timetick": cfg.n_timesteps},
-        name="timetick",
-    )
-
-    y_selection = alt.selection_single(
-        bind=alt.binding_select(options=["pho", "sem"]),
-        init={"y": "pho"},
-        fields=["y"],
-    )
-
-    cond_selection = alt.selection_multi(bind="legend", fields=["testset"])
-
-    # Plot by condition
-    plot_by_cond = (
-        alt.Chart(df)
-        .mark_line()
-        .encode(
-            x="epoch:Q",
-            y=alt.Y(f"{use_y}:Q", scale=alt.Scale(domain=(0, y_max))),
-            color="testset:N",
-            opacity=alt.condition(cond_selection, alt.value(1), alt.value(0.1)),
-        )
-        .add_selection(timetick_selection)
-        .add_selection(y_selection)
-        .add_selection(cond_selection)
-        .transform_filter(timetick_selection)
-        .transform_filter(y_selection)
-    )
-
-    # Plot contrasts
-    contrasts = {}
-    contrasts[
-        "F contrast"
-    ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_hf_inc_hi + datum.strain_hf_inc_li - 
-        (datum.strain_lf_con_hi + datum.strain_lf_con_li + datum.strain_lf_inc_hi + datum.strain_lf_inc_li))/4"""
-    contrasts[
-        "CON contrast"
-    ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_lf_con_hi + datum.strain_lf_con_li - 
-        (datum.strain_hf_inc_hi + datum.strain_hf_inc_li + datum.strain_lf_inc_hi + datum.strain_lf_inc_li))/4"""
-    contrasts[
-        "IMG contrast"
-    ] = """(datum.strain_hf_con_hi + datum.strain_lf_con_hi + datum.strain_hf_inc_hi + datum.strain_lf_inc_hi - 
-        (datum.strain_hf_con_li + datum.strain_lf_con_li + datum.strain_hf_inc_li + datum.strain_lf_inc_li))/4"""
-
-    def create_contrast_plot(name):
-        return (
-            plot_by_cond.encode(
-                y=alt.Y("difference:Q", scale=alt.Scale(domain=(-y_max, y_max)))
-            )
-            .transform_pivot("testset", value=use_y, groupby=["epoch"])
-            .transform_calculate(difference=contrasts[name])
-            .properties(title=name, width=100, height=100)
-        )
-
-    contrast_plots = alt.hconcat()
-    for c in contrasts.keys():
-        contrast_plots |= create_contrast_plot(c)
-
-    return plot_by_cond | contrast_plots
+# class Eval:
+#     TESTSETS_NAME = ("strain", "grain")
+
+#     def __init__(self, cfg, model, data):
+#         self.cfg = cfg
+#         self.data = data
+#         self.model = model
+
+#     def _load_results_from_file(self):
+#         for testset_name in self.TESTSETS_NAME:
+#             with os.path.join(self.cfg.eval_folder, f"{testset_name}_mean_df.csv") as f:
+#                 try:
+#                     setattr(self, f"{testset_name}_mean_df", pd.read_csv(f))
+#                 except (FileNotFoundError, IOError):
+#                     pass
+
+#     def _eval_tasks(self, task, testset_name):
+#         """The oral evaluations consists of multiple tasks, sp, ps, pp, ss
+#         This function will:
+#         1. Create the four tasks (TestSet object) based on testset_name
+#         2. Evaluate the tasks
+#         3. Concatenate all results into output df
+#         """
+#         df = pd.DataFrame()
+#         x, y = modeling.IN_OUT[task]
+#         this_test = TestSet(
+#             name=testset_name,
+#             cfg=self.cfg,
+#             model=self.model,
+#             task=task,
+#             testitems=self.data.testsets[testset_name]["item"],
+#             x_test=self.data.testsets[testset_name][x],
+#             y_test=self.data.testsets[testset_name][y],
+#         )
+
+#         this_test.eval_all()
+#         df = df.append(this_test.result, ignore_index=True)
+
+#         return df
+
+
+# class EvalOral:
+#     """Bundle of testsets for Oral stage
+#     Not finished... only have train strain and taraban cortese img
+#     """
+
+#     TESTSETS_NAME = ("train", "strain", "taraban")
+
+#     def __init__(self, cfg, model, data):
+#         self.cfg = cfg
+#         self.model = model
+#         self.data = data
+
+#         self.train_mean_df = None
+#         self.strain_mean_df = None
+#         self.grain_mean_df = None
+#         self.taraban_mean_df = None
+#         self.cortese_mean_df = None
+#         self.cortese_img_mean_df = None
+#         self.homophone_mean_df = None
+
+#         # Load eval results from file
+#         for _testset_name in self.TESTSETS_NAME:
+#             try:
+#                 _file = os.path.join(
+#                     self.cfg.model_folder,
+#                     "eval",
+#                     f"{_testset_name}_mean_df.csv",
+#                 )
+#                 setattr(self, f"{_testset_name}_mean_df", pd.read_csv(_file))
+#             except (FileNotFoundError, IOError):
+#                 pass
+
+#         # Bundle testsets into dictionary
+#         self.run_eval = {
+#             "train": self._eval_train,
+#             "strain": self._eval_strain,
+#             "taraban": self._eval_taraban,
+#             "cortese_img": self._eval_img,
+#             "homophone": self._eval_homophone,
+#         }
+
+#     def eval(self, testset_name):
+#         """Run eval and push to dat"""
+#         if getattr(self, f"{testset_name}_mean_df") is None:
+#             results = self.run_eval[testset_name]()
+#         else:
+#             print("Evaluation results found, loaded from file.")
+
+#     def _eval_oral_tasks(self, testset_name):
+#         """The oral evalution consists of multiple tasks, sp, ps, pp, ss
+#         This function will:
+#         1. Create the four tasks (TestSet object) based on testset_name
+#         2. Evaluate the tasks
+#         3. Concatenate all results into output df
+#         """
+
+#         df = pd.DataFrame()
+
+#         tasks = ("pho_sem", "sem_pho", "sem_sem", "pho_pho")
+
+#         for this_task in tasks:
+
+#             x, y = this_task.split("_")
+#             this_testset_object = TestSet(
+#                 name=testset_name,
+#                 cfg=self.cfg,
+#                 model=self.model,
+#                 task=this_task,
+#                 testitems=self.data.testsets[testset_name]["item"],
+#                 x_test=self.data.testsets[testset_name][x],
+#                 y_test=self.data.testsets[testset_name][y],
+#             )
+
+#             this_testset_object.eval_all()
+#             df = df.append(this_testset_object.result, ignore_index=True)
+
+#         return df
+
+#     # Different _eval_xxx bundle has slightly differnt post-processing needs,
+#     # separate into multiple functions
+#     def _eval_train(self):
+#         testset_name = "train"
+#         df = self._eval_oral_tasks(testset_name)
+
+#         # Write item level results
+#         df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_item_df.csv")
+#         )
+
+#         # Aggregate
+#         mean_df = (
+#             df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+#             .mean()
+#             .reset_index()
+#         )
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_mean_df.csv")
+#         )
+
+#         self.train_mean_df = mean_df
+
+#         return df
+
+#     def _eval_homophone(self):
+#         df = pd.DataFrame()
+#         testsets = ("non_homophone", "homophone")
+
+#         for testset_name in testsets:
+#             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
+
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "homophone_item_df.csv"))
+
+#         mean_df = (
+#             df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+#             .mean()
+#             .reset_index()
+#         )
+
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", "homophone_mean_df.csv")
+#         )
+
+#         return df
+
+#     def _eval_img(self):
+#         df = pd.DataFrame()
+#         testsets = (
+#             "cortese_3gp_high_img",
+#             "cortese_3gp_med_img",
+#             "cortese_3gp_low_img",
+#         )
+
+#         for testset_name in testsets:
+#             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
+
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "img_item_df.csv"))
+
+#         return df
+
+#     def _eval_strain(self):
+#         df = pd.DataFrame()
+#         testsets = (
+#             "strain_hf_con_hi",
+#             "strain_hf_inc_hi",
+#             "strain_hf_con_li",
+#             "strain_hf_inc_li",
+#             "strain_lf_con_hi",
+#             "strain_lf_inc_hi",
+#             "strain_lf_con_li",
+#             "strain_lf_inc_li",
+#         )
+
+#         for testset_name in testsets:
+#             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
+
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "strain_item_df.csv"))
+
+#         # Condition level aggregate
+#         mean_df = (
+#             df.groupby(
+#                 [
+#                     "code_name",
+#                     "task",
+#                     "testset",
+#                     "epoch",
+#                     "timetick",
+#                     "y",
+#                 ]
+#             )
+#             .mean()
+#             .reset_index()
+#         )
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", "strain_mean_df.csv")
+#         )
+#         self.strain_mean_df = mean_df
+
+#         return df
+
+#     def _eval_taraban(self):
+
+#         testsets = (
+#             "taraban_hf-exc",
+#             "taraban_hf-reg-inc",
+#             "taraban_lf-exc",
+#             "taraban_lf-reg-inc",
+#             "taraban_ctrl-hf-exc",
+#             "taraban_ctrl-hf-reg-inc",
+#             "taraban_ctrl-lf-exc",
+#             "taraban_ctrl-lf-reg-inc",
+#         )
+
+#         df = pd.DataFrame()
+
+#         for testset_name in testsets:
+#             df = df.append(self._eval_oral_tasks(testset_name), ignore_index=True)
+
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "taraban_item_df.csv"))
+
+#         mean_df = (
+#             df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+#             .mean()
+#             .reset_index()
+#         )
+
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", "taraban_mean_df.csv")
+#         )
+
+#         self.taraban_mean_df = mean_df
+
+#         return df
+
+
+# class EvalReading:
+#     """Bundle of testsets"""
+
+#     TESTSETS_NAME = ("strain", "grain")
+
+#     def __init__(self, cfg, model, data):
+#         self.cfg = cfg
+#         self.model = model
+#         self.data = data
+
+#         self.strain_mean_df = None
+#         self.grain_mean_df = None
+
+#         # Load eval results from file
+#         for _testset_name in self.TESTSETS_NAME:
+#             try:
+#                 _file = os.path.join(
+#                     self.cfg.model_folder,
+#                     "eval",
+#                     f"{_testset_name}_mean_df.csv",
+#                 )
+#                 setattr(self, f"{_testset_name}_mean_df", pd.read_csv(_file))
+#             except (FileNotFoundError, IOError):
+#                 pass
+
+#         # Bundle testsets into dictionary
+#         self.run_eval = {
+#             "train": self._eval_train,
+#             "strain": self._eval_strain,
+#             "grain": self._eval_grain,
+#             "taraban": self._eval_taraban,
+#             "cortese": self._eval_cortese,
+#         }
+
+#     def eval(self, testset_name):
+#         """Run eval and push to dat"""
+#         if getattr(self, f"{testset_name}_mean_df") is None:
+#             results = self.run_eval[testset_name]()
+#         else:
+#             print("Evaluation results found, loaded from file.")
+
+#     def _eval_train(self):
+#         testset_name = "train"
+#         t = TestSet(
+#             name=testset_name,
+#             cfg=self.cfg,
+#             model=self.model,
+#             task="triangle",
+#             testitems=self.data.testsets[testset_name]["item"],
+#             x_test=self.data.testsets[testset_name]["ort"],
+#             y_test=[
+#                 self.data.testsets[testset_name]["pho"],
+#                 self.data.testsets[testset_name]["sem"],
+#             ],
+#         )
+#         t.eval_all()
+#         df = t.result
+#         df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_item_df.csv")
+#         )
+
+#         # Aggregate
+#         mean_df = (
+#             df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+#             .mean()
+#             .reset_index()
+#         )
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", f"{testset_name}_mean_df.csv")
+#         )
+
+#         self.train_mean_df = mean_df
+
+#         return df
+
+#     def _eval_strain(self):
+
+#         df = pd.DataFrame()
+#         testsets = (
+#             "strain_hf_con_hi",
+#             "strain_hf_inc_hi",
+#             "strain_hf_con_li",
+#             "strain_hf_inc_li",
+#             "strain_lf_con_hi",
+#             "strain_lf_inc_hi",
+#             "strain_lf_con_li",
+#             "strain_lf_inc_li",
+#         )
+
+#         for testset_name in testsets:
+#             t = TestSet(
+#                 name=testset_name,
+#                 cfg=self.cfg,
+#                 model=self.model,
+#                 task="triangle",
+#                 testitems=self.data.testsets[testset_name]["item"],
+#                 x_test=self.data.testsets[testset_name]["ort"],
+#                 y_test=[
+#                     self.data.testsets[testset_name]["pho"],
+#                     self.data.testsets[testset_name]["sem"],
+#                 ],
+#             )
+
+#             t.eval_all()
+#             df = pd.concat([df, t.result])
+
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "strain_item_df.csv"))
+
+#         # Condition level aggregate
+#         mean_df = (
+#             df.groupby(
+#                 [
+#                     "code_name",
+#                     "task",
+#                     "testset",
+#                     "epoch",
+#                     "timetick",
+#                     "y",
+#                 ]
+#             )
+#             .mean()
+#             .reset_index()
+#         )
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", "strain_mean_df.csv")
+#         )
+#         self.strain_mean_df = mean_df
+
+#         return df
+
+#     def _eval_grain(self):
+#         df = pd.DataFrame()
+#         for testset_name in ("grain_unambiguous", "grain_ambiguous"):
+#             for grain_size in ("pho_small_grain", "pho_large_grain"):
+#                 t = TestSet(
+#                     name=testset_name,
+#                     cfg=self.cfg,
+#                     model=self.model,
+#                     task="triangle",
+#                     testitems=self.data.testsets[testset_name]["item"],
+#                     x_test=self.data.testsets[testset_name]["ort"],
+#                     y_test=[
+#                         self.data.testsets[testset_name][grain_size],
+#                         self.data.testsets[testset_name]["sem"],
+#                     ],
+#                 )
+
+#                 t.eval_all()
+#                 t.result["y_test"] = grain_size
+#                 df = pd.concat([df, t.result])
+
+#         # Pho only
+#         pho_df = df.loc[df.y == "pho"]
+
+#         # Calculate pho acc by summing large and small grain response
+#         pho_acc_df = (
+#             pho_df.groupby(
+#                 ["code_name", "task", "y", "testset", "epoch", "timetick", "item"]
+#             )
+#             .sum()
+#             .reset_index()
+#         )
+
+#         pho_acc_df["y_test"] = "pho"
+
+#         # Sem only (Because we have evaluated semantic twice, we need to remove the duplicates)
+#         sem_df = df.loc[(df.y == "sem") & (df.y_test == "pho_small_grain")]
+#         sem_df = sem_df.drop(columns="y_test")
+#         sem_df["y_test"] = "sem"
+
+#         df = pd.concat([pho_df, pho_acc_df, sem_df])
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "grain_item_df.csv"))
+
+#         mean_df = (
+#             df.groupby(
+#                 ["code_name", "task", "testset", "epoch", "timetick", "y", "y_test"]
+#             )
+#             .mean()
+#             .reset_index()
+#         )
+#         mean_df.to_csv(os.path.join(self.cfg.model_folder, "eval", "grain_mean_df.csv"))
+
+#         self.grain_mean_df = mean_df
+
+#         return df
+
+#     def _eval_taraban(self):
+
+#         testsets = (
+#             "taraban_hf-exc",
+#             "taraban_hf-reg-inc",
+#             "taraban_lf-exc",
+#             "taraban_lf-reg-inc",
+#             "taraban_ctrl-hf-exc",
+#             "taraban_ctrl-hf-reg-inc",
+#             "taraban_ctrl-lf-exc",
+#             "taraban_ctrl-lf-reg-inc",
+#         )
+
+#         df = pd.DataFrame()
+
+#         for testset_name in testsets:
+
+#             t = TestSet(
+#                 name=testset_name,
+#                 cfg=self.cfg,
+#                 model=self.model,
+#                 task="triangle",
+#                 testitems=self.data.testsets[testset_name]["item"],
+#                 x_test=self.data.testsets[testset_name]["ort"],
+#                 y_test=[
+#                     self.data.testsets[testset_name]["pho"],
+#                     self.data.testsets[testset_name]["sem"],
+#                 ],
+#             )
+
+#             t.eval_all()
+#             df = pd.concat([df, t.result])
+
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "taraban_item_df.csv"))
+
+#         mean_df = (
+#             df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+#             .mean()
+#             .reset_index()
+#         )
+
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", "taraban_mean_df.csv")
+#         )
+
+#         self.taraban_mean_df = mean_df
+
+#         return df
+
+#     def _eval_cortese(self):
+
+#         df = pd.DataFrame()
+#         for testset_name in ("cortese_hi_img", "cortese_low_img"):
+#             t = TestSet(
+#                 name=testset_name,
+#                 cfg=self.cfg,
+#                 model=self.model,
+#                 task="triangle",
+#                 testitems=self.data.testsets[testset_name]["item"],
+#                 x_test=self.data.testsets[testset_name]["ort"],
+#                 y_test=[
+#                     self.data.testsets[testset_name]["pho"],
+#                     self.data.testsets[testset_name]["sem"],
+#                 ],
+#             )
+
+#             t.eval_all()
+#             df = pd.concat([df, t.result])
+
+#         df.to_csv(os.path.join(self.cfg.model_folder, "eval", "cortese_item_df.csv"))
+
+#         mean_df = (
+#             df.groupby(["code_name", "task", "testset", "epoch", "timetick", "y"])
+#             .mean()
+#             .reset_index()
+#         )
+
+#         mean_df.to_csv(
+#             os.path.join(self.cfg.model_folder, "eval", "cortese_mean_df.csv")
+#         )
+
+#         self.cortese_mean_df = mean_df
+
+#         return df
+
+#     def plot_reading_acc(self, df):
+#         timetick_selection = alt.selection_single(
+#             bind=alt.binding_range(min=0, max=self.cfg.n_timesteps, step=1),
+#             fields=["timetick"],
+#             init={"timetick": self.cfg.n_timesteps},
+#             name="timetick",
+#         )
+
+#         p = (
+#             alt.Chart(df)
+#             .mark_line()
+#             .encode(
+#                 x="epoch:Q",
+#                 y=alt.Y("acc:Q", scale=alt.Scale(domain=(0, 1))),
+#                 color="y",
+#             )
+#             .add_selection(timetick_selection)
+#             .transform_filter(timetick_selection)
+#         )
+
+#         return p
+
+#     def plot_grain_by_resp(self):
+#         df = self.grain_mean_df.loc[
+#             self.grain_mean_df.y_test.isin(["pho_large_grain", "pho_small_grain"])
+#         ]
+#         p = self.plot_reading_acc(df).encode(color="testset", strokeDash="y_test")
+#         return p
+
+
+# # New set of plots
+
+
+# def plot_reading_acc(df):
+#     timetick_selection = alt.selection_single(
+#         bind=alt.binding_range(min=0, max=12, step=1),
+#         fields=["timetick"],
+#         init={"timetick": 12},
+#         name="timetick",
+#     )
+
+#     y_selection = alt.selection_single(
+#         bind=alt.binding_select(options=["pho", "sem"]),
+#         fields=["y"],
+#     )
+
+#     return (
+#         alt.Chart(df)
+#         .mark_line()
+#         .encode(
+#             x="epoch:Q",
+#             y=alt.Y("mean(acc):Q", scale=alt.Scale(domain=(0, 1))),
+#             color="testset",
+#         )
+#         .add_selection(timetick_selection)
+#         .add_selection(y_selection)
+#         .transform_filter(timetick_selection)
+#         .transform_filter(y_selection)
+#     )
+
+
+# def plot_grain_acceptable(df):
+
+#     df = df.loc[df.y_test.isin(["pho", "sem"]) & (df.y == "pho")]
+
+#     timetick_selection = alt.selection_single(
+#         bind=alt.binding_range(min=0, max=cfg.n_timesteps, step=1),
+#         fields=["timetick"],
+#         init={"timetick": cfg.n_timesteps},
+#         name="timetick",
+#     )
+
+#     return (
+#         alt.Chart(df)
+#         .mark_line()
+#         .encode(
+#             x="epoch:Q",
+#             y=alt.Y("acc:Q", scale=alt.Scale(domain=(0, 1))),
+#             color="testset",
+#         )
+#         .add_selection(timetick_selection)
+#         .transform_filter(timetick_selection)
+#     )
+
+
+# def plot_grain_by_resp(df):
+#     df = df.loc[df.y_test.isin(["pho_large_grain", "pho_small_grain"])]
+#     p = plot_reading_acc(df).encode(color="testset", strokeDash="y_test")
+#     return p
+
+
+# def plot_contrast(df, use_y="acc", y_max=1, task="triangle"):
+#     df = df.loc[(df.task == task)]
+
+#     timetick_selection = alt.selection_single(
+#         bind=alt.binding_range(min=0, max=12, step=1),
+#         fields=["timetick"],
+#         init={"timetick": cfg.n_timesteps},
+#         name="timetick",
+#     )
+
+#     y_selection = alt.selection_single(
+#         bind=alt.binding_select(options=["pho", "sem"]),
+#         init={"y": "pho"},
+#         fields=["y"],
+#     )
+
+#     cond_selection = alt.selection_multi(bind="legend", fields=["testset"])
+
+#     # Plot by condition
+#     plot_by_cond = (
+#         alt.Chart(df)
+#         .mark_line()
+#         .encode(
+#             x="epoch:Q",
+#             y=alt.Y(f"{use_y}:Q", scale=alt.Scale(domain=(0, y_max))),
+#             color="testset:N",
+#             opacity=alt.condition(cond_selection, alt.value(1), alt.value(0.1)),
+#         )
+#         .add_selection(timetick_selection)
+#         .add_selection(y_selection)
+#         .add_selection(cond_selection)
+#         .transform_filter(timetick_selection)
+#         .transform_filter(y_selection)
+#     )
+
+#     # Plot contrasts
+#     contrasts = {}
+#     contrasts[
+#         "F contrast"
+#     ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_hf_inc_hi + datum.strain_hf_inc_li - 
+#         (datum.strain_lf_con_hi + datum.strain_lf_con_li + datum.strain_lf_inc_hi + datum.strain_lf_inc_li))/4"""
+#     contrasts[
+#         "CON contrast"
+#     ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_lf_con_hi + datum.strain_lf_con_li - 
+#         (datum.strain_hf_inc_hi + datum.strain_hf_inc_li + datum.strain_lf_inc_hi + datum.strain_lf_inc_li))/4"""
+#     contrasts[
+#         "IMG contrast"
+#     ] = """(datum.strain_hf_con_hi + datum.strain_lf_con_hi + datum.strain_hf_inc_hi + datum.strain_lf_inc_hi - 
+#         (datum.strain_hf_con_li + datum.strain_lf_con_li + datum.strain_hf_inc_li + datum.strain_lf_inc_li))/4"""
+
+#     def create_contrast_plot(name):
+#         return (
+#             plot_by_cond.encode(
+#                 y=alt.Y("difference:Q", scale=alt.Scale(domain=(-y_max, y_max)))
+#             )
+#             .transform_pivot("testset", value=use_y, groupby=["epoch"])
+#             .transform_calculate(difference=contrasts[name])
+#             .properties(title=name, width=100, height=100)
+#         )
+
+#     contrast_plots = alt.hconcat()
+#     for c in contrasts.keys():
+#         contrast_plots |= create_contrast_plot(c)
+
+#     return plot_by_cond | contrast_plots

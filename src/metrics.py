@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
-import helper as H
 from tensorflow.python.keras.metrics import MeanMetricWrapper
+from helper import get_batch_pronunciations_fast
 import pandas as pd
 import numpy as np
 
@@ -154,7 +154,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
 
     def item_metric_multi_list(self, y_trues_phoneme, y_pred):
         assert type(y_trues_phoneme[0][0]) is str
-        predicted_phoemes = H.get_batch_pronunciations_fast(y_pred)
+        predicted_phoemes = get_batch_pronunciations_fast(y_pred)
 
         acc_list = []
         for i, y in enumerate(predicted_phoemes):
