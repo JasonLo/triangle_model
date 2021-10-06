@@ -70,6 +70,7 @@ class TarabanParser(ResultParser):
             "output_name",
             "timetick",
             "cond",
+            "word",
         ]
         metrics_vars = ["acc", "csse", "sse"]
 
@@ -98,7 +99,7 @@ class LexicalityParser(ResultParser):
         self.testset_csv_files = ["glushko_triangle.csv", "taraban_triangle.csv"]
 
     def parse(self, result_csv) -> pd.DataFrame:
-        gp_vars = ["code_name", "epoch", "testset", "task", "output_name", "timetick"]
+        gp_vars = ["code_name", "epoch", "testset", "task", "output_name", "timetick", "word"]
         metrics_vars = ["acc", "csse", "sse"]
 
         df = pd.read_csv(result_csv)
@@ -124,6 +125,7 @@ class ImageabilityParser(ResultParser):
             "output_name",
             "timetick",
             "cond",
+            "word",
         ]
         metrics_vars = ["acc", "csse", "sse"]
 
