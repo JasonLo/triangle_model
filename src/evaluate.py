@@ -31,7 +31,7 @@ class TestSet:
         }
 
 
-    def eval_full_train(self, task: str, n: int = 12):
+    def eval_train(self, task: str, n: int = 12):
         """Evaluate the full training set with batching."""
         dfs = [self.eval(f"train_batch_{i}", task) for i in range(n)]
         df = pd.concat(dfs, ignore_index=True)
