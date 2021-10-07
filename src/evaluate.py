@@ -4,7 +4,7 @@
 from tqdm import tqdm
 import os
 import tensorflow as tf
-import metrics, modeling
+import metrics, modeling, meta
 from data_wrangling import load_testset
 from helper import get_batch_pronunciations_fast
 import pandas as pd
@@ -31,13 +31,20 @@ class TestSet:
         }
 
 
-    def eval_train(self, task: str, n: int = 12):
+    def eval_train(self, task: str, n: int = 12, to_bq: bool = False):
         """Evaluate the full training set with batching."""
-        dfs = [self.eval(f"train_batch_{i}", task) for i in range(n)]
+
+        dfs = []
+        for i in range(n):
+            this_batch_df = self.eval(f"train_batch_{i}", task)
+            dfs.append(this_batch_df)
+
+            if to_bq:
+                meta.df_to_bigquery(this_batch_df, self.cfg.batch_name, "train")
+            
         df = pd.concat(dfs, ignore_index=True)
 
         csv_name = os.path.join(self.cfg.eval_folder, f"train_{task}.csv")
-        df.to_csv(csv_name)
         return df
 
     def eval(self, testset_name, task, save_file_prefix=None):
