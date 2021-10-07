@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import modeling
 from dataclasses import dataclass
-
+import functools
 
 @dataclass
 class EnvironmentConfig:
@@ -54,12 +54,12 @@ class Task:
         self.output_name = (
             output_name if output_name is not None else modeling.IN_OUT[name][1]
         )
-        self.progress_start = (
-            progress_start if progress_start is not None else 100
-        )  # Full open if not specified
-        self.progress_slope = (
-            progress_slope if progress_slope is not None else 0
-        )  # Stationary if not specified
+
+        if progress_start is None:
+            self.progress_start = 100 # Full open if not specified
+        
+        if progress_slope is None:
+            self.progress_slope = 0 # Stationary if not specified
 
     def get_progress(self, sample: float) -> float:
         """Return the progress of a given sample in percentage"""
@@ -85,11 +85,9 @@ class Stage:
         self.tasks = tasks
         self.stage_sample = stage_sample
         self.task_probability_start = task_probability_start
-        self.task_probability_end = (
-            task_probability_start
-            if task_probability_end is None
-            else task_probability_end
-        )
+
+        if task_probability_end is None:
+            self.task_probability_end = task_probability_start
 
     def get_task_probability(self, sample: int) -> float:
         """Return the probability of a task at a given sample"""
@@ -272,7 +270,7 @@ class Experience:
                 cumulative_sample += stage.stage_sample
                 sample_at_stage = sample - cumulative_sample
 
-
+   
 class Sampler:
     """v3 Sampler for modularized environment
     Features: Fully modularized environment staging
@@ -299,6 +297,7 @@ class Sampler:
 
         # Basic convenient variables
         self._calculate_aux_variables()
+
 
     def _calculate_aux_variables(self):
 
@@ -346,6 +345,7 @@ class Sampler:
                 self.batch_size,
                 p=self.get_sampling_p(task, stage_sample),
             )
+            words = self.data.df_train.word[idx]
 
             x, y = modeling.IN_OUT[task.name]
             batch_x = [self.data.np_representations[x][idx]] * x_ticks
@@ -359,4 +359,4 @@ class Sampler:
                 batch_y = [self.data.np_representations[y][idx]] * y_ticks
 
             self.current_sample += self.batch_size
-            yield task.name, idx, batch_x, batch_y
+            yield task.name, idx, words, batch_x, batch_y
