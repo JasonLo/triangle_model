@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from environment import EnvironmentConfig
 import pandas as pd
 
-
 @dataclass
 class ModelConfig:
     """ModelConfig Class contains all the information about the model architecture and training.
@@ -439,17 +438,16 @@ def batch_config_to_bigquery(batch_cfgs_json, dataset_name, table_name):
 
 
 def csv_to_bigquery(csv_file, dataset_name, table_name):
-    from google.cloud import bigquery
-    import json, os
+    from google.cloud import bq
     import pandas as pd
 
     # Create connection to BQ and push data
-    client = bigquery.Client()
+    client = bq.Client()
     dataset = client.create_dataset(dataset_name, exists_ok=True)
     table_ref = dataset.table(table_name)
 
-    job_config = bigquery.LoadJobConfig(
-        source_format=bigquery.SourceFormat.CSV, skip_leading_rows=1, autodetect=True
+    job_config = bq.LoadJobConfig(
+        source_format=bq.SourceFormat.CSV, skip_leading_rows=1, autodetect=True
     )
 
     with open(csv_file, "rb") as f:
@@ -459,4 +457,15 @@ def csv_to_bigquery(csv_file, dataset_name, table_name):
     print(f"Loaded {job.output_rows} rows into {dataset_name}:{table_ref.path}")
 
 
-# Checkpointing
+def df_to_bigquery(df, dataset_name, table_name):
+    from google.cloud import bigquery as bq
+    import pandas as pd
+
+    # Create connection to BQ and push data
+    client = bq.Client()
+    dataset = client.create_dataset(dataset_name, exists_ok=True)
+    table_ref = dataset.table(table_name)
+    job = client.load_table_from_dataframe(df, table_ref)
+    job.result()
+    print(f"Loaded {job.output_rows} rows into {dataset_name}:{table_ref.path}")
+
