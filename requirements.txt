@@ -1,3 +1,4 @@
 # Required python packages
 altair
 papermill
+python-dotenv

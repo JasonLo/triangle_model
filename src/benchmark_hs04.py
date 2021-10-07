@@ -7,10 +7,6 @@ import meta, evaluate, troubleshooting, data_wrangling
 import modeling
 import random
 
-ON_UCONN_SERVER = True
-TF_ROOT = "/home/jal21012/triangle_model" if ON_UCONN_SERVER else "/home/jupyter/triangle_model"
-
-
 def init(code_name, batch_name=None, tau_override=None):
 
     if batch_name:
@@ -19,7 +15,6 @@ def init(code_name, batch_name=None, tau_override=None):
         cfg_json = os.path.join("models", code_name, "model_config.json")
 
     cfg = meta.Config.from_json(cfg_json)
-    cfg.tf_root = TF_ROOT
     # Force output to 13:
     cfg.output_ticks = 13
 
@@ -286,7 +281,6 @@ def run_test7(code_name, batch_name=None):
 def run_test8(code_name, batch_name=None, epoch=None):
     """10 random word raw input temporal dynamics"""
     d = troubleshooting.Diagnosis(code_name)
-    d.cfg.tf_root = TF_ROOT
 
     if epoch is None:
         # Use last epoch if no epoch is provided
@@ -313,7 +307,6 @@ def run_test8(code_name, batch_name=None, epoch=None):
 def run_test9(code_name, batch_name=None, epoch=None):
     """Compare weight with mikenet"""
     d = troubleshooting.Diagnosis(code_name)
-    d.cfg.tf_root = TF_ROOT
 
     if epoch is None:
         # Use last epoch if no epoch is provided

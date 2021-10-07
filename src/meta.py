@@ -78,7 +78,6 @@ class Config:
     uuid: str = None
     batch_name: str = None
     batch_unique_setting_string: str = None
-    tf_root: str = "/home/jupyter/triangle_model"
 
     def __post_init__(self):
         # Elevate subsidary configs to class level
@@ -131,6 +130,12 @@ class Config:
         return cls.from_global(**config_dict)
 
     # Path related config properties
+
+    @property
+    def tf_root(self) -> str:
+        """Return the root folder for tensorflow models."""
+        return os.environ.get("TF_ROOT")
+
     @property
     def model_folder(self) -> str:
         if self.batch_name is not None:
@@ -290,7 +295,7 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
 
     return batch_cfgs
 
-def batch_json_to_df(json_file:str, tf_root:str=None) -> pd.DataFrame:
+def batch_json_to_df(json_file:str) -> pd.DataFrame:
     """
     Convert batch json to dataframe
     """
@@ -301,9 +306,6 @@ def batch_json_to_df(json_file:str, tf_root:str=None) -> pd.DataFrame:
     df = pd.DataFrame()
 
     for i, cfg in enumerate(batch_cfgs):
-        # Override tf_root
-        if tf_root is not None:
-            cfg["params"]["tf_root"] = tf_root
 
         # get_uuid from saved model_json
         model_config_json = os.path.join(
