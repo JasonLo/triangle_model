@@ -34,20 +34,13 @@ class TestSet:
     def eval_train(self, task: str, n: int = 12, to_bq: bool = False):
         """Evaluate the full training set with batching."""
 
-        dfs = []
-        for i in range(n):
-            this_batch_df = self.eval(f"train_batch_{i}", task)
-            dfs.append(this_batch_df)
-
-            if to_bq:
-                meta.df_to_bigquery(this_batch_df, self.cfg.batch_name, "train")
-            
+        dfs = [self.eval(f"train_batch_{i}", task, to_bq=to_bq) for i in range(n)]
         df = pd.concat(dfs, ignore_index=True)
 
         csv_name = os.path.join(self.cfg.eval_folder, f"train_{task}.csv")
         return df
 
-    def eval(self, testset_name, task, save_file_prefix=None):
+    def eval(self, testset_name, task, save_file_prefix=None, to_bq = False):
         """
         Inputs
         testset_name: name of testset, must match testset package (*.pkl.gz) name
@@ -123,6 +116,9 @@ class TestSet:
                 )
 
             df.to_csv(csv_name)
+
+            if to_bq:
+                meta.df_to_bigquery(df, self.cfg.batch_name, "train")
         return df
 
     def _try_to_run_eval(
