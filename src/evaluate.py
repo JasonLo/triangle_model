@@ -17,8 +17,6 @@ class TestSet:
     2. Model level info should be stored at separate table, and merge it in the end
     """
 
-
-
     def __init__(self, cfg):
         self.cfg = cfg
         self.model = None  # Will create in eval()
@@ -30,7 +28,6 @@ class TestSet:
             "act1": metrics.OutputOfOneTarget(),
         }
 
-
     def eval_train(self, task: str, n: int = 12, to_bq: bool = False):
         """Evaluate the full training set with batching."""
 
@@ -40,7 +37,13 @@ class TestSet:
         csv_name = os.path.join(self.cfg.eval_folder, f"train_{task}.csv")
         return df
 
-    def eval(self, testset_name, task, save_file_prefix=None, to_bq = False):
+    def eval(
+        self,
+        testset_name: str,
+        task: str,
+        save_file_prefix: str = None,
+        to_bq: bool = False,
+    ):
         """
         Inputs
         testset_name: name of testset, must match testset package (*.pkl.gz) name
@@ -875,15 +878,15 @@ class TestSet:
 #     contrasts = {}
 #     contrasts[
 #         "F contrast"
-#     ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_hf_inc_hi + datum.strain_hf_inc_li - 
+#     ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_hf_inc_hi + datum.strain_hf_inc_li -
 #         (datum.strain_lf_con_hi + datum.strain_lf_con_li + datum.strain_lf_inc_hi + datum.strain_lf_inc_li))/4"""
 #     contrasts[
 #         "CON contrast"
-#     ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_lf_con_hi + datum.strain_lf_con_li - 
+#     ] = """(datum.strain_hf_con_hi + datum.strain_hf_con_li + datum.strain_lf_con_hi + datum.strain_lf_con_li -
 #         (datum.strain_hf_inc_hi + datum.strain_hf_inc_li + datum.strain_lf_inc_hi + datum.strain_lf_inc_li))/4"""
 #     contrasts[
 #         "IMG contrast"
-#     ] = """(datum.strain_hf_con_hi + datum.strain_lf_con_hi + datum.strain_hf_inc_hi + datum.strain_lf_inc_hi - 
+#     ] = """(datum.strain_hf_con_hi + datum.strain_lf_con_hi + datum.strain_hf_inc_hi + datum.strain_lf_inc_hi -
 #         (datum.strain_hf_con_li + datum.strain_lf_con_li + datum.strain_hf_inc_li + datum.strain_lf_inc_li))/4"""
 
 #     def create_contrast_plot(name):
