@@ -298,6 +298,10 @@ def batch_json_to_df(json_file:str) -> pd.DataFrame:
     """
     Convert batch json to dataframe
     """
+    from dotenv import load_dotenv
+    load_dotenv()
+    tf_root = os.environ.get("TF_ROOT")
+
     # Load json
     with open(json_file) as f:
         batch_cfgs = json.load(f)
@@ -308,7 +312,7 @@ def batch_json_to_df(json_file:str) -> pd.DataFrame:
 
         # get_uuid from saved model_json
         model_config_json = os.path.join(
-            cfg["params"]["tf_root"], cfg["model_folder"], "model_config.json"
+            tf_root, cfg["model_folder"], "model_config.json"
         )
 
         # Copy uuid from model config to batch config
