@@ -29,13 +29,12 @@ class TestSet:
         }
 
     def eval_train(self, task: str, n: int = 12, to_bq: bool = False):
-        """Evaluate the full training set with batching."""
+        """Evaluate the full training set with batching.
+        Due to memory demands, will not store df in memory, but save to csv file
+        """
 
-        dfs = [self.eval(f"train_batch_{i}", task, to_bq=to_bq) for i in range(n)]
-        df = pd.concat(dfs, ignore_index=True)
-
-        csv_name = os.path.join(self.cfg.eval_folder, f"train_{task}.csv")
-        return df
+        for i in range(n):
+            self.eval(f"train_batch_{i}", task, to_bq=to_bq)
 
     def eval(
         self,
