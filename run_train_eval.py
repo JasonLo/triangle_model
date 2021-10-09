@@ -11,10 +11,15 @@
     2) Avoid job being kill after SSH disconnection by "disown"
 
 """
-import argparse, papermill, json, logging, os, meta
+import argparse, papermill, json, logging, os
+import meta, evaluate
 from multiprocessing import Queue, Process
 from time import sleep
 from typing import List
+from dotenv import load_dotenv
+
+load_dotenv()
+tf_root = os.environ.get("TF_ROOT")
 
 
 def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
@@ -25,22 +30,32 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     free_gpu_queue -- a multiprocessing.Queue() to record the status of the run
     which_gpu -- the GPU to run the model on
     """
-    # Inject GPU setting into cfg.params
-    # GPU instance is handle by each notebook
-    cfg["params"]["which_gpu"] = which_gpu
+
     logging.info(f"Start running {cfg['code_name']} on {which_gpu}")
 
-    print(cfg["params"]["code_name"])
-    # Run the notebook with papermill
-    papermill.execute_notebook(
-        "eval_train.ipynb",
-        f"tmp/{cfg['params']['code_name']}_eval.ipynb",
-        parameters=cfg["params"],
+    from meta import split_gpu
+
+    split_gpu(which_gpu=which_gpu)
+
+    # Inject GPU setting into cfg.params
+    # GPU instance is handle by each python kernel
+
+    # Run evaluation
+    run_cfg = meta.Config.from_json(
+        os.path.join(
+            tf_root,
+            "models",
+            cfg["params"]["batch_name"],
+            cfg["params"]["code_name"],
+            "model_config.json",
+        )
     )
+    test = evaluate.TestSet(run_cfg)
+    test.eval_train("triangle", to_bq=True)
 
     logging.info(f"Finished running {cfg['code_name']} on {which_gpu}")
 
-    sleep(10)  # Allows GPU memory to release properly
+    sleep(30)  # Allows GPU memory to release properly
     free_gpu_queue.put(which_gpu)  # Release GPU
 
 
@@ -84,8 +99,8 @@ def main(batch_json: str, resume_from: int = None, gpus: List[int] = None):
                     job.start()
                     break  # Run successfuly, break the while loop and continue with next model (for loop)
                 except Exception:
-                    sleep(5)  # Check every 5 seconds
-                    pass
+                    sleep(30)  # Check every 5 seconds
+                    continue
 
 
 if __name__ == "__main__":
