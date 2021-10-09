@@ -4,7 +4,7 @@
 from tqdm import tqdm
 import os
 import tensorflow as tf
-import metrics, modeling, meta
+import metrics, modeling, gcp
 from data_wrangling import load_testset
 from helper import get_batch_pronunciations_fast
 import pandas as pd
@@ -120,7 +120,7 @@ class TestSet:
             df.to_csv(csv_name)
 
             if to_bq:
-                meta.df_to_bigquery(df, self.cfg.batch_name, "train")
+                gcp.df_to_bigquery(df, self.cfg.batch_name, "train")
         return df
 
     def _try_to_run_eval(
