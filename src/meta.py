@@ -225,8 +225,7 @@ class Config:
             json.dump(self.papermill_cfg, f)
         print(f"Saved config json to {json_file}")
 
-
-# %% Batch related functions
+# Batch related
 def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_notebook):
     """
     Make batch cfg dictionary list that can feed into papermill
@@ -356,7 +355,8 @@ def batch_json_to_df(json_file:str) -> pd.DataFrame:
 #     return cfgs_df, pd.merge(evals_df, cfgs_df, "left", "code_name")
 
 
-# %% Other misc functions
+# GPU related
+
 def check_gpu():
     """Check whether GPU available"""
     if tf.config.experimental.list_physical_devices("GPU"):
@@ -407,69 +407,4 @@ def limit_gpu_memory_use(limit_MB=7168):
         tf.config.experimental.set_virtual_device_configuration(gpus[0], cfg)
     except:
         pass
-
-
-def batch_config_to_bigquery(batch_cfgs_json, dataset_name, table_name):
-    from google.cloud import bigquery
-    import json, os
-    import pandas as pd
-
-    with open(batch_cfgs_json) as f:
-        batch_cfgs = json.load(f)
-
-    df = pd.DataFrame()
-    for i, cfg in enumerate(batch_cfgs):
-        # get_uuid from saved model_json
-        model_config_json = os.path.join(
-            cfg["params"]["tf_root"], cfg["model_folder"], "model_config.json"
-        )
-        with open(model_config_json) as f:
-            model_config = json.load(f)
-
-        # Copy uuid from model config to batch config
-        cfg["params"]["uuid"] = model_config["uuid"]
-
-        # Gather config to a dataframe
-        df = pd.concat([df, pd.DataFrame(cfg["params"], index=[i])])
-
-    # Create connection to BQ and push data
-    client = bigquery.Client()
-    dataset = client.create_dataset(dataset_name, exists_ok=True)
-    table_ref = dataset.table(table_name)
-    job = client.load_table_from_dataframe(df, table_ref)
-    job.result()
-    print("Loaded dataframe to {}".format(table_ref.path))
-
-
-def csv_to_bigquery(csv_file, dataset_name, table_name):
-    from google.cloud import bigquery as bq
-    import pandas as pd
-
-    # Create connection to BQ and push data
-    client = bq.Client()
-    dataset = client.create_dataset(dataset_name, exists_ok=True)
-    table_ref = dataset.table(table_name)
-
-    job_config = bq.LoadJobConfig(
-        source_format=bq.SourceFormat.CSV, skip_leading_rows=1, autodetect=True
-    )
-
-    with open(csv_file, "rb") as f:
-        job = client.load_table_from_file(f, table_ref, job_config=job_config)
-
-    job.result()
-    print(f"Loaded {job.output_rows} rows into {dataset_name}:{table_ref.path}")
-
-
-def df_to_bigquery(df, dataset_name, table_name):
-    from google.cloud import bigquery as bq
-    import pandas as pd
-
-    # Create connection to BQ and push data
-    client = bq.Client()
-    dataset = client.create_dataset(dataset_name, exists_ok=True)
-    table_ref = dataset.table(table_name)
-    job = client.load_table_from_dataframe(df, table_ref)
-    job.result()
-    print(f"Loaded {job.output_rows} rows into {dataset_name}:{table_ref.path}")
 
