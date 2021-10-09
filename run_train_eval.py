@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-""" Run a batch of models on multiple GPUs.
+""" Run a batch of models evaluation on multiple GPUs.
 
     This script will queue up models to run on multiple GPUs.
 
@@ -83,9 +83,9 @@ def main(batch_json: str, resume_from: int = None, gpus: List[int] = None):
                     job = Process(target=run_one, args=(cfg, free_gpu_queue, free_gpu))
                     job.start()
                     break  # Run successfuly, break the while loop and continue with next model (for loop)
-                except:
+                except Exception:
                     sleep(5)  # Check every 5 seconds
-                    continue
+                    pass
 
 
 if __name__ == "__main__":

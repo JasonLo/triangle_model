@@ -442,7 +442,7 @@ def batch_config_to_bigquery(batch_cfgs_json, dataset_name, table_name):
 
 
 def csv_to_bigquery(csv_file, dataset_name, table_name):
-    from google.cloud import bq
+    from google.cloud import bigquery as bq
     import pandas as pd
 
     # Create connection to BQ and push data
