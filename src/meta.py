@@ -6,6 +6,9 @@ import tensorflow as tf
 from dataclasses import dataclass
 from environment import EnvironmentConfig
 import pandas as pd
+from dotenv import load_dotenv
+load_dotenv()
+
 
 @dataclass
 class ModelConfig:
