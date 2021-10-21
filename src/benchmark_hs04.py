@@ -6,6 +6,8 @@ import altair as alt
 import meta, evaluate, troubleshooting, data_wrangling
 import modeling
 import random
+from dotenv import load_dotenv
+load_dotenv()
 
 def init(code_name, batch_name=None, tau_override=None):
 
@@ -166,14 +168,11 @@ def run_test6_cosine(code_name, batch_name=None, testset="train_r100"):
     """Test 6 using cosine accuracy in SEM"""
 
     test = init(code_name, batch_name)
-    test.cfg.tf_root = "/home/jupyter/triangle_model"
     import metrics
 
     # Override semantic accuracy with cosine accuracy
-    test.METRICS_MAP["acc"]["sem"] = metrics.CosineSemanticAccuracy()
+    test.metrics["acc"]["sem"] = metrics.CosineSemanticAccuracy()
 
-    # Override tf_root
-    # test.cfg.tf_root = os.path.join("/home/jupyter/triangle_model")
 
     # SEM (same as HS04)
     df_intact = test.eval(testset, "triangle", save_file_prefix="cos")
