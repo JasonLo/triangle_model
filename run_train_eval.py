@@ -34,12 +34,13 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     logging.info(f"Start running {cfg['code_name']} on {which_gpu}")
 
     from meta import split_gpu
-
     split_gpu(which_gpu=which_gpu)
 
     # Inject GPU setting into cfg.params
     # GPU instance is handle by each python kernel
-
+    import benchmark_hs04
+    benchmark_hs04.run_test6_cosine(code_name = cfg['code_name'], batch_name = cfg['params']['batch_name']) 
+    
     # Run evaluation
     run_cfg = meta.Config.from_json(
         os.path.join(
@@ -50,6 +51,7 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
             "model_config.json",
         )
     )
+
     test = evaluate.TestSet(run_cfg)
     test.eval_train("triangle", to_bq=True)
 
@@ -59,7 +61,7 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     free_gpu_queue.put(which_gpu)  # Release GPU
 
 
-def main(batch_json: str, resume_from: int = None, gpus: List[int] = None):
+def main(batch_json: str, resume_from: int = None, run_only:int = None, gpus: List[int] = None):
     """Run a batch of models."""
     # Set available GPUs for models to run on
     if gpus is None:
@@ -71,6 +73,9 @@ def main(batch_json: str, resume_from: int = None, gpus: List[int] = None):
 
     if resume_from is not None:
         batch_cfgs = batch_cfgs[resume_from:]
+
+    if run_only is not None:
+        batch_cfgs = [batch_cfgs[run_only]]
 
     # Configure logging to track the progress of the run
     logging.basicConfig(
@@ -110,6 +115,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("json_file", type=str, help="path to batch_config.json")
     parser.add_argument("-r", "--resume_from", type=int, help="resume run from")
+    parser.add_argument("-o", "--run_only", type=int, help="run only this index")
     parser.add_argument("-g", "--gpus", type=int, nargs="+", help="list of GPUs")
     args = parser.parse_args()
-    main(args.json_file, args.resume_from, args.gpus)
+    main(args.json_file, args.resume_from, args.run_only, args.gpus)
