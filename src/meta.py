@@ -209,6 +209,7 @@ class Config:
 
     @property
     def papermill_cfg(self) -> dict:
+        """A serializeable config dictionary for Papermill."""
         cfg = self.__dict__.copy()
         # Get rid of non-serializable objects
         cfg.pop("model_config")
@@ -376,7 +377,7 @@ def split_gpu(which_gpu: int, n_splits: int = 2):
     import tensorflow as tf
 
     gpus = tf.config.list_physical_devices("GPU")
-    memory_size = int(11000 / n_splits)  # Titan X on Uconn server
+    memory_size = int(10000 / n_splits)  # Titan X on Uconn server
     logical_gpus = [
         tf.config.LogicalDeviceConfiguration(memory_limit=memory_size)
         for _ in range(n_splits)
