@@ -650,7 +650,7 @@ TEST_MAP = {
 
 def main(code_name: str, batch_name: str=None):
     """Run the frequently used tests (except high res test 5)"""
-    for i in (1, 2, 3, 4, 6, 7, 8, 12):
+    for i in (1, 2, 3, 4, 6, 12):
         try:
             TEST_MAP[i](code_name, batch_name)
         except Exception:
