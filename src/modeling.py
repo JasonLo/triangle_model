@@ -609,7 +609,12 @@ class MyModel(tf.keras.Model):
 
         return self._package_output(training=training)
 
+
     def task_ort_pho(self, inputs, training=None):
+        """Lesion task OP.
+        v211025: Identical to triangle except for input to S are zeros.  
+        """
+
         self._init_all_tensor_arrays()
 
         # Recurrent structure over time ticks (Time averaged input)
@@ -619,6 +624,15 @@ class MyModel(tf.keras.Model):
             w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
+
+            fake_input_to_sem = tf.zeros_like(inputs[t])  # zeros input to S
+            ##### Hidden layer (OS) #####
+            self.input_hos = self.input_hos.write(
+                t + 1,
+                self.tau * (tf.matmul(fake_input_to_sem, self.w_hos_oh) + self.bias_hos)
+                + (1 - self.tau) * self.input_hos.read(t),
+            )
+
             ##### Hidden layer (OP) #####
             self.input_hop = self.input_hop.write(
                 t + 1,
@@ -626,7 +640,33 @@ class MyModel(tf.keras.Model):
                 + (1 - self.tau) * self.input_hop.read(t),
             )
 
+            ##### Semantic layer #####
+            self.input_hps_hs = self.input_hps_hs.write(
+                t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
+            )
+            self.input_css_cs = self.input_css_cs.write(
+                t + 1, tf.matmul(self.css.read(t), w_cs)
+            )
+            self.input_hos_hs = self.input_hos_hs.write(
+                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
+            )
+
+            self.input_sem = self.input_sem.write(
+                t + 1,
+                self.tau
+                * (
+                    self.input_hps_hs.read(t + 1)
+                    + self.input_css_cs.read(t + 1)
+                    + self.input_hos_hs.read(t + 1)
+                    + bias_s
+                )
+                + (1 - self.tau) * self.input_sem.read(t),
+            )
+
             ##### Phonology layer #####
+            self.input_hsp_hp = self.input_hsp_hp.write(
+                t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            )
             self.input_cpp_cp = self.input_cpp_cp.write(
                 t + 1, tf.matmul(self.cpp.read(t), w_cp)
             )
@@ -638,11 +678,33 @@ class MyModel(tf.keras.Model):
                 t + 1,
                 self.tau
                 * (
-                    self.input_cpp_cp.read(t + 1)
+                    self.input_hsp_hp.read(t + 1)
+                    + self.input_cpp_cp.read(t + 1)
                     + self.input_hop_hp.read(t + 1)
                     + bias_p
                 )
                 + (1 - self.tau) * self.input_pho.read(t),
+            )
+
+            ##### Hidden layer (PS) #####
+            self.input_hps = self.input_hps.write(
+                t + 1,
+                self.tau * (tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps)
+                + (1 - self.tau) * self.input_hps.read(t),
+            )
+
+            ##### Hidden layer (SP) #####
+            self.input_hsp = self.input_hsp.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
+                + (1 - self.tau) * self.input_hsp.read(t),
+            )
+
+            ##### Semantic Cleanup layer #####
+            self.input_css = self.input_css.write(
+                t + 1,
+                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
+                + (1 - self.tau) * self.input_css.read(t),
             )
 
             ##### Phonology Cleanup layer #####
@@ -652,9 +714,13 @@ class MyModel(tf.keras.Model):
                 + (1 - self.tau) * self.input_cpp.read(t),
             )
 
-            [self._update_activations(t + 1, x) for x in ("pho", "cpp", "hop")]
+            # Update activations
+            [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
 
         return self._package_output(training=training)
+
+
+
 
     def task_triangle(self, inputs, training=None):
         self._init_all_tensor_arrays()
