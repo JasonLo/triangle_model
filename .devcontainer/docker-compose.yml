@@ -6,7 +6,7 @@ services:
   ports:
    - 8080:8080
   volumes:
-   - .:/triangle_model
+   - ../:/triangle_model
   tty: true
   deploy:
       resources:

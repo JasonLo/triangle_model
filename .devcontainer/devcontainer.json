@@ -1,6 +1,6 @@
 {
 	"name": "dev-container tf nightly",
-	"dockerComposeFile": "../docker-compose.yml",
+	"dockerComposeFile": "docker-compose.yml",
 	"service": "tensorflow",
 	"workspaceFolder": "/triangle_model",
 	"shutdownAction": "stopCompose",
