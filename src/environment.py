@@ -25,7 +25,7 @@ class EnvironmentConfig:
     # tasks_end_ps: tuple = None
 
     @classmethod
-    def from_global(cls, globals_dict):
+    def from_global(cls, globals_dict: dict):
         config_dict = {
             k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()
         }
@@ -44,6 +44,7 @@ class Task:
         progress_slope: float = None,
     ):
         """
+        A task object that contains the information of a single task.
         progress_start: starting location
         progress_slope: slope progress in %/sample
         """
@@ -288,8 +289,6 @@ class Sampler:
         self.batch_size = cfg.batch_size
         self.n_timesteps = cfg.n_timesteps
         self.inject_error_ticks = cfg.inject_error_ticks
-
-        np.random.seed(cfg.rng_seed)
 
         self.data = data
         self.current_sample = 0
