@@ -1,4 +1,8 @@
-# Required python packages
-altair
-papermill
+google-cloud-bigquery
+google-cloud-storage
 python-dotenv
+papermill
+pyarrow
+altair
+pandas
+numpy

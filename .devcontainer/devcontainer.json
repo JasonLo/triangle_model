@@ -1,0 +1,33 @@
+{
+	"name": "dev-container tf nightly",
+	"dockerComposeFile": "../docker-compose.yml",
+	"service": "tensorflow",
+	"workspaceFolder": "/triangle_model",
+	"shutdownAction": "stopCompose",
+	"extensions": [
+		"ms-python.python",
+		"googlecloudtools.cloudcode",
+		"mhutchie.git-graph",
+		"github.copilot",
+		"ms-toolsai.jupyter",
+		"ms-toolsai.jupyter-renderers",
+		"ms-toolsai.jupyter-keymap",
+		"vsls-contrib.gistfs",
+		"ms-vscode.live-server",
+		"mohsen1.prettify-json"
+	],
+	"settings": {
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"terminal.integrated.defaultProfile.linux": "bash",
+		"python.pythonPath": "/usr/bin/python3",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": true,
+		"python.linting.pylintPath": "/usr/local/bin/pylint"
+	},
+	"features": {
+		"git": {
+			"version": "latest",
+			"ppa": false
+		}
+	}
+}
