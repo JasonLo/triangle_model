@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:nightly-gpu
+FROM gcr.io/deeplearning-platform-release/tf2-gpu.2-6
 ENV PYTHONUNBUFFERED True
 ENV TF_ROOT /triangle_model
 ENV PYTHONPATH /triangle_model/src

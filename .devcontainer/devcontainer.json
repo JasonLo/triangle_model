@@ -1,12 +1,11 @@
 {
-	"name": "dev-container tf nightly",
+	"name": "dev-container gcp-tf-26",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "tensorflow",
 	"workspaceFolder": "/triangle_model",
 	"shutdownAction": "stopCompose",
 	"extensions": [
 		"ms-python.python",
-		"googlecloudtools.cloudcode",
 		"mhutchie.git-graph",
 		"github.copilot",
 		"ms-toolsai.jupyter",
@@ -15,6 +14,7 @@
 		"vsls-contrib.gistfs",
 		"ms-vscode.live-server",
 		"mohsen1.prettify-json"
+		// "googlecloudtools.cloudcode",
 	],
 	"settings": {
 		"terminal.integrated.shell.linux": "/bin/bash",
@@ -25,10 +25,10 @@
 		"python.linting.pylintPath": "/usr/local/bin/pylint",
 		"python.formatting.provider": "black"
 	},
-	"features": {
-		"git": {
-			"version": "latest",
-			"ppa": false
-		}
-	}
+	// "features": {
+	// 	"git": {
+	// 		"version": "latest",
+	// 		"ppa": false
+	// 	}
+	// }
 }
