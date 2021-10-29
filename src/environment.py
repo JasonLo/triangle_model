@@ -72,7 +72,8 @@ class Task:
 
 
 class Stage:
-    """Stage contains multiple tasks and the probability of choosing a task"""
+    """Stage contains multiple tasks and the probability of choosing a task.
+    """
 
     def __init__(
         self,
@@ -86,6 +87,7 @@ class Stage:
         self.tasks = tasks
         self.stage_sample = stage_sample
         self.task_probability_start = task_probability_start
+        self.task_probability_end = task_probability_end
 
         if task_probability_end is None:
             self.task_probability_end = task_probability_start
