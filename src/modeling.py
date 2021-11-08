@@ -114,7 +114,7 @@ class MyModel(tf.keras.Model):
     # Use model(x) to predict instead
 
     INPUT_ARRAY_NAMES = (
-        "input_hos",
+        "input_hos",  # time-averaged input
         "input_hop",
         "input_hps",
         "input_hsp",
@@ -122,7 +122,7 @@ class MyModel(tf.keras.Model):
         "input_cpp",
         "input_sem",
         "input_pho",
-        "input_hps_hs",
+        "input_hps_hs",  # raw inputs
         "input_css_cs",
         "input_hos_hs",
         "input_hsp_hp",
