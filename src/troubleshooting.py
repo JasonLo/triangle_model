@@ -8,9 +8,11 @@ import tensorflow as tf
 from matplotlib import pyplot as plt
 from typing import List
 
+
 def tick1_input(weight: np.array) -> float:
     """Get the first tick input of a weight"""
     return 0.5 * np.sum(weight, axis=0).mean()
+
 
 class MikeNetWeight:
     name_map = {
@@ -39,7 +41,6 @@ class MikeNetWeight:
         "Bias -> osh": "bias_hos",
     }
 
-
     def __init__(self, file: str = None, useful_start_idx: int = 25):
         self.weights = self.parse_weight(file)
 
@@ -59,15 +60,11 @@ class MikeNetWeight:
         self.hidden_ps_units = len(self.weights["Bias -> psh"])
         self.hidden_sp_units = len(self.weights["Bias -> sph"])
 
-        self.ort_units = int(len(self.weights["Ortho -> oph"])/self.hidden_op_units)
+        self.ort_units = int(len(self.weights["Ortho -> oph"]) / self.hidden_op_units)
 
         self.shape_map = self.create_weights_shapes()
         self.weights_2d = self.reshape_all_weights()
         self.weights_tf = self.convert_all_weights_to_tf()
-
-
-
-
 
     @staticmethod
     def reshape_weight(weight, shape: tuple) -> np.array:
@@ -79,7 +76,6 @@ class MikeNetWeight:
         """Convert a weight matrix into tensorflow format"""
         x = tf.Variable(weight2d, dtype=tf.float32, name=name)
         return x
-
 
     def create_weights_shapes(self):
         """Create a dictionary that consists of all the proper shape of each weights"""
@@ -107,16 +103,20 @@ class MikeNetWeight:
         }
         return shape_map
 
-
     def reshape_all_weights(self):
-        """Reshape all the weights"""           
-        return {k: self.reshape_weight(self.weights[k], v) for k, v in self.shape_map.items()}
+        """Reshape all the weights"""
+        return {
+            k: self.reshape_weight(self.weights[k], v)
+            for k, v in self.shape_map.items()
+        }
 
     def convert_all_weights_to_tf(self):
         """Convert all the weights to tensorflow format"""
 
-        return {self.as_tf_name(k): self.convert_to_tf_weights(v, self.as_tf_name(k)) for k, v in self.weights_2d.items()}
-
+        return {
+            self.as_tf_name(k): self.convert_to_tf_weights(v, self.as_tf_name(k))
+            for k, v in self.weights_2d.items()
+        }
 
     @staticmethod
     def parse_weight(file: str = None) -> dict:
@@ -154,7 +154,6 @@ class MikeNetWeight:
 
     def __repr__(self):
         return "\n".join([f"{i}: {x}" for i, x in enumerate(self.weights.keys())])
-
 
     def plot(
         self, weight_name: str, ax: plt.axes = None, xlim: tuple = None
@@ -204,6 +203,7 @@ class Diagnosis:
         "input_sem": "input",
         "sem": "act",
     }
+    
     PHO_NAME_MAP = {
         "input_hsp_hp": "SP",
         "input_cpp_cp": "CP",
@@ -212,16 +212,25 @@ class Diagnosis:
         "pho": "act",
     }
 
-    def __init__(self, code_name: str, tf_root_override: str = None):
+    def __init__(self, code_name: str):
         self.code_name = code_name
         self.cfg = meta.Config.from_json(
             os.path.join("models", code_name, "model_config.json")
         )
-        self.cfg.output_ticks = 13  # Full export
+        self.cfg.output_ticks = 13  # Export all time ticks
 
-        if tf_root_override:
-            self.cfg.tf_root = tf_root_override
-            print(self.cfg.saved_weights_fstring)
+        # These will be created when calling eval()
+        self.testset_package = None
+        self.model = None
+        self.y_pred = None
+        self.testset = None
+        self.df = None
+
+        # These will be created when calling set_target_word()
+        self.target_word = None
+        self.target_word_idx = None
+        self.word_sem_df = None
+        self.word_pho_df = None
 
     def eval(self, testset_name: str, task: str, epoch: int):
         self.testset_package = data_wrangling.load_testset(testset_name)
@@ -232,7 +241,7 @@ class Diagnosis:
 
         saved_checkpoint = self.cfg.saved_checkpoints_fstring.format(epoch=epoch)
         ckpt.restore(saved_checkpoint).expect_partial()
-        
+
         self.model.set_active_task(task)
         input_name = modeling.IN_OUT[task][0]
         self.y_pred = self.model(
@@ -377,14 +386,14 @@ class Diagnosis:
     @staticmethod
     def find_incorrect_nodes(df: pd.DataFrame, layer: str) -> pd.DataFrame:
         """Based on last time tick, create a dataframe with all incorrect nodes in a given output layer"""
-        
+
         assert layer in ("pho", "sem")
         return df.loc[(df.unit_acc == 0) & (df.timetick == df.timetick.max())]
 
     @staticmethod
     def find_correct_nodes(df: pd.DataFrame, layer: str) -> pd.DataFrame:
         """Based on last time tick, create a dataframe with all correct nodes in a given output layer"""
-        
+
         assert layer in ("pho", "sem")
         return df.loc[(df.unit_acc == 1) & (df.timetick == df.timetick.max())]
 
