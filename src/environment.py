@@ -25,7 +25,7 @@ class EnvironmentConfig:
     # tasks_end_ps: tuple = None
 
     @classmethod
-    def from_global(cls, globals_dict: dict):
+    def from_dict(cls, globals_dict: dict):
         config_dict = {
             k: globals_dict[k] for k in globals_dict if k in cls.__annotations__.keys()
         }

@@ -60,8 +60,8 @@ class ModelConfig:
     zero_error_radius: float = None
 
     @classmethod
-    def from_global(cls, **kwargs):
-        """Create a ModelConfig from a global dictionary."""
+    def from_dict(cls, **kwargs):
+        """Create a ModelConfig from a dictionary."""
         config_dict = {
             k: v for k, v in kwargs.items() if k in cls.__annotations__.keys()
         }
@@ -103,7 +103,7 @@ class Config:
             self.save()  # Only save if created from scratch (without uuid)
 
     @classmethod
-    def from_global(cls, **kwargs):
+    def from_dict(cls, **kwargs):
         """Create Config from all available keys, including base, env, and model."""
 
         base_config = {k: kwargs[k] for k in kwargs if k in cls.__annotations__.keys()}
@@ -129,7 +129,7 @@ class Config:
         with open(json_file) as f:
             config_dict = json.load(f)
 
-        return cls.from_global(**config_dict)
+        return cls.from_dict(**config_dict)
 
     # Path related config properties
 
@@ -273,7 +273,7 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
             )
 
             # Pass into ModelConfig to catch error early
-            Config.from_global(**this_hpar)
+            Config.from_dict(**this_hpar)
 
             batch_cfg = dict(
                 sn=i,
