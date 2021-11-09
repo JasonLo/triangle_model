@@ -191,7 +191,7 @@ class Diagnosis:
     """A diagnoistic bundle to trouble shot activation and input in semantic layer
     Usage:
     Step 1. Init by code_name
-    Step 2. Call eval() method to a) get the evaluation results from evaluate.TestSet object b) Load weight to the model at given epoch
+    Step 2. Call eval() method to a) get the evaluation results from evaluate.Test object b) Load weight to the model at given epoch
     Step 3. Call set_target_word() method to "zoom in" a target word results (including all crucial input and activation pathways as defined in SEM_NAME_MAP and PHO_NAME_MAP)
     Step 4. plot_diagnosis
     """
@@ -249,7 +249,7 @@ class Diagnosis:
         )
 
         # Get data for evaluate object
-        self.testset = evaluate.TestSet(self.cfg)
+        self.testset = evaluate.Test(self.cfg)
         self.df = self.testset.eval(testset_name, task)
         self.df = self.df.loc[self.df.epoch == epoch]
 

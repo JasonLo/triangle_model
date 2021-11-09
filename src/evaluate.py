@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 
-class TestSet:
+class Test:
     """Universal test set object for evaluating model results
     1. Single condition, single metric, single value output for maximum compatibility
     2. Model level info should be stored at separate table, and merge it in the end

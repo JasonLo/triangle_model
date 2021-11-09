@@ -26,7 +26,7 @@ def init(code_name, batch_name=None, tau_override=None):
         cfg.tau = tau_override
         cfg.output_ticks = int(round(cfg.output_ticks * (cfg.tau_original / cfg.tau)))
 
-    test = evaluate.TestSet(cfg)
+    test = evaluate.Test(cfg)
     return test
 
 

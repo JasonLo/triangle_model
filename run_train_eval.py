@@ -61,7 +61,7 @@ def copy_plot_folder(batch_name, id):
 #         )
 #     )
 
-#     test = evaluate.TestSet(run_cfg)
+#     test = evaluate.Test(run_cfg)
 #     test.eval_train("triangle", to_bq=True)
 
 #     logging.info(f"Finished running {cfg['code_name']} on {which_gpu}")

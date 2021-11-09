@@ -10,7 +10,7 @@ d = troubleshooting.Diagnosis(code_name='Refrac3_local')
 d.eval(testset_name='train_r100', task='triangle', epoch=300)
 
 def triple_convergence(sel_word, show_plot=False):
-    """Visualize and assert the mean activation in on and off nodes over time is equal across 1) troubleshooting.Diagnosis(), evaluate.TestSet(), and metrics.OutputofXXXTarget()
+    """Visualize and assert the mean activation in on and off nodes over time is equal across 1) troubleshooting.Diagnosis(), evaluate.Test(), and metrics.OutputofXXXTarget()
     """
     d.set_target_word(sel_word)
 
