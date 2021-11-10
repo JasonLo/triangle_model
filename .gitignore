@@ -6,7 +6,6 @@ tensorboard_log/
 *.html
 *batch_eval/
 *.tgz
-*.png
 **_weights
 __pycache__
 .vscode
