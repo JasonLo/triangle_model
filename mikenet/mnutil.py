@@ -3,8 +3,9 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 class MikeNetWeight:
-    """A MikeNet Weight class for grafting the weights from MikeNet to TensorFlow."""
+    """A MikeNet Weight converter for grafting the weights from MikeNet to TensorFlow."""
     
+    # A manual weight name mapping from MN to TF.
     name_map = {
         "Phono -> psh": "w_hps_ph",
         "Con -> csh": "context_csh",
