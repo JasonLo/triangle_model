@@ -2,9 +2,10 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
+
 class MikeNetWeight:
     """A MikeNet Weight converter for grafting the weights from MikeNet to TensorFlow."""
-    
+
     # A manual weight name mapping from MN to TF.
     name_map = {
         "Phono -> psh": "w_hps_ph",
@@ -143,9 +144,6 @@ class MikeNetWeight:
 
         return weight
 
-    def __repr__(self):
-        return "\n".join([f"{i}: {x}" for i, x in enumerate(self.weights.keys())])
-
     def plot(
         self, weight_name: str, ax: plt.axes = None, xlim: tuple = None
     ) -> plt.figure:
@@ -160,7 +158,7 @@ class MikeNetWeight:
         return df.plot.density(title=title, ax=ax, legend=None, xlim=xlim, color=color)
 
     def plot_all(self, xlim: tuple = None) -> plt.figure:
-        """Plot all the useful weights"""
+        """Plot all the weights density"""
         fig, ax = plt.subplots(5, 5, figsize=(25, 25), sharex=True)
 
         for i, weight_name in enumerate(self.weight_keys):
@@ -176,3 +174,6 @@ class MikeNetWeight:
         """COnvert TF weight name into MN weight name"""
         reverse_map = {v: k for k, v in self.name_map.items()}
         return reverse_map[name]
+
+    def __repr__(self):
+        return "\n".join([f"{i}: {x}" for i, x in enumerate(self.weights.keys())])
