@@ -150,7 +150,7 @@ class Diagnosis:
         ]
 
     def make_output_diagnostic_df(self, target_word: str, layer: str) -> pd.DataFrame:
-        """Output all Semantic related input and activation in a word"""
+        """Output all output layer's input and activation in a word"""
 
         assert layer in ("pho", "sem")
 
