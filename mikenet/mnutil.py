@@ -62,7 +62,7 @@ class MikeNetWeight:
     @staticmethod
     def reshape_weight(weight, shape: tuple) -> np.array:
         """Reshape a weight into a matrix"""
-        return np.array(weight).reshape(shape)
+        return np.reshape(weight, shape, 'F')
 
     @staticmethod
     def convert_to_tf_weights(weight2d, name) -> tf.Variable:
