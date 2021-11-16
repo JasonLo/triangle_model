@@ -30,72 +30,31 @@ def copy_plot_folder(batch_name, id):
     to_folder = f"models/{batch_name}/{batch_name}_r{id:04d}_plots"
     subprocess.run(["cp", "-r", from_folder, to_folder])
 
-# def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
-#     """Run one parameterized notebook.
-
-#     Keyword arguments:
-#     cfg -- a dictionary of config parameters to pass to the notebook
-#     free_gpu_queue -- a multiprocessing.Queue() to record the status of the run
-#     which_gpu -- the GPU to run the model on
-#     """
-
-#     logging.info(f"Start running {cfg['code_name']} on {which_gpu}")
-
-#     from meta import split_gpu
-#     split_gpu(which_gpu=which_gpu)
-
-#     # Inject GPU setting into cfg.params
-#     # GPU instance is handle by each python kernel
-#     import benchmark_hs04
-#     benchmark_hs04.run_test6_cosine(code_name = cfg['code_name'], batch_name = cfg['params']['batch_name']) 
-
-
-#     # Run evaluation
-#     run_cfg = meta.Config.from_json(
-#         os.path.join(
-#             tf_root,
-#             "models",
-#             cfg["params"]["batch_name"],
-#             cfg["params"]["code_name"],
-#             "model_config.json",
-#         )
-#     )
-
-#     test = evaluate.Test(run_cfg)
-#     test.eval_train("triangle", to_bq=True)
-
-#     logging.info(f"Finished running {cfg['code_name']} on {which_gpu}")
-
-#     sleep(30)  # Allows GPU memory to release properly
-#     free_gpu_queue.put(which_gpu)  # Release GPU
-
-
 def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     """Run one parameterized notebook.
+
     Keyword arguments:
     cfg -- a dictionary of config parameters to pass to the notebook
     free_gpu_queue -- a multiprocessing.Queue() to record the status of the run
     which_gpu -- the GPU to run the model on
     """
-    meta.split_gpu(which_gpu)
-    import benchmark_hs04 # Must import after split
 
-    code_name = cfg['code_name']
-    i = int(code_name[-3:])
-    batch_name = cfg['params']['batch_name']
+    logging.info(f"Start running {cfg['code_name']} on {which_gpu}")
 
-    logging.info(f"Start running {code_name} on {which_gpu}")
+    from meta import split_gpu
+    split_gpu(which_gpu=which_gpu)
 
-    # Do the works
-    gcp.retrieve_run(batch_name, i)
-    benchmark_hs04.run_test6_cosine(code_name, batch_name) 
-    copy_plot_folder(batch_name, i)
-    gcp.archive_run(batch_name, i)
+    # Inject GPU setting into cfg.params
+    # GPU instance is handle by each python kernel
+    import benchmarks
+    benchmarks.run_test1s(code_name = cfg['code_name'], batch_name = cfg['params']['batch_name']) 
+
 
     logging.info(f"Finished running {cfg['code_name']} on {which_gpu}")
 
     sleep(30)  # Allows GPU memory to release properly
     free_gpu_queue.put(which_gpu)  # Release GPU
+
 
 
 def main(batch_json: str, resume_from: int = None, run_only:int = None, gpus: List[int] = None):
