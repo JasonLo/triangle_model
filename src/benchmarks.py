@@ -57,6 +57,20 @@ def run_test1(code_name, batch_name=None, testset="train_r100"):
     test1_oral_plot_sse.save(os.path.join(test.cfg.plot_folder, "test1_oral_sse.html"))
     test1_oral_plot_csse.save(os.path.join(test.cfg.plot_folder, "test1_oral_csse.html"))
 
+def run_test1s(code_name, batch_name=None, testset="strain"):
+    """Evaluate accuracy over epoch with Strain items."""
+
+    test = init(code_name, batch_name)
+    df = test.eval(testset, "triangle")
+    mdf = make_mean_df(df)
+    fig9 = plot_hs04_fig9(mdf, metric="acc")
+    fig9_sse = plot_hs04_fig9(mdf, metric="sse")
+    fig9_csse = plot_hs04_fig9(mdf, metric="csse")
+    fig9.save(os.path.join(test.cfg.plot_folder, "test1s_acc.html"))
+    fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1s_sse.html"))
+    fig9_csse.save(os.path.join(test.cfg.plot_folder, "test1s_csse.html"))
+
+
 
 def run_test2(code_name, batch_name=None, task="triangle"):
     test = init(code_name, batch_name)
