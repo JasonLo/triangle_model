@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from environment import EnvironmentConfig
 import pandas as pd
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -31,6 +32,8 @@ class ModelConfig:
         max_unit_time -- maximum unit time in time averaged input
         output_ticks -- number of ticks to output
         inject_error_ticks -- number of ticks to inject error, start from last ticks
+        pretrain_checkpoint -- path to pretrain checkpoint, will load weights into the model before training
+        optimizer -- optimizer name
         learning_rate -- learning rate for optimizer
         zero_error_radius -- whether to use zero error radius or not and if so, what radius to use (e.g., None or 0.1)
     """
@@ -56,6 +59,8 @@ class ModelConfig:
     inject_error_ticks: int = 11
 
     # Training related
+    pretrain_checkpoint: str = None
+    optimizer: str = "adam"
     learning_rate: float = 0.005
     zero_error_radius: float = None
 
@@ -198,13 +203,17 @@ class Config:
 
     @property
     def saved_epochs(self) -> list:
-        """Saved epoch. 
+        """Saved epoch.
         Save is more frequent in earlier epoch
         """
-        a = list(range(1, 11)) 
-        b = list(range(12, 31, 2)) 
-        c = list(range(35, 51, 5)) 
-        d = [i for i in range(1, self.total_number_of_epoch + 1) if (i % self.save_freq == 0)]
+        a = list(range(1, 11))
+        b = list(range(12, 31, 2))
+        c = list(range(35, 51, 5))
+        d = [
+            i
+            for i in range(1, self.total_number_of_epoch + 1)
+            if (i % self.save_freq == 0)
+        ]
         return sorted(list(set(a + b + c + d)))
 
     @property
@@ -228,6 +237,7 @@ class Config:
         with open(json_file, "w") as f:
             json.dump(self.papermill_cfg, f)
         print(f"Saved config json to {json_file}")
+
 
 # Batch related
 def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_notebook):
@@ -297,18 +307,20 @@ def make_batch_cfg(batch_name, batch_output_dir, static_hpar, param_grid, in_not
 
     return batch_cfgs
 
-def batch_json_to_df(json_file:str) -> pd.DataFrame:
+
+def batch_json_to_df(json_file: str) -> pd.DataFrame:
     """
     Convert batch json to dataframe
     """
     from dotenv import load_dotenv
+
     load_dotenv()
     tf_root = os.environ.get("TF_ROOT")
 
     # Load json
     with open(json_file) as f:
         batch_cfgs = json.load(f)
-    
+
     df = pd.DataFrame()
 
     for i, cfg in enumerate(batch_cfgs):
@@ -331,6 +343,7 @@ def batch_json_to_df(json_file:str) -> pd.DataFrame:
         df = df.append(this_record)
 
     return df
+
 
 # Broken
 # def parse_batch_results(cfgs):
@@ -360,6 +373,7 @@ def batch_json_to_df(json_file:str) -> pd.DataFrame:
 
 
 # GPU related
+
 
 def check_gpu():
     """Check whether GPU available"""
@@ -391,7 +405,7 @@ def split_gpu(which_gpu: int, n_splits: int = 2):
     except Exception:
         # Invalid device or cannot modify virtual devices once initialized.
         raise Exception
-        print('Virtual GPU cannot be created')
+        print("Virtual GPU cannot be created")
 
 
 def limit_gpu_memory_use(limit_MB=7168):
@@ -411,4 +425,3 @@ def limit_gpu_memory_use(limit_MB=7168):
         tf.config.experimental.set_virtual_device_configuration(gpus[0], cfg)
     except:
         pass
-
