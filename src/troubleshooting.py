@@ -63,7 +63,9 @@ class Diagnosis:
         self.testset_package = data_wrangling.load_testset(testset_name)
         # Manual batch_size override
         batch_size = len(self.testset_package["item"])
-        self.model = modeling.MyModel(cfg=self.cfg, batch_size_override=batch_size)
+        self.model = modeling.TriangleModel(
+            cfg=self.cfg, batch_size_override=batch_size
+        )
         ckpt = tf.train.Checkpoint(model=self.model)
 
         saved_checkpoint = self.cfg.saved_checkpoints_fstring.format(epoch=epoch)

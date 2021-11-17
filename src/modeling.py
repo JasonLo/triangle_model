@@ -107,7 +107,7 @@ WEIGHTS_AND_BIASES["exp_os_ff"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
 IN_OUT["exp_os_ff"] = ("ort", "sem")
 
 
-class MyModel(tf.keras.Model):
+class TriangleModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
 
     # Do not use model.predict(x)
@@ -134,7 +134,7 @@ class MyModel(tf.keras.Model):
 
     ALL_ARRAY_NAMES = INPUT_ARRAY_NAMES + ACTIVATION_ARRAY_NAMES
 
-    def __init__(self, cfg, name="my_model", batch_size_override=None, **kwargs):
+    def __init__(self, cfg, name="triangle", batch_size_override=None, **kwargs):
         super().__init__(**kwargs)
 
         for key, value in cfg.__dict__.items():

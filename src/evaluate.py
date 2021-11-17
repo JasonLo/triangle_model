@@ -34,7 +34,7 @@ class Test:
         """
 
         for i in range(n):
-            self.eval(f"train_batch_{i}", task, to_bq=to_bq, bq_table='train')
+            self.eval(f"train_batch_{i}", task, to_bq=to_bq, bq_table="train")
 
     def eval(
         self,
@@ -42,7 +42,7 @@ class Test:
         task: str,
         save_file_prefix: str = None,
         to_bq: bool = False,
-        bq_table: str = None
+        bq_table: str = None,
     ):
         """
         Inputs
@@ -66,7 +66,9 @@ class Test:
             inputs = testset_package[modeling.IN_OUT[task][0]]
 
             # Build model and switch task
-            self.model = modeling.MyModel(self.cfg, batch_size_override=inputs.shape[0])
+            self.model = modeling.TriangleModel(
+                self.cfg, batch_size_override=inputs.shape[0]
+            )
             self.ckpt = tf.train.Checkpoint(model=self.model)
             self.model.set_active_task(task)
 
@@ -221,4 +223,3 @@ class Test:
             out[k] = v
 
         return out
-
