@@ -30,7 +30,7 @@ class Diagnosis:
         "input_sem": "input",
         "sem": "act",
     }
-    
+
     PHO_NAME_MAP = {
         "input_hsp_hp": "SP",
         "input_cpp_cp": "CP",
@@ -135,15 +135,15 @@ class Diagnosis:
         assert self.target_word is not None
         return H.get_batch_pronunciations_fast(self.get_output("pho"))
 
-    def set_target_word(self, word: str) -> pd.DataFrame:
+    def set_target_word(self, word: str, verbose: bool = True) -> pd.DataFrame:
         self.target_word = word
         self.target_word_idx = self.testset_package["item"].index(self.target_word)
         self.word_sem_df = self.make_output_diagnostic_df(word, "sem")
         self.word_pho_df = self.make_output_diagnostic_df(word, "pho")
 
-        print(
-            f"Target pronounciation is: {self.testset_package['phoneme'][self.target_word_idx]}"
-        )
+        if verbose:
+            phoneme = self.testset_package["phoneme"][self.target_word_idx]
+            print(f"Target pronounciation is: {phoneme}")
         return self.df.loc[
             (self.df.word == self.target_word)
             & (self.df.timetick == self.df.timetick.max())
