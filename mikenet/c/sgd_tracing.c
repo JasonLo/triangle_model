@@ -77,7 +77,7 @@ int bptt_compute_gradients(Net *net, Example *ex)
             if (rc)
                 apply_example_targets(ex, gto, t);
             (*gto->postTargetSetMethod)(gto, ex, t);
-            rc = (*gto->preComputeDeDxMethod)(gto, ex, t);
+            rc = (*gto->preComputeDeDxMethod)(gto, ex, t); // Check with is preComputeDeDxMethod...
             if (rc)
             {
                 nu = gto->numUnits;
@@ -272,7 +272,7 @@ Real ce_error(Group *g, Example *ex, int unit, Real out, Real target)
 
     gnum = g->index;
 
-    if (fabs(out - target) < g->errorRadius)   // Absolute error < ZERO_ERROR_RADIUS, then return 0
+    if (fabs(out - target) < g->errorRadius) // Absolute error < ZERO_ERROR_RADIUS, then return 0
         return 0.0;
 
     if (g->activationType == TANH_ACTIVATION)
@@ -282,7 +282,6 @@ Real ce_error(Group *g, Example *ex, int unit, Real out, Real target)
     }
 
     out = CLIP(out, LOGISTIC_MIN, LOGISTIC_MAX);
-
 
     // Bring max error to 1-ZERO_ERROR_RADIUS at both positive and negative side
     if (fabs(target) < 0.001) /* close enought to zero */
@@ -297,7 +296,7 @@ Real ce_error(Group *g, Example *ex, int unit, Real out, Real target)
         out = CLIP(out, g->errorRadius, LOGISTIC_MAX);
         local_error = -log(out);
     }
-    else
+    else // This won't happen... since target is either 1/0, why it is even here?
     {
         local_error = (log((target) / (out)) * (target) +
                        log((1.0 - (target)) /
