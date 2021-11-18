@@ -56,7 +56,6 @@ class ModelConfig:
     # Time related
     tau: float = 1 / 3
     max_unit_time: float = 4.0
-    output_ticks: int = 11
     inject_error_ticks: int = 11
 
     # Training related
@@ -194,6 +193,10 @@ class Config:
     @property
     def n_timesteps(self) -> int:
         return int(self.max_unit_time * (1 / self.tau))
+
+    @property
+    def output_ticks(self) -> int:
+        return self.n_timesteps + 1
 
     @property
     def steps_per_epoch(self) -> int:
