@@ -9,10 +9,11 @@ import numpy as np
 class CustomBCE(tf.keras.losses.Loss):
     """Binarycross entropy loss with variable zero-error-radius"""
 
-    def __init__(self, radius=0.1, name="bce_with_ZER"):
+    def __init__(self, zero_error_radius=0.1, name="bce_with_ZER"):
         super().__init__(name=name)
-        self.radius = radius
+        self.zero_error_radius = zero_error_radius
         self.sample_weights = None
+        self.time_weights = None
 
     def set_sample_weights(self, sample_weights):
         """Method to set sample_weights for scaling losses
@@ -21,8 +22,17 @@ class CustomBCE(tf.keras.losses.Loss):
         """
         self.sample_weights = tf.convert_to_tensor(sample_weights, dtype=tf.float32)
 
-    def disable_losses_scaling(self):
+    def set_time_weights(self, time_weights):
+        """Method to set time_weights for scaling losses
+        Cannot pass as an argument in call(), this is a work around
+        call will automatically scale losses if time_weight exists
+        """
+        self.time_weights = tf.convert_to_tensor(time_weights, dtype=tf.float32)
+
+    def disable_loss_scaling(self):
+        """Method to disable all loss scaling."""
         self.sample_weights = None
+        self.time_weights = None
 
     @staticmethod
     def zer_replace(target, output, zero_error_radius):
@@ -33,8 +43,8 @@ class CustomBCE(tf.keras.losses.Loss):
         return tf.where(within_zer, target, output)
 
     @staticmethod
-    def scale_losses(losses, sample_weights):
-        """Multiply sample weights on losses"""
+    def scale_loss_by_sample(losses, sample_weights):
+        """Multiply sample weights on losses on axis 1 (sample)."""
         timetick_dim = losses.shape[0]
         output_dim = losses.shape[2]
 
@@ -44,12 +54,24 @@ class CustomBCE(tf.keras.losses.Loss):
 
         return losses * expanded_sample_weights
 
+    @staticmethod
+    def scale_loss_by_time(losses, time_weights):
+        """Multiply sample weights on losses on axis 0 (time)."""
+        sample_dim = losses.shape[1]
+        output_dim = losses.shape[2]
+
+        expanded_time_weights = tf.tile(
+            time_weights[:, tf.newaxis, tf.newaxis], [1, sample_dim, output_dim]
+        )
+
+        return losses * expanded_time_weights
+
     def call(self, y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
 
         # Replace output by target if value within zero error radius
-        zer_output = self.zer_replace(y_true, y_pred, self.radius)
+        zer_output = self.zer_replace(y_true, y_pred, self.zero_error_radius)
 
         # Clip with a tiny constant to avoid zero division
         epsilon_ = tf.convert_to_tensor(K.epsilon(), y_pred.dtype)
@@ -62,8 +84,12 @@ class CustomBCE(tf.keras.losses.Loss):
 
         # Scale losses
         if self.sample_weights is not None:
-            print(f"I have scaled sample weight by {self.sample_weights}")
-            bce = self.scale_losses(bce, self.sample_weights)
+            # print(f"I have scaled loss by sample_weights: {self.sample_weights}")
+            bce = self.scale_loss_by_sample(bce, self.sample_weights)
+
+        if self.time_weights is not None:
+            # print(f"I have scaled loss by time_weights: {self.time_weights}")
+            bce = self.scale_loss_by_time(bce, self.time_weights)
 
         return bce
 

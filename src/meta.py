@@ -36,6 +36,7 @@ class ModelConfig:
         optimizer -- optimizer name
         learning_rate -- learning rate for optimizer
         zero_error_radius -- whether to use zero error radius or not and if so, what radius to use (e.g., None or 0.1)
+        loss_ramping -- whether to use loss ramping or not. If True, loss at time tick t will be scaled by: t / n_timesteps
     """
 
     # Architecture
@@ -63,6 +64,7 @@ class ModelConfig:
     optimizer: str = "adam"
     learning_rate: float = 0.005
     zero_error_radius: float = None
+    loss_ramping: bool = True
 
     @classmethod
     def from_dict(cls, **kwargs):

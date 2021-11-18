@@ -162,10 +162,22 @@ class Trainer:
 
     def _create_loss(self, task: str) -> None:
         """Create loss function and train losses for a task."""
+
         if self.cfg.zero_error_radius is not None:
-            self.loss_fns[task] = CustomBCE(radius=self.cfg.zero_error_radius)
+            self.loss_fns[task] = CustomBCE(
+                zero_error_radius=self.cfg.zero_error_radius
+            )
         else:
-            self.loss_fns[task] = tf.keras.losses.BinaryCrossentropy()
+            # Must use CustomBCE, keras BCE does not support loss ramping
+            self.loss_fns[task] = CustomBCE(zero_error_radius=0.0)
+
+        # Set losses time weights for loss ramping
+        if self.cfg.loss_ramping:
+            time_weights_all = [
+                x / self.cfg.n_timesteps for x in range(self.cfg.n_timesteps + 1)
+            ]
+            time_weights = time_weights_all[-self.cfg.inject_error_ticks :]
+            self.loss_fns[task].set_time_weights(time_weights)
 
         # For TensorBoard
         self.train_losses[task] = tf.keras.metrics.Mean(
