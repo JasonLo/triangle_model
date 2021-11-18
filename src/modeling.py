@@ -142,6 +142,7 @@ class TriangleModel(tf.keras.Model):
 
         # Inferred variable need to pass manually
         self.n_timesteps = cfg.n_timesteps
+        self.output_ticks = cfg.output_ticks
         self.activation = tf.keras.activations.get(self.activation)
 
         # self.active_task = "triangle" # Do not set default task here,
