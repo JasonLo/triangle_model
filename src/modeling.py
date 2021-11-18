@@ -195,7 +195,7 @@ class TriangleModel(tf.keras.Model):
         """
 
         weight_initializer = tf.random_uniform_initializer(minval=-0.1, maxval=0.1)
-        bias_initializer = tf.constant_initializer(value=-5.0)
+        bias_initializer = tf.constant_initializer(value=0.)
 
         # For SP (incl. PP, since PP is nested within SP)
         self.w_hsp_sh = self.add_weight(
