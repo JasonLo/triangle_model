@@ -28,38 +28,35 @@ class Test:
             "act1": metrics.OutputOfOneTarget(),
         }
 
-    def eval_train(self, task: str, n: int = 12, to_bq: bool = False):
-        """Evaluate the full training set with batching.
-        Due to memory demands, will not store df in memory, but save to csv file
+    def eval_train(self, task: str, n: int = 12, bq_table: str = None):
+        """Evaluate the full training set with manual batching.
+        Due to memory demands, will save results to csv file 
         """
-
-        for i in range(n):
-            self.eval(f"train_batch_{i}", task, to_bq=to_bq, bq_table="train")
+        [self.eval(f"train_batch_{i}", task, bq_table=bq_table) for i in range(n)]
 
     def eval(
         self,
         testset_name: str,
         task: str,
         save_file_prefix: str = None,
-        to_bq: bool = False,
         bq_table: str = None,
     ):
         """
         Inputs
         testset_name: name of testset, must match testset package (*.pkl.gz) name
-        task: 1 of 9 task option in triangle model
+        task: task name option in triangle model
         output: pandas dataframe with all the evaluation results
         """
         try:
+            # Try to load from saved eval csv
             df = self.load(testset_name, task, save_file_prefix)
             print(f"Eval results found, load from saved csv")
+            
         except (FileNotFoundError, IOError):
-            assert (bq_table is not None) or (not to_bq)
 
             df = pd.DataFrame()
-            ts_path = "dataset/testsets"
             testset_package = load_testset(
-                os.path.join(ts_path, f"{testset_name}.pkl.gz")
+                os.path.join("dataset", "testsets" f"{testset_name}.pkl.gz")
             )
 
             # Enforceing batch_size dim to match with test case
@@ -123,7 +120,7 @@ class Test:
 
             df.to_csv(csv_name)
 
-            if to_bq:
+            if bq_table:
                 gcp.df_to_bigquery(df, self.cfg.batch_name, bq_table)
         return df
 
