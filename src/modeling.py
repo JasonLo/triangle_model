@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
+import logging
 
 # Create dictionary for trainable weight & biases related to each task (only affect weight update step)
 ## Important: Due to model complexity, it seems that "trainable" flag cannot be use to turn on/off training using Keras training API
@@ -48,6 +49,8 @@ WEIGHTS_AND_BIASES["ort_pho"] = (
     "w_cp",
     "bias_cpp",
 )
+
+
 # WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
 # WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop", "bias_p")
 # WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "bias_hos")
@@ -107,6 +110,21 @@ WEIGHTS_AND_BIASES["exp_os_ff"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
 IN_OUT["exp_os_ff"] = ("ort", "sem")
 
 
+# LAYERS contains all layers' name in the model
+LAYERS = ("pho", "sem", "hos", "hop", "css", "cpp", "hps", "hsp")
+
+# CONNECTIONS descript what is the immediate connection of a given layer
+CONNECTIONS = {}
+CONNECTIONS["hos"] = ("w_hos_oh", "bias_hos")
+CONNECTIONS["hop"] = ("w_hop_oh", "bias_hop")
+CONNECTIONS["sem"] = ("w_hos_hs", "w_hps_hs", "w_cs", "bias_s")
+CONNECTIONS["pho"] = ("w_hop_hp", "w_hsp_hp", "w_cp", "bias_p")
+CONNECTIONS["css"] = ("w_sc", "bias_css")
+CONNECTIONS["cpp"] = ("w_pc", "bias_cpp")
+CONNECTIONS["hps"] = ("w_hps_ph", "bias_hps")
+CONNECTIONS["hsp"] = ("w_hsp_sh", "bias_hsp")
+
+
 class TriangleModel(tf.keras.Model):
     """Model object with full output in dictionary format"""
 
@@ -134,7 +152,7 @@ class TriangleModel(tf.keras.Model):
 
     ALL_ARRAY_NAMES = INPUT_ARRAY_NAMES + ACTIVATION_ARRAY_NAMES
 
-    def __init__(self, cfg, name="triangle", batch_size_override=None, **kwargs):
+    def __init__(self, cfg, name="triangle", **kwargs):
         super().__init__(**kwargs)
 
         for key, value in cfg.__dict__.items():
@@ -164,31 +182,24 @@ class TriangleModel(tf.keras.Model):
             "exp_os_ff": self.task_ort_sem_ff,
         }
 
-        # Instead of relying boardcasting, we specifiy the batch size manually for easier debugging
-        self.shapes = self._create_shape_map(batch_size=batch_size_override)
+        # Create UNIT_SIZE for initializing input array
+        self.UNIT_SIZE = {}
+        self.UNIT_SIZE["input_hos"] = self.hidden_os_units
+        self.UNIT_SIZE["input_hop"] = self.hidden_op_units
+        self.UNIT_SIZE["input_sem"] = self.sem_units
+        self.UNIT_SIZE["input_pho"] = self.pho_units
+        self.UNIT_SIZE["input_hps"] = self.hidden_ps_units
+        self.UNIT_SIZE["input_hsp"] = self.hidden_sp_units
+        self.UNIT_SIZE["input_css"] = self.sem_cleanup_units
+        self.UNIT_SIZE["input_cpp"] = self.pho_cleanup_units
+        self.UNIT_SIZE["input_hps_hs"] = self.sem_units
+        self.UNIT_SIZE["input_css_cs"] = self.sem_units
+        self.UNIT_SIZE["input_hos_hs"] = self.sem_units
+        self.UNIT_SIZE["input_hsp_hp"] = self.pho_units
+        self.UNIT_SIZE["input_cpp_cp"] = self.pho_units
+        self.UNIT_SIZE["input_hop_hp"] = self.pho_units
 
-    def _create_shape_map(self, batch_size: int = None) -> dict:
 
-        if batch_size is None:
-            batch_size = self.batch_size
-
-        INPUT_SHAPES = {}
-        INPUT_SHAPES["input_hos"] = (batch_size, self.hidden_os_units)
-        INPUT_SHAPES["input_hop"] = (batch_size, self.hidden_op_units)
-        INPUT_SHAPES["input_sem"] = (batch_size, self.sem_units)
-        INPUT_SHAPES["input_pho"] = (batch_size, self.pho_units)
-        INPUT_SHAPES["input_hps"] = (batch_size, self.hidden_ps_units)
-        INPUT_SHAPES["input_hsp"] = (batch_size, self.hidden_sp_units)
-        INPUT_SHAPES["input_css"] = (batch_size, self.sem_cleanup_units)
-        INPUT_SHAPES["input_cpp"] = (batch_size, self.pho_cleanup_units)
-        INPUT_SHAPES["input_hps_hs"] = (batch_size, self.sem_units)
-        INPUT_SHAPES["input_css_cs"] = (batch_size, self.sem_units)
-        INPUT_SHAPES["input_hos_hs"] = (batch_size, self.sem_units)
-        INPUT_SHAPES["input_hsp_hp"] = (batch_size, self.pho_units)
-        INPUT_SHAPES["input_cpp_cp"] = (batch_size, self.pho_units)
-        INPUT_SHAPES["input_hop_hp"] = (batch_size, self.pho_units)
-
-        return INPUT_SHAPES
 
     def build(self, input_shape=None):
         """Build entire model's weights and biases
@@ -666,9 +677,11 @@ class TriangleModel(tf.keras.Model):
         return self._package_output(training=training)
 
     def task_triangle(self, inputs, training=None):
-        self._init_all_tensor_arrays()
+        batch_size = inputs[0].shape[0]
+        self._init_all_tensor_arrays(batch_size)
 
         # Recurrent structure over time ticks (Time averaged input)
+        new_inputs = {}
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
@@ -676,92 +689,49 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            self.input_hos = self.input_hos.write(
-                t + 1,
-                self.tau * (tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos)
-                + (1 - self.tau) * self.input_hos.read(t),
-            )
+            new_inputs["input_hos"] = tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
 
             ##### Hidden layer (OP) #####
-            self.input_hop = self.input_hop.write(
-                t + 1,
-                self.tau * (tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop)
-                + (1 - self.tau) * self.input_hop.read(t),
-            )
+            new_inputs["input_hop"] = tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
 
             ##### Semantic layer #####
-            self.input_hps_hs = self.input_hps_hs.write(
-                t + 1, tf.matmul(self.hps.read(t), self.w_hps_hs)
-            )
-            self.input_css_cs = self.input_css_cs.write(
-                t + 1, tf.matmul(self.css.read(t), w_cs)
-            )
-            self.input_hos_hs = self.input_hos_hs.write(
-                t + 1, tf.matmul(self.hos.read(t), self.w_hos_hs)
-            )
+            new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
+            new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
+            new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
 
-            self.input_sem = self.input_sem.write(
-                t + 1,
-                self.tau
-                * (
-                    self.input_hps_hs.read(t + 1)
-                    + self.input_css_cs.read(t + 1)
-                    + self.input_hos_hs.read(t + 1)
-                    + bias_s
-                )
-                + (1 - self.tau) * self.input_sem.read(t),
+            new_inputs["input_sem"] = (
+                new_inputs["input_hps_hs"]
+                + new_inputs["input_css_cs"]
+                + new_inputs["input_hos_hs"]
+                + bias_s
             )
 
             ##### Phonology layer #####
-            self.input_hsp_hp = self.input_hsp_hp.write(
-                t + 1, tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            )
-            self.input_cpp_cp = self.input_cpp_cp.write(
-                t + 1, tf.matmul(self.cpp.read(t), w_cp)
-            )
-            self.input_hop_hp = self.input_hop_hp.write(
-                t + 1, tf.matmul(self.hop.read(t), self.w_hop_hp)
-            )
-
-            self.input_pho = self.input_pho.write(
-                t + 1,
-                self.tau
-                * (
-                    self.input_hsp_hp.read(t + 1)
-                    + self.input_cpp_cp.read(t + 1)
-                    + self.input_hop_hp.read(t + 1)
-                    + bias_p
-                )
-                + (1 - self.tau) * self.input_pho.read(t),
+            new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
+            new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
+            
+            new_inputs["input_pho"] = (
+                new_inputs["input_hsp_hp"]
+                + new_inputs["input_cpp_cp"]
+                + new_inputs["input_hop_hp"]
+                + bias_p
             )
 
             ##### Hidden layer (PS) #####
-            self.input_hps = self.input_hps.write(
-                t + 1,
-                self.tau * (tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps)
-                + (1 - self.tau) * self.input_hps.read(t),
-            )
+            new_inputs["input_hps"] = tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps
 
             ##### Hidden layer (SP) #####
-            self.input_hsp = self.input_hsp.write(
-                t + 1,
-                self.tau * (tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp)
-                + (1 - self.tau) * self.input_hsp.read(t),
-            )
+            new_inputs["input_hsp"] = tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp
 
             ##### Semantic Cleanup layer #####
-            self.input_css = self.input_css.write(
-                t + 1,
-                self.tau * (tf.matmul(self.sem.read(t), w_sc) + bias_css)
-                + (1 - self.tau) * self.input_css.read(t),
-            )
-
+            new_inputs["input_css"] = tf.matmul(self.sem.read(t), w_sc) + bias_css
+            
             ##### Phonology Cleanup layer #####
-            self.input_cpp = self.input_cpp.write(
-                t + 1,
-                self.tau * (tf.matmul(self.pho.read(t), w_pc) + bias_cpp)
-                + (1 - self.tau) * self.input_cpp.read(t),
-            )
+            new_inputs["input_cpp"] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
+
+            # Process time averaged inputs
+            [self._tai(name, new_inputs[name], t) for name in self.INPUT_ARRAY_NAMES] 
 
             # Update activations
             [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
@@ -1188,6 +1158,15 @@ class TriangleModel(tf.keras.Model):
 
         return self._package_output(training=training)
 
+    def _tai(self, input_array_name:str, new_input:tf.Variable, t:int) -> None:
+        """Time averaged input.
+            Formula: tai_input = tau * new_input + (1 - tau) * last_input 
+        """
+        input_array = getattr(self, input_array_name)
+        last_input = input_array.read(t)
+        tai_input = (1 - self.tau) * last_input + self.tau * new_input
+        setattr(self, input_array_name, input_array.write(t+1, tai_input))
+
     def _inject_noise(self, x: tf.Tensor, noise_sd: float) -> tf.Tensor:
         """Inject Gaussian noise if noise_sd > 0"""
         if noise_sd > 0:
@@ -1196,36 +1175,21 @@ class TriangleModel(tf.keras.Model):
         else:
             return x
 
-    def _init_input_array(
-        self, name: str, shape: tuple, value: float = 0
-    ):  # Init at zero
+    def _init_input_array(self, name: str, batch_size: int, init_value: float = 0.):
+        unit_size = self.UNIT_SIZE[name]
+        init_value = tf.constant(init_value, dtype=tf.float32, shape=(batch_size, unit_size))
+        setattr(self, name, getattr(self, name).write(index=0, value=init_value))
 
-        setattr(
-            self,
-            name,
-            getattr(self, name).write(
-                0, tf.constant(value, dtype=tf.float32, shape=shape)
-            ),
-        )
-
-    def _init_all_tensor_arrays(self):
+    def _init_all_tensor_arrays(self, batch_size: int):
         """At the beginning of all tasks, reset all time related tensor arrays"""
 
         # Recreate tensor array for safety
         for x in self.ALL_ARRAY_NAMES:
-            setattr(
-                self,
-                x,
-                tf.TensorArray(
-                    tf.float32, size=self.n_timesteps + 1, clear_after_read=False
-                ),
-            )
+            arr = tf.TensorArray(tf.float32, size=self.n_timesteps + 1, clear_after_read=False)
+            setattr(self, x, arr)
 
-        # Set inputs
-        [
-            self._init_input_array(x, shape=self.shapes[x])
-            for x in self.INPUT_ARRAY_NAMES
-        ]
+        # Set inputs 
+        [self._init_input_array(x, batch_size) for x in self.INPUT_ARRAY_NAMES]
 
         # Set activations to init value
         [self._update_activations(0, x) for x in self.ACTIVATION_ARRAY_NAMES]
@@ -1286,7 +1250,6 @@ class TriangleModel(tf.keras.Model):
         """Update the activation"""
         sum_input = getattr(self, f"input_{act}").read(timetick)
         activation = self.activation(sum_input)
-
         setattr(self, act, getattr(self, act).write(timetick, activation))
 
     def _package_output(self, training):
