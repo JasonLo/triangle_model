@@ -144,7 +144,8 @@ class TemporalDynamics:
             & (self.df.timetick == self.df.timetick.max())
         ]
 
-    def make_bias_df(self, layer)
+    def make_bias_df(self, layer):
+        pass
 
     def make_output_diagnostic_df(self, layer: str, target_word: str = None) -> pd.DataFrame:
         """Output all output layer's input and activation in a word"""

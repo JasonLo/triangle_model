@@ -3,7 +3,7 @@
 
 import argparse, os
 import pandas as pd
-import meta, evaluate, troubleshooting, data_wrangling
+import meta, evaluate, examine, data_wrangling
 import plot as p
 import modeling
 import random
@@ -289,7 +289,7 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
 
 # def run_test8(code_name, batch_name=None, epoch=None):
 #     """10 random word raw input temporal dynamics"""
-#     d = troubleshooting.Diagnosis(code_name)
+#     d = examine.Diagnosis(code_name)
 
 #     if epoch is None:
 #         # Use last epoch if no epoch is provided
@@ -315,7 +315,7 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
 
 # def run_test9(code_name, batch_name=None, epoch=None):
 #     """Compare weight with mikenet"""
-#     d = troubleshooting.Diagnosis(code_name)
+#     d = examine.Diagnosis(code_name)
 
 #     if epoch is None:
 #         # Use last epoch if no epoch is provided
@@ -323,14 +323,14 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
 
 #     d.eval("train_r100", task="triangle", epoch=epoch)
 
-#     w = troubleshooting.MikeNetWeight("mikenet/Reading_Weight_v1")
+#     w = examine.MikeNetWeight("mikenet/Reading_Weight_v1")
 #     os.makedirs(os.path.join(d.cfg.plot_folder, "compare_mn_weights"), exist_ok=True)
 
 #     for x in w.weight_keys:
 #         w_name = w.as_tf_name(x)
 
 #         try:
-#             tmp = troubleshooting.dual_plot(d, w, w_name)
+#             tmp = examine.dual_plot(d, w, w_name)
 #             tmp.savefig(
 #                 os.path.join(d.cfg.plot_folder, "compare_mn_weights", f"{w_name}.png")
 #             )
@@ -365,17 +365,17 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
 
 
 # def plot_raw_input_by_target(
-#     word: str, diag: troubleshooting.Diagnosis, layer: str
+#     word: str, diag: examine.Diagnosis, layer: str
 # ) -> alt.Chart:
 #     diag.set_target_word(word)
 #     print(f"Output phoneme over timeticks: {diag.list_output_phoneme}")
 
 #     df_act1 = diag.subset_df(layer=layer, target_act=1)
-#     plotter = troubleshooting.Plots(df_act1)
+#     plotter = examine.Plots(df_act1)
 #     raw_input_1 = plotter.raw_inputs()
 
 #     df_act0 = diag.subset_df(layer=layer, target_act=0)
-#     plotter = troubleshooting.Plots(df_act0)
+#     plotter = examine.Plots(df_act0)
 #     raw_input_0 = plotter.raw_inputs()
 
 #     return (raw_input_1 | raw_input_0).resolve_scale(y="shared").properties(title=word)
