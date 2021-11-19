@@ -1,3 +1,5 @@
+"""Examine the internal temporal dynamics of a model."""
+
 import meta, data_wrangling, modeling, evaluate
 import random, os
 import pandas as pd
@@ -10,41 +12,31 @@ from typing import List
 
 
 def tick1_input(weight: np.array) -> float:
-    """Get the first tick input of a weight"""
+    """Get the first tick input of a weight."""
     return 0.5 * np.sum(weight, axis=0).mean()
 
 
-class Diagnosis:
-    """A diagnoistic bundle to trouble shot activation and input in semantic layer
+class TemporalDynamics:
+    """A diagnosistic tool to examine activation and input at a given layer.
     Usage:
     Step 1. Init by code_name
     Step 2. Call eval() method to a) get the evaluation results from evaluate.Test object b) Load weight to the model at given epoch
     Step 3. Call set_target_word() method to "zoom in" a target word results (including all crucial input and activation pathways as defined in SEM_NAME_MAP and PHO_NAME_MAP)
     Step 4. plot_diagnosis
+
+
+    Details:
+    1. Load model weights at given epoch
+    2. Set layer of interest
+    3. Create bias dataframe
+    4. Evaluate with a Testset
+    5. Create input and activation dataframe
+    6. Subset to target word (optional)
     """
 
-    SEM_NAME_MAP = {
-        "input_hps_hs": "PS",
-        "input_css_cs": "CS",
-        "input_hos_hs": "OS",
-        "input_sem": "input",
-        "sem": "act",
-    }
 
-    PHO_NAME_MAP = {
-        "input_hsp_hp": "SP",
-        "input_cpp_cp": "CP",
-        "input_hop_hp": "OP",
-        "input_pho": "input",
-        "pho": "act",
-    }
-
-    def __init__(self, code_name: str):
-        self.code_name = code_name
-        self.cfg = meta.Config.from_json(
-            os.path.join("models", code_name, "model_config.json")
-        )
-        self.cfg.output_ticks = 13  # Export all time ticks
+    def __init__(self, cfg: meta.Config):
+        self.cfg = cfg
 
         # These will be created when calling eval()
         self.testset_package = None
@@ -66,8 +58,9 @@ class Diagnosis:
         self.model = modeling.TriangleModel(
             cfg=self.cfg, batch_size_override=batch_size
         )
-        ckpt = tf.train.Checkpoint(model=self.model)
 
+        # Restore model from checkpoint
+        ckpt = tf.train.Checkpoint(model=self.model)
         saved_checkpoint = self.cfg.saved_checkpoints_fstring.format(epoch=epoch)
         ckpt.restore(saved_checkpoint).expect_partial()
 
@@ -118,14 +111,14 @@ class Diagnosis:
             "sem": {k: v for k, v in self.all_words.items() if v in ic_sem_word},
         }
 
-    def get_weight(self, name):
+    def get_weights(self, name):
         """export the weight tensor"""
         return [w.numpy() for w in self.model.weights if w.name.endswith(f"{name}:0")][
             0
         ]
 
-    def get_output(self, output_name, timetick=None):
-        """Get selected output from TensorArrays"""
+    def get_output(self, output_name: str, timetick=None) -> np.array:
+        """Get selected output from TensorArrays."""
         if timetick is None:
             return self.y_pred[output_name][:, self.target_word_idx, :].numpy()
         else:
@@ -151,7 +144,9 @@ class Diagnosis:
             & (self.df.timetick == self.df.timetick.max())
         ]
 
-    def make_output_diagnostic_df(self, target_word: str, layer: str) -> pd.DataFrame:
+    def make_bias_df(self, layer)
+
+    def make_output_diagnostic_df(self, layer: str, target_word: str = None) -> pd.DataFrame:
         """Output all output layer's input and activation in a word"""
 
         assert layer in ("pho", "sem")
@@ -290,7 +285,7 @@ class Diagnosis:
     ) -> plt.figure:
         """Density plot of a given weight in Diagnosis object"""
 
-        df = pd.DataFrame({weight_name: self.get_weight(weight_name).flatten()})
+        df = pd.DataFrame({weight_name: self.get_weights(weight_name).flatten()})
         color = "red" if weight_name.startswith("bias") else "blue"
 
         if len(df) > 1000:
@@ -407,3 +402,58 @@ def dual_plot(tf_diag, mn_weights, weight_name: str) -> plt.figure:
     mn_weights.plot(mn_weights_name, ax=ax[0])
     tf_diag.plot_weight_density(weight_name, ax=ax[1])
     return fig
+
+
+
+
+class temporal_diagnostic:
+    """Examine the temporal dynamic of inputs similar to HS04 fig 12."""
+
+    def __init__(self, diagnosis: Diagnosis):
+        """Remember to do this first before init: d.eval('train_r100', task="triangle", epoch=1000)."""
+        self.d = diagnosis
+        self.words = self.d.testset_package["item"]
+        self.df = self.create_df()
+
+    def get_all_act1(self, word: str, output: str):
+        """Get all detailed input diagnoistic in a word at target node == 1"""
+        self.d.set_target_word(word, verbose=False)
+        if output == "pho":
+            return self.d.word_pho_df.loc[d.word_pho_df.target_act == 1]
+        elif output == "sem":
+            return self.d.word_sem_df.loc[d.word_sem_df.target_act == 1]
+
+    def create_df(self):
+        """Create a dataframe for plotting."""
+        df_sem = pd.concat(
+            [self.get_all_act1(word, "sem") for word in tqdm(self.words)],
+            ignore_index=True,
+        )
+        df_sem["output"] = "sem"
+        df_sem = df_sem.loc[df_sem.variable.isin(["PS", "CS", "OS"])]
+
+        df_pho = pd.concat(
+            [self.get_all_act1(word, "pho") for word in self.words],
+            ignore_index=True,
+        )
+        df_pho["output"] = "pho"
+        df_pho = df_pho.loc[df_pho.variable.isin(["SP", "CP", "OP"])]
+        df = pd.concat([df_sem, df_pho], ignore_index=True)
+        return df.groupby(["timetick", "variable"]).mean().reset_index()
+
+    def plot(self):
+        selection = alt.selection_multi(fields=["variable"], bind="legend")
+        return (
+            alt.Chart(self.df)
+            .mark_line()
+            .encode(
+                x="timetick:Q",
+                y="value:Q",
+                color="variable:N",
+                opacity=alt.condition(selection, alt.value(1), alt.value(0.2)),
+            )
+            .add_selection(selection)
+            .properties(
+                title=f"{code_name}: Input temporal dynamic at the end of training among {testset_name}"
+            )
+        )
