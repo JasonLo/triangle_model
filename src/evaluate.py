@@ -2,13 +2,13 @@
 """
 
 from tqdm import tqdm
+from meta import Config
 import os
 import tensorflow as tf
 import metrics, modeling, gcp
 from data_wrangling import load_testset
 from helper import get_batch_pronunciations_fast
 import pandas as pd
-import numpy as np
 
 
 class Test:
@@ -17,10 +17,10 @@ class Test:
     2. Model level info should be stored at separate table, and merge it in the end
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg: Config):
         self.cfg = cfg
-        self.model = None  # Will create in eval()
-        self.ckpt = None  # Will create in eval()
+        self.model = modeling.TriangleModel(self.cfg)
+        self.ckpt = tf.train.Checkpoint(model=self.model)
         self.metrics = {
             "acc": {"pho": metrics.PhoAccuracy(), "sem": metrics.RightSideAccuracy()},
             "sse": metrics.SumSquaredError(),
@@ -30,7 +30,7 @@ class Test:
 
     def eval_train(self, task: str, n: int = 12, bq_table: str = None):
         """Evaluate the full training set with manual batching.
-        Due to memory demands, will save results to csv file 
+        Due to memory demands, will save results to csv file
         """
         [self.eval(f"train_batch_{i}", task, bq_table=bq_table) for i in range(n)]
 
@@ -51,34 +51,25 @@ class Test:
             # Try to load from saved eval csv
             df = self.load(testset_name, task, save_file_prefix)
             print(f"Eval results found, load from saved csv")
-            
+
         except (FileNotFoundError, IOError):
 
             df = pd.DataFrame()
-            testset_package = load_testset(
-                os.path.join("dataset", "testsets" f"{testset_name}.pkl.gz")
-            )
+            testset_package = load_testset(testset_name)
 
             # Enforceing batch_size dim to match with test case
             inputs = testset_package[modeling.IN_OUT[task][0]]
 
             # Build model and switch task
-            self.model = modeling.TriangleModel(
-                self.cfg, batch_size_override=inputs.shape[0]
-            )
-            self.ckpt = tf.train.Checkpoint(model=self.model)
             self.model.set_active_task(task)
 
             for epoch in tqdm(
                 self.cfg.saved_epochs, desc=f"Evaluating {testset_name}:{task}"
             ):
-                # for epoch in tqdm(range(250, 291, 10)):
                 saved_checkpoint = self.cfg.saved_checkpoints_fstring.format(
                     epoch=epoch
                 )
-                self.ckpt.restore(
-                    saved_checkpoint
-                ).expect_partial()  # Only load weights
+                self.ckpt.restore(saved_checkpoint).expect_partial()
                 y_pred = self.model([inputs] * self.cfg.n_timesteps)
 
                 for timetick_idx in range(self.cfg.output_ticks):

@@ -113,11 +113,12 @@ class MyData:
 
 def load_testset(file):
     """Load testset from pickled file"""
+    tf_root = os.environ.get("TF_ROOT")
     try:
         with gzip.open(file, "rb") as f:
             testset = pickle.load(f)
     except Exception:
-        _maybe_file = os.path.join("dataset", "testsets", f"{file}.pkl.gz")
+        _maybe_file = os.path.join(tf_root, "dataset", "testsets", f"{file}.pkl.gz")
         with gzip.open(_maybe_file, "rb") as f:
             testset = pickle.load(f)
     return testset

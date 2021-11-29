@@ -1,13 +1,11 @@
 # This file need serious refactoring.
 
 
-import argparse, os
 import pandas as pd
-import meta, evaluate, examine, data_wrangling
+import meta, evaluate
 import plot as p
-import modeling
-import random
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -18,12 +16,15 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
     results = [make_mean_df(t.eval(testset, task)) for task in oral_tasks]
     df = pd.concat(results, ignore_index=True)
 
-    p.plot_metric_over_epoch(df, metric="acc", save=f"{cfg.plot_folder}/oral_acc_{testset}.html")
-    p.plot_metric_over_epoch(df, metric="sse", save=f"{cfg.plot_folder}/oral_sse_{testset}.html")
-    p.plot_metric_over_epoch(df, metric="csse", save=f"{cfg.plot_folder}/oral_csse_{testset}.html")
-
-
-
+    p.plot_metric_over_epoch(
+        df, metric="acc", save=f"{cfg.plot_folder}/oral_acc_{testset}.html"
+    )
+    p.plot_metric_over_epoch(
+        df, metric="sse", save=f"{cfg.plot_folder}/oral_sse_{testset}.html"
+    )
+    p.plot_metric_over_epoch(
+        df, metric="csse", save=f"{cfg.plot_folder}/oral_csse_{testset}.html"
+    )
 
 
 # def run_test1(cfg: meta.Config, testset: str = "train_r100") -> None:
@@ -65,7 +66,6 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
 #     fig9.save(os.path.join(test.cfg.plot_folder, "test1s_acc.html"))
 #     fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1s_sse.html"))
 #     fig9_csse.save(os.path.join(test.cfg.plot_folder, "test1s_csse.html"))
-
 
 
 # def run_test2(code_name, batch_name=None, task="triangle"):

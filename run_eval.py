@@ -11,14 +11,12 @@
     2) Avoid job being kill after SSH disconnection by "disown"
 
 """
-import argparse, papermill, json, logging, os
-import meta, evaluate
+import argparse, json, logging, os
 from multiprocessing import Queue, Process
 from time import sleep
 from typing import List
 from dotenv import load_dotenv
 import subprocess
-import gcp
 
 
 load_dotenv()
@@ -29,6 +27,7 @@ def copy_plot_folder(batch_name, id):
     from_folder = f"models/{batch_name}/{batch_name}_r{id:04d}/plots"
     to_folder = f"models/{batch_name}/{batch_name}_r{id:04d}_plots"
     subprocess.run(["cp", "-r", from_folder, to_folder])
+
 
 def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     """Run one parameterized notebook.
@@ -42,13 +41,16 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     logging.info(f"Start running {cfg['code_name']} on {which_gpu}")
 
     from meta import split_gpu
+
     split_gpu(which_gpu=which_gpu)
 
     # Inject GPU setting into cfg.params
     # GPU instance is handle by each python kernel
     import benchmarks
-    benchmarks.run_test1s(code_name = cfg['code_name'], batch_name = cfg['params']['batch_name']) 
 
+    benchmarks.run_test1s(
+        code_name=cfg["code_name"], batch_name=cfg["params"]["batch_name"]
+    )
 
     logging.info(f"Finished running {cfg['code_name']} on {which_gpu}")
 
@@ -56,8 +58,12 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     free_gpu_queue.put(which_gpu)  # Release GPU
 
 
-
-def main(batch_json: str, resume_from: int = None, run_only:int = None, gpus: List[int] = None):
+def main(
+    batch_json: str,
+    resume_from: int = None,
+    run_only: int = None,
+    gpus: List[int] = None,
+):
     """Run a batch of models."""
     # Set available GPUs for models to run on
     if gpus is None:
