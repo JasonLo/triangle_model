@@ -40,19 +40,20 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
 
     logging.info(f"Start running {cfg['code_name']} on {which_gpu}")
 
-    from meta import split_gpu
+    from meta import split_gpu, Config
 
     split_gpu(which_gpu=which_gpu)
 
     # Inject GPU setting into cfg.params
     # GPU instance is handle by each python kernel
+
+    cfg = Config.from_dict(**cfg["params"])
+
     import benchmarks
 
-    benchmarks.run_test1s(
-        code_name=cfg["code_name"], batch_name=cfg["params"]["batch_name"]
-    )
+    benchmarks.run_oral_eval(cfg, testset="train_r100")
 
-    logging.info(f"Finished running {cfg['code_name']} on {which_gpu}")
+    logging.info(f"Finished running {cfg.code_name} on {which_gpu}")
 
     sleep(30)  # Allows GPU memory to release properly
     free_gpu_queue.put(which_gpu)  # Release GPU
