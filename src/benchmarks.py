@@ -27,6 +27,14 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
     )
 
 
+def run_oral_homophone(cfg: meta.Config) -> None:
+    t = evaluate.Test(cfg)
+    tasks = ["sem_pho", "pho_sem"]
+    results = [make_cond_mean_df(t.eval("homophony", task)) for task in tasks]
+    df = pd.concat(results, ignore_index=True)
+    p.plot_homophony(df, save=f"{cfg.plot_folder}/oral_homophony.html")
+
+
 # def run_test1(cfg: meta.Config, testset: str = "train_r100") -> None:
 #     test = init(code_name, batch_name)
 #     # test.cfg.tf_root = '/home/jupyter/triangle_model'
@@ -393,19 +401,19 @@ def make_mean_df(df):
     return df.groupby(gp_vars).mean().reset_index()
 
 
-# def make_cond_mean_df(df):
-#     """Aggregate on items axis with condition"""
-#     df["csse"] = df.sse.loc[df.acc == 1]
-#     gp_vars = [
-#         "code_name",
-#         "epoch",
-#         "testset",
-#         "task",
-#         "output_name",
-#         "timetick",
-#         "cond",
-#     ]
-#     return df.groupby(gp_vars).mean().reset_index()
+def make_cond_mean_df(df):
+    """Aggregate on items axis with condition"""
+    df["csse"] = df.sse.loc[df.acc == 1]
+    gp_vars = [
+        "code_name",
+        "epoch",
+        "testset",
+        "task",
+        "output_name",
+        "timetick",
+        "cond",
+    ]
+    return df.groupby(gp_vars).mean().reset_index()
 
 
 # def plot_hs04_fig9(mean_df, metric="acc"):
