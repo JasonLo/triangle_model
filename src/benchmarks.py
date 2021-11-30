@@ -2,14 +2,16 @@
 
 
 import pandas as pd
-import meta, evaluate
-import plot as p
 from dotenv import load_dotenv
+
+import evaluate
+import plot as p
+from meta import Config
 
 load_dotenv()
 
 
-def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
+def run_oral_eval(cfg: Config, testset: str = "train_r100") -> None:
     """Runs the oral evaluation and plot the accuracy and SSE in oral tasks."""
     t = evaluate.Test(cfg)
     oral_tasks = ["pho_pho", "sem_sem", "sem_pho", "pho_sem"]
@@ -27,7 +29,7 @@ def run_oral_eval(cfg: meta.Config, testset: str = "train_r100") -> None:
     )
 
 
-def run_oral_homophone(cfg: meta.Config) -> None:
+def run_oral_homophone(cfg: Config) -> None:
     t = evaluate.Test(cfg)
     tasks = ["sem_pho", "pho_sem"]
     results = [make_cond_mean_df(t.eval("homophony", task)) for task in tasks]
@@ -35,45 +37,48 @@ def run_oral_homophone(cfg: meta.Config) -> None:
     p.plot_homophony(df, save=f"{cfg.plot_folder}/oral_homophony.html")
 
 
-# def run_test1(cfg: meta.Config, testset: str = "train_r100") -> None:
-#     test = init(code_name, batch_name)
-#     # test.cfg.tf_root = '/home/jupyter/triangle_model'
-#     df = test.eval(testset, "triangle")
-#     mdf = make_mean_df(df)
-#     fig9 = plot_hs04_fig9(mdf, metric="acc")
-#     fig9_sse = plot_hs04_fig9(mdf, metric="sse")
-#     fig9_csse = plot_hs04_fig9(mdf, metric="csse")
-#     fig9.save(os.path.join(test.cfg.plot_folder, "test1_acc.html"))
-#     fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1_sse.html"))
-#     fig9_csse.save(os.path.join(test.cfg.plot_folder, "test1_csse.html"))
+def run_read_eval(cfg: Config, testset: str = "train_r100") -> None:
+    """Runs the read evaluation and plot the accuracy and SSE in read tasks."""
+    t = evaluate.Test(cfg)
+    df = t.eval(testset, "triangle")
+    p.plot_triangle(
+        df, metric="acc", save=f"{cfg.plot_folder}/triangle_acc_{testset}.html"
+    )
 
-#     # Extras Oral tasks
-#     mdf_pp = make_mean_df(test.eval(testset, "pho_pho"))
-#     mdf_ss = make_mean_df(test.eval(testset, "sem_sem"))
-#     mdf_sp = make_mean_df(test.eval(testset, "sem_pho"))
-#     mdf_ps = make_mean_df(test.eval(testset, "pho_sem"))
 
-#     df_oral = pd.concat([mdf_pp, mdf_ss, mdf_sp, mdf_ps], ignore_index=True)
-#     test1_oral_plot_acc = plot_hs04_fig14(df_oral, metric="acc")
-#     test1_oral_plot_sse = plot_hs04_fig14(df_oral, metric="sse")
-#     test1_oral_plot_csse = plot_hs04_fig14(df_oral, metric="csse")
+def run_lesion(cfg: Config, testset: str = "train_r100"):
+    """Leison in Semantic (HS04 fig.14)."""
+    import metrics
 
-#     test1_oral_plot_acc.save(os.path.join(test.cfg.plot_folder, "test1_oral_acc.html"))
-#     test1_oral_plot_sse.save(os.path.join(test.cfg.plot_folder, "test1_oral_sse.html"))
-#     test1_oral_plot_csse.save(os.path.join(test.cfg.plot_folder, "test1_oral_csse.html"))
+    t = evaluate.Test(cfg)
 
-# def run_test1s(code_name, batch_name=None, testset="strain"):
-#     """Evaluate accuracy over epoch with Strain items."""
+    # Override semantic accuracy with cosine accuracy
+    t.metrics["acc"]["sem"] = metrics.CosineSemanticAccuracy()
 
-#     test = init(code_name, batch_name)
-#     df = test.eval(testset, "triangle")
-#     mdf = make_mean_df(df)
-#     fig9 = plot_hs04_fig9(mdf, metric="acc")
-#     fig9_sse = plot_hs04_fig9(mdf, metric="sse")
-#     fig9_csse = plot_hs04_fig9(mdf, metric="csse")
-#     fig9.save(os.path.join(test.cfg.plot_folder, "test1s_acc.html"))
-#     fig9_sse.save(os.path.join(test.cfg.plot_folder, "test1s_sse.html"))
-#     fig9_csse.save(os.path.join(test.cfg.plot_folder, "test1s_csse.html"))
+    # SEM (same as HS04 but with Cosine)
+    df_intact = t.eval(testset, "triangle", save_file_prefix="cos")
+    df_os_lesion = t.eval(testset, "exp_ops", save_file_prefix="cos")
+    df_ops_lesion = t.eval(testset, "ort_sem", save_file_prefix="cos")
+
+    df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
+    mdf_sem = make_mean_df(df_sem)
+    p.plot_metric_over_epoch(
+        mdf_sem, output="sem", save=f"{cfg.plot_folder}/lesion_SEM_{testset}.html"
+    )
+
+
+def run_lesion_extra(cfg: Config, testset: str = "train_r100"):
+    """Lesion in Phonology."""
+    t = evaluate.Test(cfg)
+    df_intact = t.eval(testset, "triangle")
+    df_op_lesion = t.eval(testset, "exp_osp")
+    df_osp_lesion = t.eval(testset, "ort_pho")
+
+    df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
+    mdf_pho = make_mean_df(df_pho)
+    p.plot_metric_over_epoch(
+        mdf_pho, output="pho", save=f"{cfg.plot_folder}/lesion_PHO_{testset}.html"
+    )
 
 
 # def run_test2(code_name, batch_name=None, task="triangle"):
@@ -156,51 +161,6 @@ def run_oral_homophone(cfg: meta.Config) -> None:
 #     test5b = plot_hs04_fig14(mdf_pho, output="pho")
 #     test5b.save(os.path.join(test.cfg.plot_folder, "test5_pho.html"))
 
-
-# def run_test6(code_name, batch_name=None, testset="train_r100"):
-#     """Test 5 without resizing tau"""
-#     test = init(code_name, batch_name)
-
-#     # SEM (same as HS04)
-#     df_intact = test.eval(testset, "triangle")
-#     df_os_lesion = test.eval(testset, "exp_ops")
-#     df_ops_lesion = test.eval(testset, "ort_sem")
-
-#     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
-#     mdf_sem = make_mean_df(df_sem)
-#     test5a = plot_hs04_fig14(mdf_sem, output="sem")
-#     test5a.save(os.path.join(test.cfg.plot_folder, f"test6_sem_{testset}.html"))
-
-#     # PHO (extra)
-#     df_op_lesion = test.eval(testset, "exp_osp")
-#     df_osp_lesion = test.eval(testset, "ort_pho")
-
-#     df_pho = pd.concat([df_intact, df_op_lesion, df_osp_lesion], ignore_index=True)
-#     mdf_pho = make_mean_df(df_pho)
-
-#     test5b = plot_hs04_fig14(mdf_pho, output="pho")
-#     test5b.save(os.path.join(test.cfg.plot_folder, f"test6_pho_{testset}.html"))
-
-
-# def run_test6_cosine(code_name, batch_name=None, testset="train_r100"):
-#     """Test 6 using cosine accuracy in SEM"""
-
-#     test = init(code_name, batch_name)
-#     import metrics
-
-#     # Override semantic accuracy with cosine accuracy
-#     test.metrics["acc"]["sem"] = metrics.CosineSemanticAccuracy()
-
-
-#     # SEM (same as HS04)
-#     df_intact = test.eval(testset, "triangle", save_file_prefix="cos")
-#     df_os_lesion = test.eval(testset, "exp_ops", save_file_prefix="cos")
-#     df_ops_lesion = test.eval(testset, "ort_sem", save_file_prefix="cos")
-
-#     df_sem = pd.concat([df_intact, df_os_lesion, df_ops_lesion], ignore_index=True)
-#     mdf_sem = make_mean_df(df_sem)
-#     test5a = plot_hs04_fig14(mdf_sem, output="sem")
-#     test5a.save(os.path.join(test.cfg.plot_folder, f"test6_sem_cosine_{testset}.html"))
 
 # def run_test6_cosine_split(code_name, batch_name=None, testset="train_r100"):
 #     """Test 6 using cosine accuracy in SEM and median split by cond"""
@@ -394,15 +354,15 @@ def run_oral_homophone(cfg: meta.Config) -> None:
 #         print(f"{x}: unique entry: {df[x].unique()}")
 
 
-def make_mean_df(df):
+def make_mean_df(df: pd.DataFrame) -> pd.DataFrame:
     """Averaging on items axis."""
     df["csse"] = df.sse.loc[df.acc == 1]
     gp_vars = ["code_name", "epoch", "testset", "task", "output_name", "timetick"]
     return df.groupby(gp_vars).mean().reset_index()
 
 
-def make_cond_mean_df(df):
-    """Aggregate on items axis with condition"""
+def make_cond_mean_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate on items axis with condition."""
     df["csse"] = df.sse.loc[df.acc == 1]
     gp_vars = [
         "code_name",

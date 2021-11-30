@@ -9,7 +9,7 @@ import pandas as pd
 
 def plot_metric_over_epoch(
     mean_df: pd.DataFrame, output: str = None, metric: str = "acc", save: str = None
-):
+) -> alt.Chart:
     """Plot selected metric over epoch with timetick selection.
     Args:
         mean_df: Dataframe with mean values of the metric over items
@@ -56,7 +56,7 @@ def plot_metric_over_epoch(
     return p
 
 
-def plot_homophony(mean_df: pd.DataFrame, save: str = None):
+def plot_homophony(mean_df: pd.DataFrame, save: str = None) -> alt.Chart:
     """Plot Oral tasks homophony (HS04 fig.5)."""
 
     last_tick = mean_df.timetick.max()
@@ -88,4 +88,38 @@ def plot_homophony(mean_df: pd.DataFrame, save: str = None):
     if save:
         p.save(save)
 
+    return p
+
+
+def plot_triangle(mean_df: pd.DataFrame, metric="acc", save: str = None) -> alt.Chart:
+    """Plotting the metric over epoch by output (HS04, fig 9)."""
+
+    last_tick = mean_df.timetick.max()
+    interval = alt.selection_interval(init={"timetick": [last_tick, last_tick]})
+    metric_specific_scale = alt.Scale(domain=(0, 1)) if metric == "acc" else alt.Scale()
+
+    timetick_sel = (
+        alt.Chart(mean_df)
+        .mark_rect()
+        .encode(x="timetick:O", color=f"mean({metric}):Q")
+        .add_selection(interval)
+    ).properties(width=400)
+
+    line = (
+        alt.Chart(mean_df)
+        .mark_line(point=True)
+        .encode(
+            x="epoch:Q",
+            y=alt.Y(f"mean({metric}):Q", scale=metric_specific_scale),
+            color="output_name:N",
+            tooltip=[f"mean({metric})"],
+        )
+        .interactive()
+        .transform_filter(interval)
+    )
+
+    p = timetick_sel & line
+
+    if save:
+        p.save(save)
     return p
