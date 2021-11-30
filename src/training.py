@@ -132,6 +132,7 @@ class Trainer:
         self._create_checkpoint()
         if self.cfg.pretrain_checkpoint:
             self.load_model(self.cfg.pretrain_checkpoint)
+            print(f"Loaded pretrain model from {self.cfg.pretrain_checkpoint}")
 
     @property
     def non_triangle_tasks_names(self):
