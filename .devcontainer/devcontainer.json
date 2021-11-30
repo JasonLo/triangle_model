@@ -1,5 +1,5 @@
 {
-	"name": "dev-container gcp-tf2-2.7",
+	"name": "dev-container gcp-tf2.7",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "tensorflow",
 	"workspaceFolder": "/triangle_model",
