@@ -2,14 +2,19 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from typing import List
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+tf_root = os.environ.get("TF_ROOT")
 
 
-def gen_pkey(p_file="dataset/mappingv2.txt"):
+def gen_pkey():
     """Read phonological patterns from the mapping file
     See Harm & Seidenberg PDF file
     """
-
-    mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
+    pho_mapping = os.path.join(tf_root, "dataset", "mappingv2.txt")
+    mapping = pd.read_table(pho_mapping, header=None, delim_whitespace=True)
     m_dict = mapping.set_index(0).T.to_dict("list")
     return m_dict
 

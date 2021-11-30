@@ -4,6 +4,11 @@ from tensorflow.python.keras.metrics import MeanMetricWrapper
 from helper import get_batch_pronunciations_fast
 import pandas as pd
 import numpy as np
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+tf_root = os.environ.get("TF_ROOT")
 
 # Loss
 class CustomBCE(tf.keras.losses.Loss):
@@ -123,7 +128,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         self.out = self.add_weight(name="pho_accuracy", initializer="zeros")
 
         # Load pho key
-        pho_key_file = "dataset/mappingv2.txt"
+        pho_key_file = os.path.join(tf_root, "dataset", "mappingv2.txt")
         mapping = pd.read_table(pho_key_file, header=None, delim_whitespace=True)
         pho_key = mapping.set_index(0).T.to_dict("list")
 
