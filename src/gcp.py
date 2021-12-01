@@ -1,8 +1,11 @@
-import os, json
+import json
+import os
 import subprocess
-from dotenv import load_dotenv
-from google.cloud import storage, bigquery
+
 import pandas as pd
+from dotenv import load_dotenv
+from google.cloud import bigquery, storage
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -128,4 +131,4 @@ def push_train_eval_to_bq(batch_name: str, id: int):
     for i in tqdm(range(12)):
         f = f"models/{batch_name}/{batch_name}_r{id:04d}/eval/train_batch_{i}_triangle.csv"
         df = pd.read_csv(f, index_col=0)
-        gcp.df_to_bigquery(df, "station_3", "train")
+        df_to_bigquery(df, "station_3", "train")
