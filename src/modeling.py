@@ -197,15 +197,13 @@ class TriangleModel(tf.keras.Model):
         self.UNIT_SIZE["input_cpp_cp"] = self.pho_units
         self.UNIT_SIZE["input_hop_hp"] = self.pho_units
 
-
-
     def build(self, input_shape=None):
         """Build entire model's weights and biases
         Manually control gradient decent in custom training loop
         """
 
         weight_initializer = tf.random_uniform_initializer(minval=-0.1, maxval=0.1)
-        bias_initializer = tf.constant_initializer(value=0.)
+        bias_initializer = tf.constant_initializer(value=0.0)
 
         # For SP (incl. PP, since PP is nested within SP)
         self.w_hsp_sh = self.add_weight(
@@ -387,20 +385,20 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (PS) #####
-            new_inputs['input_hps'] = tf.matmul(inputs[t], self.w_hps_ph) + self.bias_hps
+            new_inputs["input_hps"] = (
+                tf.matmul(inputs[t], self.w_hps_ph) + self.bias_hps
+            )
 
             ##### Semantic layer #####
-            new_inputs['input_hps_hs'] = tf.matmul(self.hps.read(t), self.w_hps_hs)
-            new_inputs['input_css_cs'] = tf.matmul(self.css.read(t), w_cs)
-            
-            new_inputs['input_sem'] = (
-                    new_inputs['input_hps_hs']
-                    + new_inputs['input_css_cs']
-                    + bias_s
-                )
+            new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
+            new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
+
+            new_inputs["input_sem"] = (
+                new_inputs["input_hps_hs"] + new_inputs["input_css_cs"] + bias_s
+            )
 
             ##### Semantic Cleanup layer #####
-            new_inputs['input_css'] = tf.matmul(self.sem.read(t), w_sc) + bias_css
+            new_inputs["input_css"] = tf.matmul(self.sem.read(t), w_sc) + bias_css
 
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
@@ -419,15 +417,14 @@ class TriangleModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
-            ### Semantic ###
+            ### Semantic layer###
             new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
             new_inputs["input_sem"] = new_inputs["input_css_cs"] + bias_s
 
             ##### Semantic Cleanup layer #####
-            new_inputs['input_css'] = tf.matmul(self.sem.read(t), w_sc) + bias_css
+            new_inputs["input_css"] = tf.matmul(self.sem.read(t), w_sc) + bias_css
 
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
@@ -458,23 +455,23 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (SP) #####
-            new_inputs['input_hsp'] = tf.matmul(inputs[t], self.w_hsp_sh) + self.bias_hsp
+            new_inputs["input_hsp"] = (
+                tf.matmul(inputs[t], self.w_hsp_sh) + self.bias_hsp
+            )
 
             ##### Phonology layer #####
-            new_inputs['input_hsp_hp'] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            new_inputs['input_cpp_cp'] = tf.matmul(self.cpp.read(t), w_cp)
-            
-            new_inputs['input_pho'] = (
-                    new_inputs['input_hsp_hp']
-                    + new_inputs['input_cpp_cp']
-                    + bias_p
-                )
+            new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
+
+            new_inputs["input_pho"] = (
+                new_inputs["input_hsp_hp"] + new_inputs["input_cpp_cp"] + bias_p
+            )
 
             ##### Phonology Cleanup layer #####
-            new_inputs['input_cpp'] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
+            new_inputs["input_cpp"] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
 
             # Process time averaged inputs
-            [self._tai(name, new_input, t) for name, new_input in new_inputs.items()] 
+            [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
 
             # Update activations
             [self._update_activations(t + 1, x) for x in ("hsp", "pho", "cpp")]
@@ -491,18 +488,17 @@ class TriangleModel(tf.keras.Model):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
             w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             # Phonological unit
-            new_inputs['input_cpp_cp'] = tf.matmul(self.cpp.read(t), w_cp)
-            new_inputs['input_pho'] = self.input_cpp_cp.read(t + 1) + bias_p
-            
+            new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
+            new_inputs["input_pho"] = new_inputs["input_cpp_cp"] + bias_p
+
             ##### Phonology Cleanup layer #####
-            new_inputs['input_cpp'] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
-            
+            new_inputs["input_cpp"] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
+
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
-            
+
             # Update activations
             if t < 8:
                 # Clamp activation to teaching signal
@@ -529,19 +525,19 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            new_inputs['input_hos'] = tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            new_inputs["input_hos"] = (
+                tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            )
 
             ##### Semantic layer #####
-            new_inputs['input_css_cs'] = tf.matmul(self.css.read(t), w_cs)
-            new_inputs['input_hos_hs'] = tf.matmul(self.hos.read(t), self.w_hos_hs)
-            new_inputs['input_sem'] = (
-                    new_inputs['input_css_cs']
-                    + new_inputs['input_hos_hs']
-                    + bias_s
-                )
+            new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
+            new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            new_inputs["input_sem"] = (
+                new_inputs["input_css_cs"] + new_inputs["input_hos_hs"] + bias_s
+            )
 
             ##### Semantic Cleanup layer #####
-            new_inputs['input_css'] = tf.matmul(self.sem.read(t), w_sc) + bias_css
+            new_inputs["input_css"] = tf.matmul(self.sem.read(t), w_sc) + bias_css
 
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
@@ -562,12 +558,14 @@ class TriangleModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
             ##### Hidden layer (OS) #####
-            new_inputs['input_hos'] = tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            new_inputs["input_hos"] = (
+                tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            )
 
             ##### Semantic layer #####
-            new_inputs['input_hos_hs'] = tf.matmul(self.hos.read(t), self.w_hos_hs)
-            new_inputs['input_sem'] = new_inputs['input_hos_hs'] + bias_s
-            
+            new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            new_inputs["input_sem"] = new_inputs["input_hos_hs"] + bias_s
+
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
 
@@ -589,21 +587,20 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OP) #####
-            new_inputs['input_hop'] = tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            new_inputs["input_hop"] = (
+                tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            )
 
             ##### Phonology layer #####
-            new_inputs['input_cpp_cp'] = tf.matmul(self.cpp.read(t), w_cp)
-            new_inputs['input_hop_hp'] = tf.matmul(self.hop.read(t), self.w_hop_hp)
-            
-            new_inputs['input_pho'] = (
-                    new_inputs['input_cpp_cp']
-                    + new_inputs['input_hop_hp']
-                    + bias_p
-                )
+            new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
+            new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
 
+            new_inputs["input_pho"] = (
+                new_inputs["input_cpp_cp"] + new_inputs["input_hop_hp"] + bias_p
+            )
 
             ##### Phonology Cleanup layer #####
-            new_inputs['input_cpp'] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
+            new_inputs["input_cpp"] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
 
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
@@ -626,10 +623,14 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            new_inputs["input_hos"] = tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            new_inputs["input_hos"] = (
+                tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            )
 
             ##### Hidden layer (OP) #####
-            new_inputs["input_hop"] = tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            new_inputs["input_hop"] = (
+                tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            )
 
             ##### Semantic layer #####
             new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
@@ -647,7 +648,7 @@ class TriangleModel(tf.keras.Model):
             new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
             new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
             new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
-            
+
             new_inputs["input_pho"] = (
                 new_inputs["input_hsp_hp"]
                 + new_inputs["input_cpp_cp"]
@@ -656,19 +657,23 @@ class TriangleModel(tf.keras.Model):
             )
 
             ##### Hidden layer (PS) #####
-            new_inputs["input_hps"] = tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps
+            new_inputs["input_hps"] = (
+                tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps
+            )
 
             ##### Hidden layer (SP) #####
-            new_inputs["input_hsp"] = tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp
+            new_inputs["input_hsp"] = (
+                tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp
+            )
 
             ##### Semantic Cleanup layer #####
             new_inputs["input_css"] = tf.matmul(self.sem.read(t), w_sc) + bias_css
-            
+
             ##### Phonology Cleanup layer #####
             new_inputs["input_cpp"] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
 
             # Process time averaged inputs
-            [self._tai(name, new_input, t) for name, new_input in new_inputs.items()] 
+            [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
 
             # Update activations
             [self._update_activations(t + 1, x) for x in self.ACTIVATION_ARRAY_NAMES]
@@ -688,47 +693,54 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            new_inputs['input_hos'] = tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            new_inputs["input_hos"] = (
+                tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            )
 
             ##### Hidden layer (OP) #####
-            new_inputs['input_hop'] = tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            new_inputs["input_hop"] = (
+                tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            )
 
             ##### Semantic layer #####
-            new_inputs['input_hps_hs'] = tf.matmul(self.hps.read(t), self.w_hps_hs)
-            new_inputs['input_css_cs'] = tf.matmul(self.css.read(t), w_cs)
-            new_inputs['input_hos_hs'] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
+            new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
+            new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
 
-            new_inputs['input_sem'] = (
-                    new_inputs['input_hps_hs']
-                    + new_inputs['input_css_cs']
-                    # + new_inputs['input_hos_hs'] [LESION]
-                    + bias_s
-                )
+            new_inputs["input_sem"] = (
+                new_inputs["input_hps_hs"]
+                + new_inputs["input_css_cs"]
+                # + new_inputs['input_hos_hs'] [LESION]
+                + bias_s
+            )
 
             ##### Phonology layer #####
-            new_inputs['input_hsp_hp'] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            new_inputs['input_cpp_cp'] = tf.matmul(self.cpp.read(t), w_cp)
-            new_inputs['input_hop_hp'] = tf.matmul(self.hop.read(t), self.w_hop_hp)
+            new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
+            new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
 
-            new_inputs['input_pho'] = (
-                    new_inputs['input_hsp_hp']
-                    + new_inputs['input_cpp_cp']
-                    + new_inputs['input_hop_hp']
-                    + bias_p
-                )
-
+            new_inputs["input_pho"] = (
+                new_inputs["input_hsp_hp"]
+                + new_inputs["input_cpp_cp"]
+                + new_inputs["input_hop_hp"]
+                + bias_p
+            )
 
             ##### Hidden layer (PS) #####
-            new_inputs['input_hps'] = tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps
+            new_inputs["input_hps"] = (
+                tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps
+            )
 
             ##### Hidden layer (SP) #####
-            new_inputs['input_hsp'] = tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp
+            new_inputs["input_hsp"] = (
+                tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp
+            )
 
             ##### Semantic Cleanup layer #####
-            new_inputs['input_css'] = tf.matmul(self.sem.read(t), w_sc) + bias_css
+            new_inputs["input_css"] = tf.matmul(self.sem.read(t), w_sc) + bias_css
 
             ##### Phonology Cleanup layer #####
-            new_inputs['input_cpp'] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
+            new_inputs["input_cpp"] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
 
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
@@ -753,46 +765,54 @@ class TriangleModel(tf.keras.Model):
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
-            new_inputs['input_hos'] = tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            new_inputs["input_hos"] = (
+                tf.matmul(inputs[t], self.w_hos_oh) + self.bias_hos
+            )
 
             ##### Hidden layer (OP) #####
-            new_inputs['input_hop'] = tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            new_inputs["input_hop"] = (
+                tf.matmul(inputs[t], self.w_hop_oh) + self.bias_hop
+            )
 
             ##### Semantic layer #####
-            new_inputs['input_hps_hs'] = tf.matmul(self.hps.read(t), self.w_hps_hs)
-            new_inputs['input_css_cs'] = tf.matmul(self.css.read(t), w_cs)
-            new_inputs['input_hos_hs'] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
+            new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
+            new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
 
-            new_inputs['input_sem'] = (
-                    new_inputs['input_hps_hs']
-                    + new_inputs['input_css_cs']
-                    + new_inputs['input_hos_hs']
-                    + bias_s
-                )
+            new_inputs["input_sem"] = (
+                new_inputs["input_hps_hs"]
+                + new_inputs["input_css_cs"]
+                + new_inputs["input_hos_hs"]
+                + bias_s
+            )
 
             ##### Phonology layer #####
-            new_inputs['input_hsp_hp'] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
-            new_inputs['input_cpp_cp'] = tf.matmul(self.cpp.read(t), w_cp)
-            new_inputs['input_hop_hp'] = tf.matmul(self.hop.read(t), self.w_hop_hp)
+            new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
+            new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
+            new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
 
-            new_inputs['input_pho'] = (
-                    new_inputs['input_hsp_hp']
-                    + new_inputs['input_cpp_cp']
-                    # + new_inputs['input_hop_hp'] [LESION]
-                    + bias_p
-                )
-                
+            new_inputs["input_pho"] = (
+                new_inputs["input_hsp_hp"]
+                + new_inputs["input_cpp_cp"]
+                # + new_inputs['input_hop_hp'] [LESION]
+                + bias_p
+            )
+
             ##### Hidden layer (PS) #####
-            new_inputs['input_hps'] = tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps
+            new_inputs["input_hps"] = (
+                tf.matmul(self.pho.read(t), self.w_hps_ph) + self.bias_hps
+            )
 
             ##### Hidden layer (SP) #####
-            new_inputs['input_hsp'] = tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp
+            new_inputs["input_hsp"] = (
+                tf.matmul(self.sem.read(t), self.w_hsp_sh) + self.bias_hsp
+            )
 
             ##### Semantic Cleanup layer #####
-            new_inputs['input_css'] = tf.matmul(self.sem.read(t), w_sc) + bias_css
+            new_inputs["input_css"] = tf.matmul(self.sem.read(t), w_sc) + bias_css
 
             ##### Phonology Cleanup layer #####
-            new_inputs['input_cpp'] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
+            new_inputs["input_cpp"] = tf.matmul(self.pho.read(t), w_pc) + bias_cpp
 
             # Process time averaged inputs
             [self._tai(name, new_input, t) for name, new_input in new_inputs.items()]
@@ -802,16 +822,15 @@ class TriangleModel(tf.keras.Model):
 
         return self._package_output(training=training)
 
-
-    def _tai(self, input_array_name:str, new_input:tf.Variable, t:int) -> None:
+    def _tai(self, input_array_name: str, new_input: tf.Variable, t: int) -> None:
         """Perform on step of time averaged input.
-            Formula: tai_input = tau * new_input + (1 - tau) * last_input
-            where new_input is at t+1 and last_input is at t. 
+        Formula: tai_input = tau * new_input + (1 - tau) * last_input
+        where new_input is at t+1 and last_input is at t.
         """
         input_array = getattr(self, input_array_name)
         last_input = input_array.read(t)
         tai_input = (1 - self.tau) * last_input + self.tau * new_input
-        setattr(self, input_array_name, input_array.write(t+1, tai_input))
+        setattr(self, input_array_name, input_array.write(t + 1, tai_input))
 
     def _inject_noise(self, x: tf.Tensor, noise_sd: float) -> tf.Tensor:
         """Inject Gaussian noise if noise_sd > 0"""
@@ -821,9 +840,11 @@ class TriangleModel(tf.keras.Model):
         else:
             return x
 
-    def _init_input_array(self, name: str, batch_size: int, init_value: float = 0.):
+    def _init_input_array(self, name: str, batch_size: int, init_value: float = 0.0):
         unit_size = self.UNIT_SIZE[name]
-        init_value = tf.constant(init_value, dtype=tf.float32, shape=(batch_size, unit_size))
+        init_value = tf.constant(
+            init_value, dtype=tf.float32, shape=(batch_size, unit_size)
+        )
         setattr(self, name, getattr(self, name).write(index=0, value=init_value))
 
     def _init_all_tensor_arrays(self, batch_size: int):
@@ -831,10 +852,12 @@ class TriangleModel(tf.keras.Model):
 
         # Recreate tensor array for safety
         for x in self.ALL_ARRAY_NAMES:
-            arr = tf.TensorArray(tf.float32, size=self.n_timesteps + 1, clear_after_read=False)
+            arr = tf.TensorArray(
+                tf.float32, size=self.n_timesteps + 1, clear_after_read=False
+            )
             setattr(self, x, arr)
 
-        # Set inputs 
+        # Set inputs
         [self._init_input_array(x, batch_size) for x in self.INPUT_ARRAY_NAMES]
 
         # Set activations to init value
