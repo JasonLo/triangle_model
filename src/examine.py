@@ -1,14 +1,14 @@
 """Examine the internal temporal dynamics of a model."""
 
 import meta, data_wrangling, modeling, evaluate
-import random, os
+import random
 import pandas as pd
 import numpy as np
 import altair as alt
 import helper as H
 import tensorflow as tf
 from matplotlib import pyplot as plt
-from typing import List
+from tqdm import tqdm
 
 
 def tick1_input(weight: np.array) -> float:
@@ -34,13 +34,28 @@ class TemporalDynamics:
     6. Subset to target word (optional)
     """
 
+    SEM_NAME_MAP = {
+        "input_hps_hs": "PS",
+        "input_css_cs": "CS",
+        "input_hos_hs": "OS",
+        "input_sem": "input",
+        "sem": "act",
+    }
+
+    PHO_NAME_MAP = {
+        "input_hsp_hp": "SP",
+        "input_cpp_cp": "CP",
+        "input_hop_hp": "OP",
+        "input_pho": "input",
+        "pho": "act",
+    }
 
     def __init__(self, cfg: meta.Config):
         self.cfg = cfg
 
         # These will be created when calling eval()
         self.testset_package = None
-        self.model = None
+        self.model = modeling.TriangleModel(self.cfg)
         self.y_pred = None
         self.testset = None
         self.df = None
@@ -55,9 +70,6 @@ class TemporalDynamics:
         self.testset_package = data_wrangling.load_testset(testset_name)
         # Manual batch_size override
         batch_size = len(self.testset_package["item"])
-        self.model = modeling.TriangleModel(
-            cfg=self.cfg, batch_size_override=batch_size
-        )
 
         # Restore model from checkpoint
         ckpt = tf.train.Checkpoint(model=self.model)
@@ -133,8 +145,8 @@ class TemporalDynamics:
     def set_target_word(self, word: str, verbose: bool = True) -> pd.DataFrame:
         self.target_word = word
         self.target_word_idx = self.testset_package["item"].index(self.target_word)
-        self.word_sem_df = self.make_output_diagnostic_df(word, "sem")
-        self.word_pho_df = self.make_output_diagnostic_df(word, "pho")
+        self.word_sem_df = self.make_output_diagnostic_df("sem", word)
+        self.word_pho_df = self.make_output_diagnostic_df("pho", word)
 
         if verbose:
             phoneme = self.testset_package["phoneme"][self.target_word_idx]
@@ -147,9 +159,10 @@ class TemporalDynamics:
     def make_bias_df(self, layer):
         pass
 
-    def make_output_diagnostic_df(self, layer: str, target_word: str = None) -> pd.DataFrame:
+    def make_output_diagnostic_df(
+        self, layer: str, target_word: str = None
+    ) -> pd.DataFrame:
         """Output all output layer's input and activation in a word"""
-
         assert layer in ("pho", "sem")
 
         if layer == "pho":
@@ -393,7 +406,7 @@ class Plots:
 
 def dual_plot(tf_diag, mn_weights, weight_name: str) -> plt.figure:
     """Plot both MN weight with TF weight
-    td_diag: troubleshoot.Diagnosis class
+    td_diag: examine.TemporalDynamic class
     mn_weights: mn_helper.mn_weights class
     weight_name: weight name in TF naming convention
     """
@@ -405,12 +418,12 @@ def dual_plot(tf_diag, mn_weights, weight_name: str) -> plt.figure:
     return fig
 
 
-
-
 class temporal_diagnostic:
-    """Examine the temporal dynamic of inputs similar to HS04 fig 12."""
+    """Examine the temporal dynamic of inputs similar to HS04 fig 12.
+    TODO: this is just an extension of TemporalDynamic class. Need to refactor.
+    """
 
-    def __init__(self, diagnosis: Diagnosis):
+    def __init__(self, diagnosis: TemporalDynamics):
         """Remember to do this first before init: d.eval('train_r100', task="triangle", epoch=1000)."""
         self.d = diagnosis
         self.words = self.d.testset_package["item"]
@@ -420,9 +433,9 @@ class temporal_diagnostic:
         """Get all detailed input diagnoistic in a word at target node == 1"""
         self.d.set_target_word(word, verbose=False)
         if output == "pho":
-            return self.d.word_pho_df.loc[d.word_pho_df.target_act == 1]
+            return self.d.word_pho_df.loc[self.d.word_pho_df.target_act == 1]
         elif output == "sem":
-            return self.d.word_sem_df.loc[d.word_sem_df.target_act == 1]
+            return self.d.word_sem_df.loc[self.d.word_sem_df.target_act == 1]
 
     def create_df(self):
         """Create a dataframe for plotting."""
@@ -455,6 +468,6 @@ class temporal_diagnostic:
             )
             .add_selection(selection)
             .properties(
-                title=f"{code_name}: Input temporal dynamic at the end of training among {testset_name}"
+                title=f"{self.d.cfg.code_name}: Input temporal dynamic at the end of training"
             )
         )
