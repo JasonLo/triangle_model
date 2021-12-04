@@ -198,9 +198,7 @@ class TriangleModel(tf.keras.Model):
         self.UNIT_SIZE["input_hop_hp"] = self.pho_units
 
     def build(self, input_shape=None):
-        """Build entire model's weights and biases
-        Manually control gradient decent in custom training loop
-        """
+        """Build entire model's weights and biases."""
 
         weight_initializer = tf.random_uniform_initializer(minval=-0.1, maxval=0.1)
         bias_initializer = tf.constant_initializer(value=0.0)
