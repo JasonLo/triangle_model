@@ -1,5 +1,4 @@
 import os
-from re import X
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,6 +56,13 @@ class Examine:
         else:
             raise ValueError(f"{name} is not connecting to SEM/PHO layer.")
         return output_layer
+
+    @property
+    def mean_bias(self) -> None:
+        """Get the mean bias of the model."""
+        bias_p = get_weights(self.model, "bias_p")
+        bias_s = get_weights(self.model, "bias_s")
+        return {"PHO": bias_p.mean(), "SEM": bias_s.mean()}
 
     def get_input_ticks(self, name: str, act: int, units: List[int] = None) -> np.array:
         """Get the mean of a variable over a time tick.
