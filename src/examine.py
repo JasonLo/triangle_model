@@ -16,12 +16,24 @@ def slice_last_dimension(x: tf.Tensor, idx: List[int]) -> tf.Tensor:
     """Slicing the last dimension of a tensor with a list of indices."""
     last_dim_start = idx[0]
     last_dim_size = len(idx)
-    return tf.slice(x, [0, 0, last_dim_start], [x.shape[0], x.shape[1], last_dim_size])
+
+    if tf.rank(x) == 3:  # Usually in full output [time, word, unit]
+        return tf.slice(
+            x, [0, 0, last_dim_start], [x.shape[0], x.shape[1], last_dim_size]
+        )
+    elif tf.rank(x) == 2:  # Usually in single tick output [word, unit]
+        return tf.slice(x, [0, last_dim_start], [x.shape[0], last_dim_size])
+    elif tf.rank(x) == 1:  # Usually in weights [unit]
+        return tf.slice(x, [last_dim_start], [last_dim_size])
+    else:
+        raise ValueError(
+            f"Unsupported rank {tf.rank(x)} tensor. Only works for rank 2 and 3."
+        )
 
 
 def get_weights(model: tf.keras.Model, name: str) -> tf.Tensor:
     """Get the weights of a layer from a TF model."""
-    return [w.numpy() for w in model.weights if w.name.endswith(f"{name}:0")][0]
+    return [w for w in model.weights if w.name.endswith(f"{name}:0")][0]
 
 
 class Examine:
@@ -57,12 +69,55 @@ class Examine:
             raise ValueError(f"{name} is not connecting to SEM/PHO layer.")
         return output_layer
 
+    def weigths_and_biases(self, output_layer, units: List[int] = None) -> dict:
+        """Get the mean weights and biases of a output layer."""
+        if output_layer == "pho":
+
+            op = get_weights(self.model, "w_hop_hp") * 0.5
+            cp = get_weights(self.model, "w_cp") * 0.5
+            sp = get_weights(self.model, "w_hsp_hp") * 0.5
+            bias_p = get_weights(self.model, "bias_p")
+
+            if units is not None:
+                op = slice_last_dimension(op, units)
+                cp = slice_last_dimension(cp, units)
+                sp = slice_last_dimension(sp, units)
+                bias_p = slice_last_dimension(bias_p, units)
+
+            return {
+                "op": op.numpy().mean(),
+                "cp": cp.numpy().mean(),
+                "sp": sp.numpy().mean(),
+                "bias_p": bias_p.numpy().mean(),
+            }
+
+        elif output_layer == "sem":
+            pass
+
     @property
     def mean_bias(self) -> None:
         """Get the mean bias of the model."""
         bias_p = get_weights(self.model, "bias_p")
         bias_s = get_weights(self.model, "bias_s")
-        return {"PHO": bias_p.mean(), "SEM": bias_s.mean()}
+        return {"PHO": bias_p.numpy().mean(), "SEM": bias_s.numpy().mean()}
+
+    @property
+    def mean_first_tick(self) -> None:
+        """Get the first tick value from weights."""
+        op = get_weights(self.model, "w_hop_hp") * 0.5
+        cp = get_weights(self.model, "w_cp") * 0.5
+        sp = get_weights(self.model, "w_hsp_hp") * 0.5
+        os = get_weights(self.model, "w_hos_hs") * 0.5
+        cs = get_weights(self.model, "w_cs") * 0.5
+        ps = get_weights(self.model, "w_hps_hs") * 0.5
+        return {
+            "OP": op.numpy().mean(),
+            "CP": cp.numpy().mean(),
+            "SP": sp.numpy().mean(),
+            "OS": os.numpy().mean(),
+            "CS": cs.numpy().mean(),
+            "PS": ps.numpy().mean(),
+        }
 
     def get_input_ticks(self, name: str, act: int, units: List[int] = None) -> np.array:
         """Get the mean of a variable over a time tick.
@@ -101,7 +156,7 @@ class Examine:
         pho_units=None,
         sem_units=None,
         save=False,
-        ylim=None,
+        ylim=(-20, 20),
     ):
         """Plot the input temporal dynamics in SEM and PHO by target activation."""
         self.restore_epoch(epoch)
