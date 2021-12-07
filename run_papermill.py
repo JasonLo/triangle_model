@@ -56,11 +56,16 @@ def run_one(cfg: dict, free_gpu_queue, which_gpu=None):
     free_gpu_queue.put(which_gpu)  # Release GPU
 
 
-def main(batch_json: str, resume_from: int = None, run_only: int = None, gpus: List[int] = None):
+def main(
+    batch_json: str,
+    resume_from: int = None,
+    run_only: int = None,
+    gpus: List[int] = None,
+):
     """Run a batch of models."""
     # Set available GPUs for models to run on
     if gpus is None:
-        gpus = [0, 0, 1, 1, 2, 2]
+        gpus = [1, 1, 2, 2, 3, 3]
 
     # Load the batch json
     with open(batch_json) as f:
