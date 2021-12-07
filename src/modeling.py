@@ -55,30 +55,7 @@ WEIGHTS_AND_BIASES["ort_pho"] = (
 # WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop", "bias_p")
 # WEIGHTS_AND_BIASES["ort_sem"] = ("w_hos_oh", "w_hos_hs", "bias_hos")
 # WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop")
-# WEIGHTS_AND_BIASES["triangle"] = (
-#     "w_hos_oh",
-#     "w_hos_hs",
-#     "bias_hos",
-#     "w_hop_oh",
-#     "w_hop_hp",
-#     "bias_hop",
-#     "w_pc",
-#     "w_cp",
-#     "bias_p",
-#     "bias_cpp",
-#     "w_sc",
-#     "w_cs",
-#     "bias_s",
-#     "bias_css",
-#     "w_hps_ph",
-#     "w_hps_hs",
-#     "bias_hps",
-#     "w_hsp_sh",
-#     "w_hsp_hp",
-#     "bias_hsp",
-# )
 
-# Freezing oral related weights
 WEIGHTS_AND_BIASES["triangle"] = (
     "w_hos_oh",
     "w_hos_hs",
@@ -86,9 +63,22 @@ WEIGHTS_AND_BIASES["triangle"] = (
     "w_hop_oh",
     "w_hop_hp",
     "bias_hop",
-    "bias_p",
-    "bias_s",
+    # "bias_p",
+    # "bias_s",
+    # "w_pc",
+    # "w_cp",
+    # "bias_cpp",
+    # "w_sc",
+    # "w_cs",
+    # "bias_css",
+    # "w_hps_ph",
+    # "w_hps_hs",
+    # "bias_hps",
+    # "w_hsp_sh",
+    # "w_hsp_hp",
+    # "bias_hsp",
 )
+
 
 IN_OUT = {}
 IN_OUT["triangle"] = ("ort", ["pho", "sem"])
@@ -128,7 +118,7 @@ CONNECTIONS["hsp"] = ("w_hsp_sh", "bias_hsp")
 
 class TriangleModel(tf.keras.Model):
     """Model object with full output in dictionary format.
-    
+
     To predict (doing a forward pass), do not use model.predict(x), Use model(x) to instead.
     """
 
@@ -152,7 +142,7 @@ class TriangleModel(tf.keras.Model):
     ACTIVATION_ARRAY_NAMES = ("hos", "hop", "hps", "hsp", "css", "cpp", "sem", "pho")
 
     ALL_ARRAY_NAMES = INPUT_ARRAY_NAMES + ACTIVATION_ARRAY_NAMES
-    
+
     def __init__(self, cfg, name="triangle", **kwargs):
         super().__init__(**kwargs)
 
