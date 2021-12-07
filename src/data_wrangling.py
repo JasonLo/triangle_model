@@ -4,16 +4,45 @@ import pickle, gzip, os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import helper as H
+from dotenv import load_dotenv
+
+load_dotenv()
+tf_root = os.environ.get("TF_ROOT")
 
 
-def gen_pkey(p_file="dataset/mappingv2.txt"):
-    """Read phonological patterns from the mapping file
+def gen_pkey(key_file=None) -> dict:
+    """Read phonological patterns from the mapping file.
     See Harm & Seidenberg PDF file
     """
-    mapping = pd.read_table(p_file, header=None, delim_whitespace=True)
-    m_dict = mapping.set_index(0).T.to_dict("list")
-    return m_dict
+    if key_file is None:
+        mapping = os.path.join(tf_root, "dataset", "mappingv2.txt")
+
+    mapping = pd.read_table(mapping, header=None, delim_whitespace=True)
+    mapping_dict = mapping.set_index(0).T.to_dict("list")
+    return mapping_dict
+
+
+def get_pronunciation_fast(act: np.array, phon_key: dict = None) -> str:
+    if phon_key is None:
+        phon_key = gen_pkey()
+    phonemes = list(phon_key.keys())
+    act10 = np.tile([v for k, v in phon_key.items()], 10)
+
+    d = np.abs(act10 - act)
+    d_mat = np.reshape(d, (38, 10, 25))
+    sumd_mat = np.squeeze(np.sum(d_mat, 2))
+    map_idx = np.argmin(sumd_mat, 0)
+    out = str()
+    for x in map_idx:
+        out += phonemes[x]
+    return out
+
+
+def get_batch_pronunciations_fast(act: np.array, phon_key: dict = None) -> np.array:
+    """Get a batch of pronunciations from activations."""
+    if phon_key is None:
+        phon_key = gen_pkey()
+    return np.apply_along_axis(get_pronunciation_fast, 1, act, phon_key)
 
 
 class MyData:
@@ -97,7 +126,7 @@ class MyData:
             "ort": tf.constant(self.np_representations["ort"][idx], dtype=tf.float32),
             "pho": tf.constant(self.np_representations["pho"][idx], dtype=tf.float32),
             "sem": tf.constant(self.np_representations["sem"][idx], dtype=tf.float32),
-            "phoneme": H.get_batch_pronunciations_fast(
+            "phoneme": get_batch_pronunciations_fast(
                 self.np_representations["pho"][idx]
             ),
         }

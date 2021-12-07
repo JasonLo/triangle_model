@@ -6,8 +6,7 @@ from meta import Config
 import os
 import tensorflow as tf
 import metrics, modeling, gcp
-from data_wrangling import load_testset
-from helper import get_batch_pronunciations_fast
+from data_wrangling import load_testset, get_batch_pronunciations_fast
 import pandas as pd
 
 

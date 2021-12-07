@@ -5,6 +5,8 @@ Mainly used by the benchmarks.py.
 
 import altair as alt
 import pandas as pd
+from PIL import Image
+from typing import List
 
 
 def plot_metric_over_epoch(
@@ -123,3 +125,35 @@ def plot_triangle(mean_df: pd.DataFrame, metric="acc", save: str = None) -> alt.
     if save:
         p.save(save)
     return p
+
+
+def stitch_fig(images: List[str], rows: int, columns: int) -> Image:
+    """Stitch images in a grid."""
+    assert len(images) <= (rows * columns)
+
+    images = [Image.open(x) for x in images]
+
+    # All images dimensions
+    widths, heights = zip(*(im.size for im in images))
+
+    # Max dims
+    max_width = max(widths)
+    max_height = max(heights)
+
+    # Stitching
+    stitched_image = Image.new("RGB", (max_width * columns, max_height * rows))
+
+    x_offset = 0
+    y_offset = 0
+
+    for i, im in enumerate(images):
+        stitched_image.paste(im, (x_offset, y_offset))
+        if (i + 1) % columns == 0:
+            # New row every {columns} images
+            y_offset += max_height
+            x_offset = 0
+        else:
+            # New column
+            x_offset += max_width
+
+    return stitched_image

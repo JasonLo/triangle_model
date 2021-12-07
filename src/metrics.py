@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.python.keras.metrics import MeanMetricWrapper
-from helper import get_batch_pronunciations_fast
+from data_wrangling import get_batch_pronunciations_fast
 import pandas as pd
 import numpy as np
 import os
