@@ -1,15 +1,15 @@
-from typing import List, Union
+from typing import List, Union, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 import modeling
 from dataclasses import dataclass
-import functools
+
 
 @dataclass
 class EnvironmentConfig:
     """EnvironmentConfig Class constains all the experience related information"""
 
-    # TODO: Add better support multiple stages and non-stationary support
+    # TODO: Add better support multiple stages environment and non-stationary support
 
     task_names: tuple = None
     wf_compression: str = None
@@ -57,10 +57,10 @@ class Task:
         )
 
         if progress_start is None:
-            self.progress_start = 100 # Full open if not specified
-        
+            self.progress_start = 100  # Full open if not specified
+
         if progress_slope is None:
-            self.progress_slope = 0 # Stationary if not specified
+            self.progress_slope = 0  # Stationary if not specified
 
     def get_progress(self, sample: float) -> float:
         """Return the progress of a given sample in percentage"""
@@ -72,8 +72,7 @@ class Task:
 
 
 class Stage:
-    """Stage contains multiple tasks and the probability of choosing a task.
-    """
+    """Stage contains multiple tasks and the probability of choosing a task."""
 
     def __init__(
         self,
@@ -257,7 +256,7 @@ class Experience:
                 ax.set_ylabel("Probability")
                 ax.set_ylim([0, 1])
 
-    def get_stage(self, sample: int) -> [Stage, int]:
+    def get_stage(self, sample: int) -> Tuple[Stage, int]:
         """Get the current stage and sample_at_stage by no. sample ingested
         Stage: Stage object
         sample_at_stage: the no. of sample counted from the start of a stage
@@ -273,7 +272,7 @@ class Experience:
                 cumulative_sample += stage.stage_sample
                 sample_at_stage = sample - cumulative_sample
 
-   
+
 class Sampler:
     """v3 Sampler for modularized environment
     Features: Fully modularized environment staging
@@ -298,7 +297,6 @@ class Sampler:
 
         # Basic convenient variables
         self._calculate_aux_variables()
-
 
     def _calculate_aux_variables(self):
 
