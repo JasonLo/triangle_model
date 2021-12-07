@@ -113,7 +113,8 @@ IN_OUT["exp_os_ff"] = ("ort", "sem")
 # LAYERS contains all layers' name in the model
 LAYERS = ("pho", "sem", "hos", "hop", "css", "cpp", "hps", "hsp")
 
-# CONNECTIONS descript what is the immediate connection of a given layer
+# CONNECTIONS describe what is the immediate connection of a given layer (Not used in model, only for reference.)
+# TODO: Modularize the layers and use this dictionary to build the model.
 CONNECTIONS = {}
 CONNECTIONS["hos"] = ("w_hos_oh", "bias_hos")
 CONNECTIONS["hop"] = ("w_hop_oh", "bias_hop")
@@ -126,10 +127,10 @@ CONNECTIONS["hsp"] = ("w_hsp_sh", "bias_hsp")
 
 
 class TriangleModel(tf.keras.Model):
-    """Model object with full output in dictionary format"""
-
-    # Do not use model.predict(x)
-    # Use model(x) to predict instead
+    """Model object with full output in dictionary format.
+    
+    To predict (doing a forward pass), do not use model.predict(x), Use model(x) to instead.
+    """
 
     INPUT_ARRAY_NAMES = (
         "input_hos",  # time-averaged input
@@ -151,14 +152,14 @@ class TriangleModel(tf.keras.Model):
     ACTIVATION_ARRAY_NAMES = ("hos", "hop", "hps", "hsp", "css", "cpp", "sem", "pho")
 
     ALL_ARRAY_NAMES = INPUT_ARRAY_NAMES + ACTIVATION_ARRAY_NAMES
-
+    
     def __init__(self, cfg, name="triangle", **kwargs):
         super().__init__(**kwargs)
 
         for key, value in cfg.__dict__.items():
-            setattr(self, key, value)
+            setattr(self, key, value)  # copy all config values to model
 
-        # Inferred variable need to pass manually
+        # Inferred variable (@property) need to pass manually
         self.n_timesteps = cfg.n_timesteps
         self.output_ticks = cfg.output_ticks
         self.activation = tf.keras.activations.get(self.activation)
@@ -166,7 +167,7 @@ class TriangleModel(tf.keras.Model):
         # self.active_task = "triangle" # Do not set default task here,
         # will trigger inf. recursion for some unknown reason
 
-        # Explicitly create tasks dictionary for safety
+        # Explicitly create tasks dictionary for clarity
         self.tasks = {
             "pho_sem": self.task_pho_sem,
             "sem_pho": self.task_sem_pho,
@@ -353,8 +354,8 @@ class TriangleModel(tf.keras.Model):
 
         self.built = True
 
-    def set_active_task(self, task):
-        """Method for switching task"""
+    def set_active_task(self, task: str):
+        """Method for switching task."""
         self.active_task = task
 
     def call(self, inputs, training=None) -> dict:
