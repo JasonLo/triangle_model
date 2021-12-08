@@ -18,7 +18,7 @@ def basic_train_step(task: str):
     @tf.function()
     def train_step(x, y, model, task, loss_fn, optimizer, metrics, losses):
         """Defines a step of training for triangle model.
-        Args:
+        Arguments:
             x: Input data.
             y: Target/Label data.
             model: Model to train.
@@ -59,7 +59,7 @@ def triangle_train_step():
     @tf.function()
     def train_step(x, y, model, task, loss_fn, optimizer, metrics, losses):
         """Defines a step of training for triangle model.
-        Args:
+        Arguments:
             x: Input data.
             y: Target/Label data.
             model: Model to train.

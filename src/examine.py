@@ -121,7 +121,8 @@ class Examine:
 
     def get_input_ticks(self, name: str, act: int, units: List[int] = None) -> np.array:
         """Get the mean of a variable over a time tick.
-        Args:
+
+        Arguments:
             name (str): The name of the variable.
             act (int): The target activation mask, 1/0.
             units (list): Index of subset units.

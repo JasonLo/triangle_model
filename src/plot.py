@@ -13,7 +13,7 @@ def plot_metric_over_epoch(
     mean_df: pd.DataFrame, output: str = None, metric: str = "acc", save: str = None
 ) -> alt.Chart:
     """Plot selected metric over epoch with timetick selection.
-    Args:
+    Arguments:
         mean_df: Dataframe with mean values of the metric over items
         output: Subset the plot by given output
             Only useful for multiple output task (triangle)

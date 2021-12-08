@@ -34,6 +34,7 @@ class ModelConfig:
         inject_error_ticks -- number of ticks to inject error, start from last ticks
         pretrain_checkpoint -- path to pretrain checkpoint, will load weights into the model before training
         optimizer -- optimizer name
+        batch_size -- batch size
         learning_rate -- learning rate for optimizer
         zero_error_radius -- whether to use zero error radius or not and if so, what radius to use (e.g., None or 0.1)
         loss_ramping -- whether to use loss ramping or not. If True, loss at time tick t will be scaled by: t / n_timesteps
@@ -61,6 +62,7 @@ class ModelConfig:
     # Training related
     pretrain_checkpoint: str = None
     optimizer: str = "adam"
+    batch_size: int = 100
     learning_rate: float = 0.005
     zero_error_radius: float = None
     loss_ramping: bool = True
@@ -350,33 +352,6 @@ def batch_json_to_df(json_file: str) -> pd.DataFrame:
     return df
 
 
-# Broken
-# def parse_batch_results(cfgs):
-#     """
-#     Parse and Concat all condition level results from item level csvs
-#     And merge with cfg data (run level meta data) from cfgs
-#     cfgs: batch cfgs in dictionary format (The one we saved to disk, for running papermill)
-#     """
-
-#     evals_df = pd.DataFrame()
-#     cfgs_df = pd.DataFrame()
-
-#     for i in tqdm(range(len(cfgs))):
-
-#         # Extra cfg (with UUID) from actual saved cfg json
-#         this_ModelConfig = ModelConfig(cfgs[i]["model_folder"] + "model_config.json")
-#         cfgs_df = pd.concat(
-#             [cfgs_df, pd.DataFrame(this_ModelConfig.to_dict(), index=[i])]
-#         )
-
-#         # Evaluate results
-#         this_eval = vis(cfgs[i]["model_folder"])
-#         this_eval.parse_cond_df()
-#         evals_df = pd.concat([evals_df, this_eval.cdf], ignore_index=True)
-
-#     return cfgs_df, pd.merge(evals_df, cfgs_df, "left", "code_name")
-
-
 # GPU related
 
 
@@ -409,8 +384,8 @@ def split_gpu(which_gpu: int, n_splits: int = 2):
 
     except Exception:
         # Invalid device or cannot modify virtual devices once initialized.
-        raise Exception
         print("Virtual GPU cannot be created")
+        raise Exception
 
 
 def limit_gpu_memory_use(limit_MB=7168):

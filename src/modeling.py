@@ -1,6 +1,5 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
-import logging
 
 # Create dictionary for trainable weight & biases related to each task (only affect weight update step)
 ## Important: Due to model complexity, it seems that "trainable" flag cannot be use to turn on/off training using Keras training API
@@ -144,20 +143,22 @@ class TriangleModel(tf.keras.Model):
     ALL_ARRAY_NAMES = INPUT_ARRAY_NAMES + ACTIVATION_ARRAY_NAMES
 
     def __init__(self, cfg, name="triangle", **kwargs):
+        """Initialize the model.
+        IMPORTANT: Do not set active task while initializing the model. It will trigger a inf. recursion.
+        """
         super().__init__(**kwargs)
+        self.cfg = cfg  # Store the entire config object
 
+        # Unpack config to model level variables
         for key, value in cfg.__dict__.items():
             setattr(self, key, value)  # copy all config values to model
 
-        # Inferred variable (@property) need to pass manually
+        # Inferred variable (@property) needed to unpack manually
         self.n_timesteps = cfg.n_timesteps
         self.output_ticks = cfg.output_ticks
         self.activation = tf.keras.activations.get(self.activation)
 
-        # self.active_task = "triangle" # Do not set default task here,
-        # will trigger inf. recursion for some unknown reason
-
-        # Explicitly create tasks dictionary for clarity
+        # For clarity, explicitly create mapping between "task name (for user)" and "class method"
         self.tasks = {
             "pho_sem": self.task_pho_sem,
             "sem_pho": self.task_sem_pho,
@@ -171,22 +172,25 @@ class TriangleModel(tf.keras.Model):
             "exp_os_ff": self.task_ort_sem_ff,
         }
 
-        # Create UNIT_SIZE for initializing input array
-        self.UNIT_SIZE = {}
-        self.UNIT_SIZE["input_hos"] = self.hidden_os_units
-        self.UNIT_SIZE["input_hop"] = self.hidden_op_units
-        self.UNIT_SIZE["input_sem"] = self.sem_units
-        self.UNIT_SIZE["input_pho"] = self.pho_units
-        self.UNIT_SIZE["input_hps"] = self.hidden_ps_units
-        self.UNIT_SIZE["input_hsp"] = self.hidden_sp_units
-        self.UNIT_SIZE["input_css"] = self.sem_cleanup_units
-        self.UNIT_SIZE["input_cpp"] = self.pho_cleanup_units
-        self.UNIT_SIZE["input_hps_hs"] = self.sem_units
-        self.UNIT_SIZE["input_css_cs"] = self.sem_units
-        self.UNIT_SIZE["input_hos_hs"] = self.sem_units
-        self.UNIT_SIZE["input_hsp_hp"] = self.pho_units
-        self.UNIT_SIZE["input_cpp_cp"] = self.pho_units
-        self.UNIT_SIZE["input_hop_hp"] = self.pho_units
+    @property
+    def UNIT_SIZE(self) -> dict:
+        """Get the unit size for each layer for initializing input array."""
+        return {
+            "input_hos": self.hidden_os_units,
+            "input_hop": self.hidden_op_units,
+            "input_sem": self.sem_units,
+            "input_pho": self.pho_units,
+            "input_hps": self.hidden_ps_units,
+            "input_hsp": self.hidden_sp_units,
+            "input_css": self.sem_cleanup_units,
+            "input_cpp": self.pho_cleanup_units,
+            "input_hps_hs": self.sem_units,
+            "input_css_cs": self.sem_units,
+            "input_hos_hs": self.sem_units,
+            "input_hsp_hp": self.pho_units,
+            "input_cpp_cp": self.pho_units,
+            "input_hop_hp": self.pho_units,
+        }
 
     def build(self, input_shape=None):
         """Build entire model's weights and biases."""
@@ -351,7 +355,7 @@ class TriangleModel(tf.keras.Model):
     def call(self, inputs, training=None) -> dict:
         """Call active task when running model().
 
-        Args:
+        Arguments:
             inputs: model input
             input dimension: [timestep (input should be identical across timestep), item_in_batch, input_unit]
 
