@@ -9,6 +9,66 @@ from dotenv import load_dotenv
 load_dotenv()
 tf_root = os.environ.get("TF_ROOT")
 
+# Preprocessing
+
+
+def get_duplicates(df: pd.DataFrame) -> dict:
+    """Analyze duplicates word entries in a dataframe."""
+    duplicates = df.groupby(["word", "ort", "pho"]).size().reset_index(name="counts")
+    duplicates = duplicates[duplicates.counts > 1]
+    return dict(zip(duplicates.word, duplicates.counts))
+
+
+def get_index_of_one(l: list) -> list:
+    """Return the index of 1 values in a list.
+    For compressing a dense representation into a sparse one.
+
+    Arguments:
+    l: List of values. (Assume 2d list)
+    """
+    return [i for i, x in enumerate(l) if x == 1]
+
+
+def get_used_slots(rep: list) -> set:
+    """Get the index of non empty slots in a list of representation.
+
+    Arguments:
+        rep: List of representation.
+    """
+    return {i for i, x in enumerate(rep) if x != "_"}
+
+
+def remove_slots(rep: list, remove_slots: list) -> list:
+    """Removing a slot from a list of representation.
+
+    Arguments:
+        rep: List of representation.
+        slot: Slot to remove.
+    """
+    l = [len(x) for x in rep]
+    assert len(set(l)) == 1  # Check that all the representation have the same length
+
+    slots = range(len(rep[0]))
+    return ["".join(x[s] for s in slots if s not in remove_slots) for x in rep]
+
+
+def trim_unused_slots(rep: list) -> list:
+    """Trimming unused slot in a list of representation.
+
+    Arguments:
+        rep: List of representation.
+    """
+    slots = range(len(rep[0]))
+    print(f"We have these slots: {list(slots)}")
+
+    slot_unique_set = {slot: set([x[slot] for x in rep]) for slot in slots}
+    unused_slots = set(
+        [slot for slot, slot_set in slot_unique_set.items() if len(slot_set) == 1]
+    )
+    print(f"Removing unused slots: {list(unused_slots)}")
+
+    return remove_slots(rep, unused_slots)
+
 
 def gen_pkey(key_file=None) -> dict:
     """Read phonological patterns from the mapping file.
