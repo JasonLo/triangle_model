@@ -4,36 +4,40 @@ bptt_apply_deltas(net) // I think this is the function that updates the weights
     Net *net;
 {
     Real *w, *g, e;   // w = weight, g = gradient, e = epsilon/learning rate
-    unsigned char *f; // f = frozen
+    unsigned char *f; // f = frozen (I guess)
     Connections *c;
     int nc, i, j, x, nto, nfrom;
 
     nc = net->numConnections;
     for (x = 0; x < nc; x++) // Loop through every connections
     {
-        c = net->connections[x];
-        if (c->locked)
-            continue;
-        nto = c->to->numUnits;
-        e = c->epsilon;
-        for (i = 0; i < nto; i++)
+        c = net->connections[x]; // c = current connection
+        if (c->locked)  // do nothing if connection is locked 
+            continue;   // and go to next connection
+            \\
+        nto = c->to->numUnits;  // nto = number of units in the to layer
+        e = c->epsilon; // e = epsilon/learning rate
+
+        // Connections from --> to, therefore we have nto * nfrom weights, indexed by i and j (w_ij)
+
+        for (i = 0; i < nto; i++)  // Loop through every weights in the connection (to side loop)
         {
-            w = c->weights[i];
-            g = c->gradients[i];
-            f = c->frozen[i];
-            nfrom = c->numIncoming[i];
-            for (j = 0; j < nfrom; j++)
+            w = c->weights[i];  // w = current weight
+            g = c->gradients[i];  // g = current gradient  <<<<<<<<<<<<<<<<<<<<<< Gradient can be obtained from bptt_compute_gradients(), see below
+            f = c->frozen[i];  // f = current frozen mask  
+            nfrom = c->numIncoming[i];  // nfrom = number of incoming connections
+            for (j = 0; j < nfrom; j++)  // Loop through every weights in the connection (from side loop)
             {
                 if (*f++ == 0) // If not frozen
                 {
                     *w -= *g * e; // Update weight
                 }
-                *g++ = 0;
-                w++;
+                *g++ = 0;  // Reset gradient
+                w++;  // Move to next weight
             }
         }
     }
-    return 0;
+    return 0;  // Return 0 if successfully applied deltas to weights
 }
 
 // 2. Getting the gradient
@@ -42,21 +46,21 @@ int bptt_compute_gradients(Net *net, Example *ex)
 {
     int ng, nt, nc, t, i, g, nu, c, rc; // ng: number of groups, nt: number of time steps, nc: number of connections,
     // t: time step, i: unit index, g: group index, nu: number of units in group, c: connection index, rc: return code
-    Group *gto;
-    Connections *connection;
+    Group *gto; 
+    Connections *connection; 
 
     ng = net->numGroups;
     nt = net->runfor;
     nc = net->numConnections;
 
     /* zero squiggles */
-    for (t = 0; t < nt; t++)
-        for (g = 0; g < ng; g++)
+    for (t = 0; t < nt; t++)  // Loop through every time step
+        for (g = 0; g < ng; g++) // Loop through every group (layer)
         {
 
-            gto = net->groups[g];
-            nu = gto->numUnits;
-            for (i = 0; i < nu; i++)
+            gto = net->groups[g];  // group to
+            nu = gto->numUnits;  // number of units in group to
+            for (i = 0; i < nu; i++) // Loop through every unit in the to layer
             {
                 gto->dedx[t][i] = 0.0; // initialize dedx to zero
             }
@@ -64,15 +68,16 @@ int bptt_compute_gradients(Net *net, Example *ex)
 
     for (t = nt - 1; t >= 0; t--) // BPTT
     {
-        rc = (*net->preComputeGradientsMethod)(net, ex, t);
-        if (rc == 0)
-            continue;
+        rc = (*net->preComputeGradientsMethod)(net, ex, t); // assume preCom\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\puteGradientsMethod doing nothing significant, and returned completed successfully code... 
+        if (rc == 0)  // If preComputeGradientsMethod completed successfully
+            continue;  // go to next time step if return code is 0... 
 
         /* First we compute the dE/dY (e(k) from Williams
 	 and Peng) */
-        for (g = 0; g < ng; g++)
+        for (g = 0; g < ng; g++) // Loop every layer
         {
             gto = net->groups[g];
+
             rc = (*gto->preTargetSetMethod)(gto, ex, t);
             if (rc)
                 apply_example_targets(ex, gto, t);
