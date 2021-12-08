@@ -95,7 +95,7 @@ class Config:
         # Create folders
         all_folders = [
             self.model_folder,
-            self.weight_folder,
+            # self.weight_folder,  # deprecated
             self.eval_folder,
             self.plot_folder,
             self.tensorboard_folder,
