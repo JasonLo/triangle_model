@@ -53,7 +53,7 @@ class MyData:
 
     def __init__(self, input_path="dataset"):
 
-        self.input_path = input_path
+        self.input_path = os.path.join(tf_root, input_path)
 
         # init an empty testset dict for new testset format
         # first level: testset name
@@ -98,7 +98,7 @@ class MyData:
         with open(os.path.join(self.input_path, "pho_glushko.pkl"), "rb") as f:
             self.pho_glushko = pickle.load(f)
 
-        self.phon_key = gen_pkey(p_file=os.path.join(input_path, "mappingv2.txt"))
+        self.phon_key = gen_pkey()
 
     def word_to_idx(self, word, cond=None, skip_duplicates=True):
         # TODO: Handle duplicate later
