@@ -4,7 +4,9 @@ import pickle, gzip, os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 tf_root = os.environ.get("TF_ROOT")
@@ -24,7 +26,7 @@ def get_index_of_one(l: list) -> list:
     For compressing a dense representation into a sparse one.
 
     Arguments:
-    l: List of values. (Assume 2d list)
+    l: List of values. (Assume 1d list)
     """
     return [i for i, x in enumerate(l) if x == 1]
 
@@ -70,7 +72,33 @@ def trim_unused_slots(rep: list) -> list:
     return remove_slots(rep, unused_slots)
 
 
-def gen_pkey(key_file=None) -> dict:
+def one_hot_ort_slot(slot_data: List[str]) -> np.array:
+    """One-hot encode orthographic representation of one orthographic slot."""
+
+    t = Tokenizer(filters="", lower=False)
+    t.fit_on_texts(slot_data)
+    bin_data = t.texts_to_matrix(slot_data)
+    print(f"Token count: {t.word_docs}")
+    return bin_data[:, 1:]  # remove first column (padding)
+
+
+def ort_to_binary(ort: List[str]) -> np.array:
+    """Convert orthographic representation to binary.
+
+    Replicating Jason Zevin's support.py (o_char), It one-hot encode each letter with independent dictionary in each slot.
+    Finally, trimming the unused units.
+    """
+    n_slots = len(ort[0])
+
+    bin_slot_data = []
+    for slot in range(n_slots):
+        this_slot_bin_data = one_hot_ort_slot([x[slot] for x in ort])
+        bin_slot_data.append(this_slot_bin_data)
+
+    return np.concatenate(bin_slot_data, axis=1)
+
+
+def gen_pkey(key_file: str = None) -> dict:
     """Read phonological patterns from the mapping file.
     See Harm & Seidenberg PDF file
     """
@@ -80,6 +108,22 @@ def gen_pkey(key_file=None) -> dict:
     mapping = pd.read_table(mapping, header=None, delim_whitespace=True)
     mapping_dict = mapping.set_index(0).T.to_dict("list")
     return mapping_dict
+
+
+def pho_to_binary(pho: List[str]) -> np.array:
+    """Convert phonological representation to binary."""
+    p_key = gen_pkey()
+    bin_length = len(p_key["_"])
+    n_slots = len(pho[0])
+
+    # Preallocate the entire ouput
+    binary_pho = np.empty([len(pho), bin_length * n_slots])
+
+    for slot in range(n_slots):
+        slot_data = pho.str.slice(start=slot, stop=slot + 1)
+        out = slot_data.map(p_key).to_list()
+        binary_pho[:, range(slot * 25, (slot + 1) * 25)] = out
+    return binary_pho
 
 
 def get_pronunciation_fast(act: np.array, phon_key: dict = None) -> str:
