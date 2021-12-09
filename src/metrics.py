@@ -43,7 +43,8 @@ class CustomBCE(tf.keras.losses.Loss):
     def zer_replace(target, output, zero_error_radius):
         """Replace output by target if value within zero-error-radius"""
         within_zer = tf.math.less_equal(
-            tf.math.abs(output - target), tf.constant(zero_error_radius)
+            tf.math.abs(output - target),
+            tf.constant(zero_error_radius, dtype=tf.float32),
         )
         return tf.where(within_zer, target, output)
 
@@ -217,7 +218,10 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         Input shape expectation: (250 pho dims) i.e., one item
         Output dim: (10 slots)
         """
-        act_2d = tf.reshape(tf.cast(act, tf.float32), shape=(10, 25))
+        n_units = tf.shape(act)[0]
+        n_slots = n_units / 25
+
+        act_2d = tf.reshape(tf.cast(act, tf.float32), shape=(n_slots, 25))
         return tf.vectorized_map(self.get_pho_idx_slot, act_2d)
 
     def get_pho_idx_batch(self, act):

@@ -1,7 +1,6 @@
 import os
 import tensorflow as tf
 from tqdm import tqdm
-from data_wrangling import MyData
 from environment import Sampler
 from modeling import WEIGHTS_AND_BIASES, IN_OUT, TriangleModel
 from metrics import (
@@ -108,10 +107,10 @@ class Trainer:
     Since each sub-task has its own states, it must be trained with separate optimizer.
     """
 
-    def __init__(self, cfg, experience):
+    def __init__(self, cfg, data, experience):
         self.cfg = cfg
         self.experience = experience
-        self.data = MyData()
+        self.data = data
         self.model = TriangleModel(cfg)
         self.model.build()
         self.sampler = Sampler(self.cfg, self.data, self.experience)

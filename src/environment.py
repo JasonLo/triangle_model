@@ -1,5 +1,7 @@
 from typing import List, Tuple
 import numpy as np
+import pandas as pd
+import tensorflow as tf
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from modeling import IN_OUT
@@ -256,7 +258,9 @@ class Sampler:
         if self.wf_clip_high is None:
             self.wf_clip_high = 999999999
 
-        clip_wf = self.data["wf"].clip(self.wf_clip_low, self.wf_clip_high).copy()
+        wf = pd.Series(self.data["wf"])
+
+        clip_wf = wf.clip(self.wf_clip_low, self.wf_clip_high).copy()
         self.rank_pct_wf = clip_wf.rank(pct=True, ascending=False)
         self.rank_pct_wf_dict = dict(zip(self.data["item"], self.rank_pct_wf))
 
@@ -293,16 +297,19 @@ class Sampler:
                 self.batch_size,
                 p=self.get_sampling_p(task, stage_sample),
             )
-            words = self.data["item"][idx]
+
+            words = [self.data["item"][i] for i in idx]
 
             x, y = IN_OUT[task.name]
-            batch_x = [self.data[x][idx]] * x_ticks
+            batch_x = [tf.gather(self.data[x], idx, axis=0)] * x_ticks
 
             # Check if multiple output or not
             if type(y) is list:
-                batch_y = {yi: [self.data[yi][idx]] * y_ticks for yi in y}
+                batch_y = {
+                    yi: [tf.gather(self.data[yi], idx, axis=0)] * y_ticks for yi in y
+                }
             else:
-                batch_y = [self.data[y][idx]] * y_ticks
+                batch_y = [tf.gather(self.data[y], idx, axis=0)] * y_ticks
 
             self.current_sample += self.batch_size
             yield task.name, idx, words, batch_x, batch_y
