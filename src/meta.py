@@ -213,15 +213,18 @@ class Config:
         """Saved epoch.
         Save is more frequent in earlier epoch
         """
-        a = list(range(1, 11))
-        b = list(range(12, 31, 2))
-        c = list(range(35, 51, 5))
+        a = list(range(1, 11))  # Every epoch in the first 10 epochs
+        b = list(range(12, 31, 2))  # Every 2 epochs in the next 20 epochs
+        c = list(range(35, 51, 5))  # Every 5 epochs in the next 10 epochs
         d = [
             i
             for i in range(1, self.total_number_of_epoch + 1)
             if (i % self.save_freq == 0)
         ]
-        return sorted(list(set(a + b + c + d)))
+
+        return sorted(
+            [x for x in set(a + b + c + d) if x <= self.total_number_of_epoch]
+        )
 
     @property
     def papermill_cfg(self) -> dict:
