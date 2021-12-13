@@ -371,7 +371,6 @@ def split_gpu(which_gpu: int, n_splits: int = 2):
     Some of the models does't require the whole GPU to run, so we can split it into multiple logical GPUs and parallelize on it.
     IMPORTANT: Do not import tensorflow before this function.
     """
-    import tensorflow as tf
 
     gpus = tf.config.list_physical_devices("GPU")
     memory_size = int(10000 / n_splits)  # Titan X on Uconn server
