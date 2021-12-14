@@ -22,3 +22,4 @@ package.json
 .env
 tmp/
 triangle.code-workspace
+*.egg-info
