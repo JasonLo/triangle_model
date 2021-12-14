@@ -31,6 +31,7 @@ WEIGHTS_AND_BIASES["sem_pho"] = (
 WEIGHTS_AND_BIASES["pho_pho"] = ("w_pc", "w_cp", "bias_p", "bias_cpp")
 WEIGHTS_AND_BIASES["sem_sem"] = ("w_sc", "w_cs", "bias_s", "bias_css")
 WEIGHTS_AND_BIASES["ort_sem"] = (
+    "w_dos",
     "w_hos_oh",
     "w_hos_hs",
     "bias_hos",
@@ -40,6 +41,7 @@ WEIGHTS_AND_BIASES["ort_sem"] = (
     "bias_css",
 )
 WEIGHTS_AND_BIASES["ort_pho"] = (
+    "w_dop",
     "w_hop_oh",
     "w_hop_hp",
     "bias_hop",
@@ -56,6 +58,8 @@ WEIGHTS_AND_BIASES["ort_pho"] = (
 # WEIGHTS_AND_BIASES["ort_pho"] = ("w_hop_oh", "w_hop_hp", "bias_hop")
 
 WEIGHTS_AND_BIASES["triangle"] = (
+    "w_dop",
+    "w_dos",
     "w_hos_oh",
     "w_hos_hs",
     "bias_hos",
@@ -78,6 +82,7 @@ WEIGHTS_AND_BIASES["triangle"] = (
     # "bias_hsp",
 )
 
+WEIGHTS_AND_BIASES["exp_os_ff"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
 
 IN_OUT = {}
 IN_OUT["triangle"] = ("ort", ["pho", "sem"])
@@ -95,7 +100,7 @@ IN_OUT["exp_ops"] = ("ort", "sem")
 IN_OUT["exp_os"] = ("ort", "sem")
 IN_OUT["exp_op"] = ("ort", "pho")
 
-WEIGHTS_AND_BIASES["exp_os_ff"] = ("w_hos_oh", "w_hos_hs", "bias_hos", "bias_s")
+
 IN_OUT["exp_os_ff"] = ("ort", "sem")
 
 
@@ -107,8 +112,8 @@ LAYERS = ("pho", "sem", "hos", "hop", "css", "cpp", "hps", "hsp")
 CONNECTIONS = {}
 CONNECTIONS["hos"] = ("w_hos_oh", "bias_hos")
 CONNECTIONS["hop"] = ("w_hop_oh", "bias_hop")
-CONNECTIONS["sem"] = ("w_hos_hs", "w_hps_hs", "w_cs", "bias_s")
-CONNECTIONS["pho"] = ("w_hop_hp", "w_hsp_hp", "w_cp", "bias_p")
+CONNECTIONS["sem"] = ("w_dos", "w_hos_hs", "w_hps_hs", "w_cs", "bias_s")
+CONNECTIONS["pho"] = ("w_dop", "w_hop_hp", "w_hsp_hp", "w_cp", "bias_p")
 CONNECTIONS["css"] = ("w_sc", "bias_css")
 CONNECTIONS["cpp"] = ("w_pc", "bias_cpp")
 CONNECTIONS["hps"] = ("w_hps_ph", "bias_hps")
@@ -122,7 +127,7 @@ class TriangleModel(tf.keras.Model):
     """
 
     INPUT_ARRAY_NAMES = (
-        "input_hos",  # time-averaged input
+        "input_hos",  # sum time-averaged input + bias
         "input_hop",
         "input_hps",
         "input_hsp",
@@ -130,12 +135,14 @@ class TriangleModel(tf.keras.Model):
         "input_cpp",
         "input_sem",
         "input_pho",
-        "input_hps_hs",  # raw inputs
+        "input_hps_hs",  # raw time-averaged inputs
         "input_css_cs",
         "input_hos_hs",
         "input_hsp_hp",
         "input_cpp_cp",
         "input_hop_hp",
+        "input_dop_op",
+        "input_dos_os",
     )
 
     ACTIVATION_ARRAY_NAMES = ("hos", "hop", "hps", "hsp", "css", "cpp", "sem", "pho")
@@ -302,6 +309,13 @@ class TriangleModel(tf.keras.Model):
 
         # OS branch
 
+        self.w_dos = self.add_weight(
+            shape=(self.ort_units, self.sem_units),
+            name="w_dos",
+            initializer=weight_initializer,
+            trainable=True,
+        )
+
         self.w_hos_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_os_units),
             name="w_hos_oh",
@@ -324,6 +338,12 @@ class TriangleModel(tf.keras.Model):
         )
 
         # OP branch
+        self.w_dop = self.add_weight(
+            shape=(self.ort_units, self.pho_units),
+            name="w_dop",
+            initializer=weight_initializer,
+            trainable=True,
+        )
 
         self.w_hop_oh = self.add_weight(
             shape=(self.ort_units, self.hidden_op_units),
@@ -349,7 +369,7 @@ class TriangleModel(tf.keras.Model):
         self.built = True
 
     def set_active_task(self, task: str):
-        """Method for switching task."""
+        """User interface for switching task."""
         self.active_task = task
 
     def call(self, inputs, training=None) -> dict:
@@ -362,7 +382,6 @@ class TriangleModel(tf.keras.Model):
         return: a dictionary of input and activation depending on task
         """
 
-        # getattr(self, f"task_{self.active_task}")(inputs, training)
         return self.tasks[self.active_task](inputs, training)
 
     def task_pho_sem(self, inputs, training=None):
@@ -374,7 +393,6 @@ class TriangleModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (PS) #####
@@ -445,7 +463,6 @@ class TriangleModel(tf.keras.Model):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
             w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (SP) #####
             new_inputs["input_hsp"] = (
@@ -514,7 +531,6 @@ class TriangleModel(tf.keras.Model):
         for t in range(self.n_timesteps):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
-            w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
             w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OS) #####
@@ -525,8 +541,12 @@ class TriangleModel(tf.keras.Model):
             ##### Semantic layer #####
             new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
             new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            new_inputs["input_dos_os"] = tf.matmul(input[t], self.w_dos)  # Direct OS
             new_inputs["input_sem"] = (
-                new_inputs["input_css_cs"] + new_inputs["input_hos_hs"] + bias_s
+                new_inputs["input_css_cs"]
+                + new_inputs["input_hos_hs"]
+                + new_inputs["input_dos_os"]
+                + bias_s
             )
 
             ##### Semantic Cleanup layer #####
@@ -577,7 +597,6 @@ class TriangleModel(tf.keras.Model):
             # Inject fresh white noise in each tick to weights and biases
             # If noise is 0 or at evaluation phase (track by training flag), it will do nothing.
             w_pc, w_cp, bias_cpp, bias_p = self._inject_noise_to_all_pho(training)
-            w_sc, w_cs, bias_css, bias_s = self._inject_noise_to_all_sem(training)
 
             ##### Hidden layer (OP) #####
             new_inputs["input_hop"] = (
@@ -587,9 +606,13 @@ class TriangleModel(tf.keras.Model):
             ##### Phonology layer #####
             new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
             new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
+            new_inputs["input_dop_op"] = tf.matmul(inputs[t], self.w_dop)
 
             new_inputs["input_pho"] = (
-                new_inputs["input_cpp_cp"] + new_inputs["input_hop_hp"] + bias_p
+                new_inputs["input_cpp_cp"]
+                + new_inputs["input_hop_hp"]
+                + new_inputs["input_dop_op"]
+                + bias_p
             )
 
             ##### Phonology Cleanup layer #####
@@ -629,11 +652,13 @@ class TriangleModel(tf.keras.Model):
             new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
             new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
             new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            new_inputs["input_dos_os"] = tf.matmul(inputs[t], self.w_dos)
 
             new_inputs["input_sem"] = (
                 new_inputs["input_hps_hs"]
                 + new_inputs["input_css_cs"]
                 + new_inputs["input_hos_hs"]
+                + new_inputs["input_dos_os"]
                 + bias_s
             )
 
@@ -641,11 +666,13 @@ class TriangleModel(tf.keras.Model):
             new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
             new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
             new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
+            new_inputs["input_dop_op"] = tf.matmul(inputs[t], self.w_dop)
 
             new_inputs["input_pho"] = (
                 new_inputs["input_hsp_hp"]
                 + new_inputs["input_cpp_cp"]
                 + new_inputs["input_hop_hp"]
+                + new_inputs["input_dop_op"]
                 + bias_p
             )
 
@@ -698,7 +725,7 @@ class TriangleModel(tf.keras.Model):
             ##### Semantic layer #####
             new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
             new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
-            new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            # new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
 
             new_inputs["input_sem"] = (
                 new_inputs["input_hps_hs"]
@@ -711,11 +738,13 @@ class TriangleModel(tf.keras.Model):
             new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
             new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
             new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
+            new_inputs["input_dop_op"] = tf.matmul(inputs[t], self.w_dop)
 
             new_inputs["input_pho"] = (
                 new_inputs["input_hsp_hp"]
                 + new_inputs["input_cpp_cp"]
                 + new_inputs["input_hop_hp"]
+                + new_inputs["input_dop_op"]
                 + bias_p
             )
 
@@ -771,18 +800,20 @@ class TriangleModel(tf.keras.Model):
             new_inputs["input_hps_hs"] = tf.matmul(self.hps.read(t), self.w_hps_hs)
             new_inputs["input_css_cs"] = tf.matmul(self.css.read(t), w_cs)
             new_inputs["input_hos_hs"] = tf.matmul(self.hos.read(t), self.w_hos_hs)
+            new_inputs["input_dos_os"] = tf.matmul(inputs[t], self.w_dos)
 
             new_inputs["input_sem"] = (
                 new_inputs["input_hps_hs"]
                 + new_inputs["input_css_cs"]
                 + new_inputs["input_hos_hs"]
+                + new_inputs["input_dos_os"]
                 + bias_s
             )
 
             ##### Phonology layer #####
             new_inputs["input_hsp_hp"] = tf.matmul(self.hsp.read(t), self.w_hsp_hp)
             new_inputs["input_cpp_cp"] = tf.matmul(self.cpp.read(t), w_cp)
-            new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
+            # new_inputs["input_hop_hp"] = tf.matmul(self.hop.read(t), self.w_hop_hp)
 
             new_inputs["input_pho"] = (
                 new_inputs["input_hsp_hp"]
