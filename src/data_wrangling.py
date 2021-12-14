@@ -125,6 +125,20 @@ def check_oov_ort(tokenizers: List[Tokenizer], ort: List[str]) -> set:
     return oov_pool
 
 
+def save_tokenizers(tokenizers: List[Tokenizer], file: str) -> None:
+    """Save the tokenizers for each ort slot for later use."""
+    tokenizer_jsons = [t.to_json() for t in tokenizers]
+    with gzip.open(file, "wb") as f:
+        pickle.dump(tokenizer_jsons, f)
+
+
+def load_tokenizers(file: str) -> List[Tokenizer]:
+    """Load tokenizers from a pickle gzip file."""
+    with gzip.open(file, "rb") as f:
+        tokenizer_jsons = pickle.load(f)
+    return [tf.keras.preprocessing.text.tokenizer_from_json(x) for x in tokenizer_jsons]
+
+
 def get_homophones(train: pd.DataFrame) -> List[str]:
     """Create a list of homophones."""
     df = train.groupby("pho").count().reset_index()
