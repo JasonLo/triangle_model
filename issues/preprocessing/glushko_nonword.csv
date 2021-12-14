@@ -1,4 +1,4 @@
-id,cond,nonword,p,o
+id,cond,word,pho,ort
 0,Exception,coth,"['__kaT_____', '__koT_____']",___co_th______
 1,Exception,heen,['__hin_____'],___heen_______
 2,Exception,drood,"['_drUd_____', '_drud_____', '_dr^d_____']",__drood_______
