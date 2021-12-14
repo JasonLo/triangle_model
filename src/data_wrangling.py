@@ -14,11 +14,11 @@ tf_root = os.environ.get("TF_ROOT")
 # Preprocessing or convienience functions for looking at raw data
 
 
-def get_duplicates(df: pd.DataFrame) -> dict:
+def get_duplicates(df: pd.DataFrame, group: str) -> dict:
     """Analyze duplicates word and thier counts in a dataframe."""
-    duplicates = df.groupby(["word", "ort", "pho"]).size().reset_index(name="counts")
+    duplicates = df.groupby([group]).size().reset_index(name="counts")
     duplicates = duplicates[duplicates.counts > 1]
-    return dict(zip(duplicates.word, duplicates.counts))
+    return dict(zip(duplicates[group], duplicates.counts))
 
 
 def get_index_of_one(rep: list) -> list:
@@ -72,30 +72,63 @@ def trim_unused_slots(rep: list) -> list:
     return remove_slots(rep, unused_slots)
 
 
-def one_hot_ort_slot(slot_data: List[str]) -> np.array:
+def one_hot_ort_slot(slot_data: List[str], tokenizer: Tokenizer = None) -> np.array:
     """One-hot encode orthographic representation of one orthographic slot."""
 
-    t = Tokenizer(filters="", lower=False)
-    t.fit_on_texts(slot_data)
-    bin_data = t.texts_to_matrix(slot_data)
-    print(f"Token count: {t.word_docs}")
-    return bin_data[:, 1:]  # remove first column (padding)
+    if tokenizer is None:
+        tokenizer = Tokenizer(filters="", lower=False)
+        tokenizer.fit_on_texts(slot_data)
+    bin_data = tokenizer.texts_to_matrix(slot_data)
+    print(f"Token count: {tokenizer.word_docs}")
+    return bin_data[:, 1:], tokenizer  # remove first column (padding)
 
 
-def ort_to_binary(ort: List[str]) -> np.array:
+def ort_to_binary(ort: List[str], tokenizers: list = None) -> np.array:
     """Convert orthographic representation to binary.
 
     Replicating Jason Zevin's support.py (o_char), It one-hot encode each letter with independent dictionary in each slot.
     Finally, trimming the unused units.
+
+    Also export the tokenizers for each slot for later use.
     """
     n_slots = len(ort[0])
-
     bin_slot_data = []
-    for slot in range(n_slots):
-        this_slot_bin_data = one_hot_ort_slot([x[slot] for x in ort])
-        bin_slot_data.append(this_slot_bin_data)
 
-    return np.concatenate(bin_slot_data, axis=1)
+    if tokenizers is None:
+        tokenizers = [None] * n_slots
+
+    for slot in range(n_slots):
+        this_slot_bin_data, this_tokenizer = one_hot_ort_slot(
+            [x[slot] for x in ort], tokenizers[slot]
+        )
+        bin_slot_data.append(this_slot_bin_data)
+        tokenizers[slot] = this_tokenizer
+
+    return np.concatenate(bin_slot_data, axis=1), tokenizers
+
+
+def check_oov_ort(tokenizers: List[Tokenizer], ort: List[str]) -> set:
+    """Check if there are any out of vocabulary words in the orthographic representation."""
+    oov_pool = {}
+
+    for slot in range(10):
+        print(f"At slot {slot}:")
+        tokenizer_o = set(tokenizers[slot].word_index.keys())
+        print(f"    tokenizer: {tokenizer_o}")
+        unique_o = {o[slot] for o in ort}
+        print(f"    data: {unique_o}")
+        oov = unique_o.difference(tokenizer_o)  # Out of vocabulary.
+        print(f"    diff: {oov}")
+
+        oov_pool.update(oov)
+
+    return oov_pool
+
+
+def get_homophones(train: pd.DataFrame) -> List[str]:
+    """Create a list of homophones."""
+    df = train.groupby("pho").count().reset_index()
+    return df.loc[df.word > 1, "pho"].to_list()
 
 
 def gen_pkey(key_file: str = None) -> dict:
@@ -103,17 +136,19 @@ def gen_pkey(key_file: str = None) -> dict:
     See Harm & Seidenberg PDF file
     """
     if key_file is None:
-        mapping = os.path.join(tf_root, "dataset", "mappingv2.txt")
+        key_file = os.path.join(tf_root, "dataset", "mappingv2.txt")
 
-    mapping = pd.read_table(mapping, header=None, delim_whitespace=True)
+    mapping = pd.read_table(key_file, header=None, delim_whitespace=True)
     mapping_dict = mapping.set_index(0).T.to_dict("list")
     return mapping_dict
 
 
-def pho_to_binary(pho: List[str]) -> np.array:
+def pho_to_binary(pho: List[str], mapping: dict = None) -> np.array:
     """Convert phonological representation to binary."""
-    p_key = gen_pkey()
-    bin_length = len(p_key["_"])
+    if mapping is None:
+        mapping = gen_pkey()
+
+    bin_length = len(mapping["_"])
     n_slots = len(pho[0])
 
     # Preallocate the entire ouput
@@ -121,7 +156,7 @@ def pho_to_binary(pho: List[str]) -> np.array:
 
     for slot in range(n_slots):
         slot_data = pho.str.slice(start=slot, stop=slot + 1)
-        out = slot_data.map(p_key).to_list()
+        out = slot_data.map(mapping).to_list()
         binary_pho[:, range(slot * 25, (slot + 1) * 25)] = out
     return binary_pho
 
