@@ -197,6 +197,8 @@ class TriangleModel(tf.keras.Model):
             "input_hsp_hp": self.pho_units,
             "input_cpp_cp": self.pho_units,
             "input_hop_hp": self.pho_units,
+            "input_dop_op": self.pho_units,
+            "input_dos_os": self.sem_units,
         }
 
     def build(self, input_shape=None):

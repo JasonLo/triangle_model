@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.python.keras.metrics import MeanMetricWrapper
-from data_wrangling import get_batch_pronunciations_fast
+from data_wrangling import get_batch_pronunciations_fast, gen_pkey
 import pandas as pd
 import numpy as np
 import os
@@ -129,9 +129,7 @@ class PhoAccuracy(tf.keras.metrics.Metric):
         self.out = self.add_weight(name="pho_accuracy", initializer="zeros")
 
         # Load pho key
-        pho_key_file = os.path.join(tf_root, "dataset", "mappingv2.txt")
-        mapping = pd.read_table(pho_key_file, header=None, delim_whitespace=True)
-        pho_key = mapping.set_index(0).T.to_dict("list")
+        pho_key = gen_pkey()
 
         self.pho_map_keys = tf.constant(list(pho_key.keys()))
         self.pho_map_values = tf.constant([v for v in pho_key.values()], tf.float32)

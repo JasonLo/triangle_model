@@ -150,7 +150,7 @@ def gen_pkey(key_file: str = None) -> dict:
     See Harm & Seidenberg PDF file
     """
     if key_file is None:
-        key_file = os.path.join(tf_root, "dataset", "mappingv2.txt")
+        key_file = os.path.join(tf_root, "dataset", "raw", "Chang", "mapping")
 
     mapping = pd.read_table(key_file, header=None, delim_whitespace=True)
     mapping_dict = mapping.set_index(0).T.to_dict("list")
