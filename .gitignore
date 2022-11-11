@@ -22,3 +22,5 @@ package.json
 .env
 tmp/
 triangle.code-workspace
+experiments/
+issues/
